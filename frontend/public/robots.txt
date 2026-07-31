@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /checkout/
+Disallow: /account/
+Disallow: /cart/
+Disallow: /api/
+
+Sitemap: https://www.kokanghar.in/sitemap.xml
