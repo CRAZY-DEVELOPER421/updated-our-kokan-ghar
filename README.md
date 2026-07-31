@@ -2,7 +2,7 @@
 
 # 🌴 Konkan Bazaar — Authentic Konkan Products Online
 
-An Amazon-style e-commerce marketplace exclusively for authentic Konkan region products from the Konkan coast of Maharashtra, Goa, and Karnataka.
+An e-commerce marketplace exclusively for authentic Konkan region products from the Konkan coast of Maharashtra, Goa, and Karnataka.
 
 ## Tech Stack
 
