@@ -258,8 +258,8 @@ export default function ProductCard({ product, view = 'grid' }) {
         href={`/products/${product.slug}`}
         className="block bg-white"
       >
-        {/* Fixed card height (108px) + overflow-hidden: every card stays this exact height regardless of title/content length; ~104px usable = 95px image + slack */}
-        <div className="flex gap-2.5 px-3 py-0.5 h-[108px] overflow-hidden">
+        {/* Fixed card height (120px) + overflow-hidden: every card stays this exact height regardless of title/content length; ~104px usable area = 95px image + 8px breathing room each side + slack for the ~95px text block */}
+        <div className="flex gap-2.5 px-3 py-2 h-[120px] overflow-hidden">
           {/* ── Left: Product Image (95px square, rounded 8px) ── */}
           <div className="relative w-[95px] h-[95px] shrink-0 rounded-lg overflow-hidden bg-[#f5f0eb]">
             {product.primary_image && !imageError ? (
