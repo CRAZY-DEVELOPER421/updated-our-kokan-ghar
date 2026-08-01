@@ -61,8 +61,16 @@ export default function MobileBottomNav() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-[100] bg-white flex items-center justify-around"
+      className="bg-white flex items-center justify-around"
       style={{
+        // Explicit inline fixed positioning — immune to any ancestor transform,
+        // Tailwind purge, or class-override edge case that could push the bar
+        // mid-page. Stays pinned to the viewport bottom regardless of scroll.
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        zIndex: 100,
         height: '60px',
         borderTop: '1px solid #E5E5E5',
         paddingBottom: 'env(safe-area-inset-bottom, 0px)',

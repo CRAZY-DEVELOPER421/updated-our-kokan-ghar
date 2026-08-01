@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { MapPin, Phone, Mail, Clock, ChevronRight } from 'lucide-react';
 import { useTranslation } from '@/lib/i18n/I18nProvider';
 import api from '@/lib/api';
+import { getImageUrl } from '@/lib/utils';
 
 const quickLinks = [
   { key: 'about_us', href: '/about', ns: 'footer' },
@@ -101,6 +102,7 @@ export default function Footer() {
   const activeSocials = SOCIAL_KEYS.filter(k => s[k]);
   const phone = s.phone_primary || '+919876543210';
   const email = s.email_primary || 'hello@kokanghar.in';
+  const customLogo = getImageUrl(s.site_logo);
 
   return (
     <footer className="text-konkan-cream" style={{ backgroundColor: '#3D2B1F', backgroundImage: 'none' }}>
@@ -110,13 +112,18 @@ export default function Footer() {
           {/* Column 1 - Logo & About */}
           <div className="lg:col-span-1">
             <Link href="/" className="inline-block mb-4">
-              <Image
-                src="/images/logo/footer.png"
-                alt="Kokan Ghar Logo"
-                width={140}
-                height={48}
-                loading="lazy"
-              />
+              {customLogo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={customLogo} alt="Kokan Ghar Logo" className="h-12 w-auto" />
+              ) : (
+                <Image
+                  src="/images/logo/footer.png"
+                  alt="Kokan Ghar Logo"
+                  width={140}
+                  height={48}
+                  loading="lazy"
+                />
+              )}
             </Link>
             <p className="text-konkan-sand/80 text-sm leading-relaxed mb-6">
               {t('footer.description')}

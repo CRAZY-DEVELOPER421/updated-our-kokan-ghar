@@ -2,6 +2,8 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
+import { useSiteSettings } from '@/lib/hooks/useSiteSettings';
+import { getImageUrl } from '@/lib/utils';
 
 const shopLinks = [
   { label: 'All Products', href: '/products' },
@@ -30,6 +32,9 @@ const policyLinks = [
 ];
 
 export default function MobileFooter() {
+  const { data: settingsData } = useSiteSettings();
+  const customLogo = getImageUrl(settingsData?.settings?.site_logo);
+
   return (
     <footer
       style={{
@@ -137,39 +142,46 @@ export default function MobileFooter() {
         }}
       >
         <div className="flex items-center gap-2">
-          {/* Logo icon: green circle with white palm/hut glyph */}
-          <div
-            className="flex items-center justify-center shrink-0"
-            style={{
-              width: '28px',
-              height: '28px',
-              borderRadius: '50%',
-              backgroundColor: '#3A7D5C',
-            }}
-          >
-            <svg
-              className="w-4 h-4 text-white"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
-              />
-            </svg>
-          </div>
-          <span
-            className="font-bold"
-            style={{
-              fontSize: '16px',
-              color: '#FFFFFF',
-            }}
-          >
-            Konkan Ghar
-          </span>
+          {customLogo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={customLogo} alt="Kokan Ghar Logo" className="h-7 w-auto" />
+          ) : (
+            <>
+              {/* Logo icon: green circle with white palm/hut glyph */}
+              <div
+                className="flex items-center justify-center shrink-0"
+                style={{
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '50%',
+                  backgroundColor: '#3A7D5C',
+                }}
+              >
+                <svg
+                  className="w-4 h-4 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+                  />
+                </svg>
+              </div>
+              <span
+                className="font-bold"
+                style={{
+                  fontSize: '16px',
+                  color: '#FFFFFF',
+                }}
+              >
+                Konkan Ghar
+              </span>
+            </>
+          )}
         </div>
         <p
           className="mt-1.5"

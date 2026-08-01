@@ -2,12 +2,32 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useQuery } from '@tanstack/react-query';
 import useCartStore from '@/lib/store/cartStore';
+import useAuthStore from '@/lib/store/authStore';
+import api from '@/lib/api';
+import { useSiteSettings } from '@/lib/hooks/useSiteSettings';
+import { getImageUrl } from '@/lib/utils';
 
 export default function MobileHeader() {
   const [mounted, setMounted] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const cartCount = useCartStore((s) => s.itemCount);
+  const { isAuthenticated } = useAuthStore();
+  const { data: settingsData } = useSiteSettings();
+  const customLogo = getImageUrl(settingsData?.settings?.site_logo);
+
+  // Unread notification count — real data from GET /notifications (unread_count)
+  const { data: unreadCount = 0 } = useQuery({
+    queryKey: ['notif-unread-count'],
+    queryFn: async () => {
+      const res = await api.get('/notifications?limit=1');
+      return res.data?.data?.unread_count || 0;
+    },
+    enabled: isAuthenticated,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
+  });
 
   useEffect(() => {
     setMounted(true);
@@ -58,24 +78,31 @@ export default function MobileHeader() {
 
           {/* Center: Logo */}
           <Link href="/" className="flex items-center gap-2 shrink-0">
-            <div
-              className="w-7 h-7 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: '#3A7D5C' }}
-            >
-              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-              </svg>
-            </div>
-            <span
-              className="font-bold text-[18px]"
-              style={{ fontFamily: "'Poppins', sans-serif", color: '#1B3B2F' }}
-            >
-              Konkan Ghar
-            </span>
+            {customLogo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={customLogo} alt="Kokan Ghar Logo" className="h-8 w-auto" />
+            ) : (
+              <>
+                <div
+                  className="w-7 h-7 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: '#3A7D5C' }}
+                >
+                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                  </svg>
+                </div>
+                <span
+                  className="font-bold text-[18px]"
+                  style={{ fontFamily: "'Poppins', sans-serif", color: '#1B3B2F' }}
+                >
+                  Konkan Ghar
+                </span>
+              </>
+            )}
           </Link>
 
-          {/* Right: Search + Cart */}
-          <div className="flex items-center gap-4">
+          {/* Right: Search + Bell + Cart */}
+          <div className="flex items-center gap-1 sm:gap-2">
             {/* Search */}
             <Link
               href="/search"
@@ -86,6 +113,26 @@ export default function MobileHeader() {
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
+            </Link>
+
+            {/* Notifications */}
+            <Link
+              href="/account/notifications"
+              className="relative flex items-center justify-center min-w-[44px] min-h-[44px]"
+              style={{ color: '#1A1A1A' }}
+              aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+              {mounted && isAuthenticated && unreadCount > 0 && (
+                <span
+                  className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
+                  style={{ backgroundColor: '#F5821F' }}
+                >
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
             </Link>
 
             {/* Cart */}
@@ -134,10 +181,15 @@ export default function MobileHeader() {
           onClick={(e) => e.stopPropagation()}
         >
             <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-              <span className="font-bold text-base" style={{ fontFamily: "'Poppins', sans-serif", color: '#1B3B2F' }}>
-                Konkan Ghar
-              </span>
-              <button onClick={() => setMenuOpen(false)} className="min-w-[44px] min-h-[44px] flex items-center justify-center -mr-2" style={{ color: '#8A8A8A' }}>
+              {customLogo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={customLogo} alt="Kokan Ghar Logo" className="h-7 w-auto" />
+              ) : (
+                <span className="font-bold text-base" style={{ fontFamily: "'Poppins', sans-serif", color: '#1B3B2F' }}>
+                  Konkan Ghar
+                </span>
+              )}
+              <button onClick={() => setMenuOpen(false)} className="min-w-[44px] min-h-[44px] flex items-center justify-center -mr-2" style={{ color: '#8A8A8A' }} suppressHydrationWarning>
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>

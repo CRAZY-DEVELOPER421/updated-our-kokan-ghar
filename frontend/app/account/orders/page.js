@@ -24,7 +24,7 @@ export default function OrdersPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const page = parseInt(searchParams.get('page') || '1');
-  const [statusFilter, setStatusFilter] = useState('All');
+  const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || 'All');
 
   const apiParams = useMemo(() => {
     const p = { page, limit: 10 };
@@ -67,11 +67,11 @@ export default function OrdersPage() {
     <div className="space-y-4">
       {/* Status Filter Tabs */}
       <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-1">
-        {STATUS_OPTIONS.map((s) => (
-          <button
-            key={s}              onClick={() => {
+        {STATUS_OPTIONS.map((s) => (            <button
+              key={s}              onClick={() => {
                 setStatusFilter(s);
                 const params = new URLSearchParams(searchParams.toString());
+                if (s === 'All') params.delete('status'); else params.set('status', s);
                 params.delete('page');
                 router.replace(`/account/orders?${params.toString()}`);
               }}

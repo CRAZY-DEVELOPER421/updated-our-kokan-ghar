@@ -2,9 +2,9 @@ export default function AdminLoading() {
   return (
     <div className="min-h-screen bg-konkan-cream/80">
       {/* Simulated sidebar — hidden on mobile, shown on lg */}
-      <aside className="fixed top-0 left-0 z-30 h-screen w-64 bg-[#1B4332] hidden lg:flex flex-col">
+      <aside className="fixed top-0 left-0 z-30 h-screen w-64 bg-konkan-earth hidden lg:flex flex-col">
         {/* Brand */}
-        <div className="flex items-center h-16 px-4 border-b border-konkan-green-primary/30">
+        <div className="flex items-center h-16 px-4 border-b border-white/10">
           <div className="flex items-center gap-2.5">
             <div className="w-7 h-7 rounded bg-konkan-saffron/50 animate-pulse" />
             <div className="space-y-1">
@@ -32,7 +32,7 @@ export default function AdminLoading() {
         </nav>
 
         {/* Footer */}
-        <div className="border-t border-konkan-green-primary/30 p-3">
+        <div className="border-t border-white/10 p-3">
           <div className="flex items-center gap-3 px-3 py-2">
             <div className="w-5 h-5 rounded bg-white/10 animate-pulse" />
             <div className="w-12 h-3 rounded bg-white/10 animate-pulse" />

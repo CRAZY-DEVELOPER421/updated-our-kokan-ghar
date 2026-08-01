@@ -60,6 +60,9 @@ const orderRoutes = require('./routes/order.routes');
 const paymentRoutes = require('./routes/payment.routes');
 const searchRoutes = require('./routes/search.routes');
 const couponRoutes = require('./routes/coupon.routes');
+const flashSaleRoutes = require('./routes/flashSale.routes');
+const bankOfferRoutes = require('./routes/bankOffer.routes');
+const bundleRoutes = require('./routes/bundle.routes');
 const reviewRoutes = require('./routes/review.routes');
 const notificationRoutes = require('./routes/notification.routes');
 const adminRoutes = require('./routes/admin.routes');
@@ -77,6 +80,9 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/coupons', couponRoutes);
+app.use('/api/flash-sales', flashSaleRoutes);
+app.use('/api/bank-offers', bankOfferRoutes);
+app.use('/api/bundles', bundleRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin', adminRoutes);
@@ -87,6 +93,10 @@ app.use('/api/contact', contactRoutes);
 // CMS (Team, Blog, Video, Media)
 const cmsRoutes = require('./routes/cms.routes');
 app.use('/api/cms', cmsRoutes);
+
+// Customer Service Pages (Terms, Returns, Shipping, FAQ, Privacy, custom)
+const customerServiceRoutes = require('./routes/customerService.routes');
+app.use('/api/customer-service', customerServiceRoutes);
 
 // Settings (public - for frontend to fetch contact info, social links)
 const settingsController = require('./controllers/settings.controller');

@@ -6,6 +6,68 @@ const { generateUniqueSlug } = require('../utils/generateSlug');
 const { createNotification } = require('../services/notification.service');
 
 // ===== PRODUCT MANAGEMENT =====
+
+// Ensures bundles + bundle_products tables exist (with product_id link to the
+// combo product). Safe to call on every create/update — no-op when present.
+const columnExists = async (conn, tableName, columnName) => {
+  const [rows] = await conn.query(
+    'SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?',
+    [tableName, columnName]
+  );
+  return rows.length > 0;
+};
+
+const ensureBundleTables = async (conn) => {
+  await conn.query(`CREATE TABLE IF NOT EXISTS bundles (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    product_id INT UNSIGNED,
+    name VARCHAR(255) NOT NULL,
+    slug VARCHAR(280) NOT NULL UNIQUE,
+    description VARCHAR(500),
+    bundle_price DECIMAL(10,2) NOT NULL,
+    original_price DECIMAL(10,2) NOT NULL,
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    valid_from DATETIME,
+    valid_until DATETIME,
+    sort_order INT NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_bundles_active (is_active, valid_until),
+    INDEX idx_bundles_sort (sort_order),
+    INDEX idx_bundles_product (product_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+
+  // Self-heal: if the table pre-existed (e.g. from seed-bundles.js) without
+  // the product_id column, add it so combo saves never fail.
+  if (!(await columnExists(conn, 'bundles', 'product_id'))) {
+    await conn.query('ALTER TABLE bundles ADD COLUMN product_id INT UNSIGNED NULL AFTER id, ADD INDEX idx_bundles_product (product_id)');
+  }
+
+  await conn.query(`CREATE TABLE IF NOT EXISTS bundle_products (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    bundle_id INT UNSIGNED NOT NULL,
+    product_id INT UNSIGNED NOT NULL,
+    quantity INT NOT NULL DEFAULT 1,
+    UNIQUE KEY uk_bundle_product (bundle_id, product_id),
+    FOREIGN KEY (bundle_id) REFERENCES bundles(id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+    INDEX idx_bp_product (product_id)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+};
+
+// Saves bundle members (bundle_products) for a bundle, replacing any existing ones
+const syncBundleProducts = async (conn, bundleId, items) => {
+  await conn.query('DELETE FROM bundle_products WHERE bundle_id = ?', [bundleId]);
+  if (Array.isArray(items)) {
+    for (const item of items) {
+      if (!item || !item.product_id) continue;
+      await conn.query(
+        'INSERT INTO bundle_products (bundle_id, product_id, quantity) VALUES (?, ?, ?)',
+        [bundleId, item.product_id, item.quantity || 1]
+      );
+    }
+  }
+};
+
 const getProducts = asyncHandler(async (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 20;
@@ -45,10 +107,19 @@ const getProducts = asyncHandler(async (req, res) => {
 
   const [countResult] = await pool.query(countQuery, params);
 
+  // Guard the is_bundle flag: only reference the bundles table if the combo
+  // schema (product_id column) is present, otherwise the whole products list
+  // would fail on databases that only have the legacy bundles table.
+  const hasBundleProductCol = await columnExists(pool, 'bundles', 'product_id');
+  const bundleFlag = hasBundleProductCol
+    ? 'EXISTS(SELECT 1 FROM bundles b WHERE b.product_id = p.id) as is_bundle,'
+    : '0 as is_bundle,';
+
   // Build main query
   let mainQuery = `
     SELECT p.*,
       c.name as category_name,
+      ${bundleFlag}
       (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = 1 LIMIT 1) as image
     FROM products p
     LEFT JOIN categories c ON p.category_id = c.id
@@ -59,6 +130,7 @@ const getProducts = asyncHandler(async (req, res) => {
     mainQuery = `
       SELECT p.*,
         c.name as category_name,
+        ${bundleFlag}
         (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = 1 LIMIT 1) as image
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.id
@@ -68,6 +140,7 @@ const getProducts = asyncHandler(async (req, res) => {
     mainQuery = `
       SELECT p.*,
         c.name as category_name,
+        ${bundleFlag}
         (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = 1 LIMIT 1) as image
       FROM products p
       LEFT JOIN categories c ON p.category_id = c.id
@@ -87,17 +160,40 @@ const getProducts = asyncHandler(async (req, res) => {
 });
 
 const createProduct = asyncHandler(async (req, res) => {
-  const { name, description, short_description, price, mrp, stock_quantity, sku, category_id, brand, weight_grams, unit, is_featured, is_bestseller, is_seasonal, is_organic, region_origin, shelf_life_days, ingredients, nutritional_info, storage_instructions } = req.body;
+  const { name, description, short_description, price, mrp, stock_quantity, sku, category_id, brand, weight_grams, unit, is_featured, is_bestseller, is_seasonal, is_organic, region_origin, shelf_life_days, ingredients, nutritional_info, storage_instructions, is_active, product_type, bundle_products, bundle_valid_from, bundle_valid_until } = req.body;
 
   const slug = await generateUniqueSlug(name, 'products', pool);
 
-  const [result] = await pool.query(
-    `INSERT INTO products (name, slug, description, short_description, price, mrp, stock_quantity, sku, category_id, brand, weight_grams, unit, is_featured, is_bestseller, is_seasonal, is_organic, region_origin, shelf_life_days, ingredients, nutritional_info, storage_instructions)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [name, slug, description, short_description, price, mrp, stock_quantity, sku, category_id, brand, weight_grams, unit, is_featured || 0, is_bestseller || 0, is_seasonal || 0, is_organic || 0, region_origin, shelf_life_days, ingredients, nutritional_info ? JSON.stringify(nutritional_info) : null, storage_instructions]
-  );
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
 
-  return ApiResponse.created(res, { id: result.insertId, slug }, 'Product created.');
+    const [result] = await conn.query(
+      `INSERT INTO products (name, slug, description, short_description, price, mrp, stock_quantity, sku, category_id, brand, weight_grams, unit, is_featured, is_bestseller, is_seasonal, is_organic, region_origin, shelf_life_days, ingredients, nutritional_info, storage_instructions, is_active)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [name, slug, description, short_description, price, mrp, stock_quantity, sku, category_id, brand, weight_grams, unit, is_featured || 0, is_bestseller || 0, is_seasonal || 0, is_organic || 0, region_origin, shelf_life_days, ingredients, nutritional_info ? JSON.stringify(nutritional_info) : null, storage_instructions, is_active !== undefined ? is_active : 1]
+    );
+
+    // Combo/bundle: create a linked bundle record + member mapping
+    if (product_type === 'combo') {
+      await ensureBundleTables(conn);
+      const bundleSlug = await generateUniqueSlug(name, 'bundles', conn);
+      const [bundleResult] = await conn.query(
+        `INSERT INTO bundles (product_id, name, slug, description, bundle_price, original_price, is_active, valid_from, valid_until, sort_order)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+        [result.insertId, name, bundleSlug, short_description || description || null, price, mrp, is_active !== undefined ? is_active : 1, bundle_valid_from || null, bundle_valid_until || null]
+      );
+      await syncBundleProducts(conn, bundleResult.insertId, bundle_products);
+    }
+
+    await conn.commit();
+    return ApiResponse.created(res, { id: result.insertId, slug }, 'Product created.');
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
 });
 
 const updateProduct = asyncHandler(async (req, res) => {
@@ -108,7 +204,7 @@ const updateProduct = asyncHandler(async (req, res) => {
   const values = [];
 
   for (const [key, value] of Object.entries(updates)) {
-    if (value !== undefined && key !== 'id' && key !== 'slug') {
+    if (value !== undefined && key !== 'id' && key !== 'slug' && key !== 'product_type' && key !== 'bundle_products' && key !== 'bundle_valid_from' && key !== 'bundle_valid_until') {
       if (key === 'nutritional_info') {
         fields.push(`${key} = ?`);
         values.push(JSON.stringify(value));
@@ -119,22 +215,84 @@ const updateProduct = asyncHandler(async (req, res) => {
     }
   }
 
-  if (fields.length === 0) {
+  if (fields.length === 0 && updates.product_type !== 'combo') {
     return ApiResponse.error(res, 'No fields to update.', 400);
   }
 
   values.push(id);
-  await pool.query(
-    `UPDATE products SET ${fields.join(', ')} WHERE id = ?`,
-    values
-  );
 
-  return ApiResponse.success(res, {}, 'Product updated.');
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    if (fields.length > 0) {
+      await conn.query(
+        `UPDATE products SET ${fields.join(', ')} WHERE id = ?`,
+        values
+      );
+    }
+
+    // Combo/bundle sync: create-or-update linked bundle + refresh members
+    if (updates.product_type === 'combo') {
+      await ensureBundleTables(conn);
+      const [existing] = await conn.query(
+        'SELECT id FROM bundles WHERE product_id = ?',
+        [id]
+      );
+      const bundleName = updates.name || updates.bundle_name || 'Combo Pack';
+      if (existing.length > 0) {
+        const bundleId = existing[0].id;
+        await conn.query(
+          `UPDATE bundles SET name = ?, description = ?, bundle_price = ?, original_price = ?, is_active = ?, valid_from = ?, valid_until = ? WHERE id = ?`,
+          [bundleName, updates.short_description || updates.description || null, updates.price || 0, updates.mrp || 0, updates.is_active !== undefined ? updates.is_active : 1, updates.bundle_valid_from || null, updates.bundle_valid_until || null, bundleId]
+        );
+        await syncBundleProducts(conn, bundleId, updates.bundle_products);
+      } else {
+        const bundleSlug = await generateUniqueSlug(bundleName, 'bundles', conn);
+        const [bundleResult] = await conn.query(
+          `INSERT INTO bundles (product_id, name, slug, description, bundle_price, original_price, is_active, valid_from, valid_until, sort_order)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+          [id, bundleName, bundleSlug, updates.short_description || updates.description || null, updates.price || 0, updates.mrp || 0, updates.is_active !== undefined ? updates.is_active : 1, updates.bundle_valid_from || null, updates.bundle_valid_until || null]
+        );
+        await syncBundleProducts(conn, bundleResult.insertId, updates.bundle_products);
+      }
+    } else if (updates.product_type === 'single' && (await columnExists(conn, 'bundles', 'product_id'))) {
+      // Combo → Single: remove the linked bundle so it stops appearing on the Offers page
+      const [existing] = await conn.query('SELECT id FROM bundles WHERE product_id = ? LIMIT 1', [id]);
+      if (existing.length > 0) {
+        await conn.query('DELETE FROM bundles WHERE product_id = ?', [id]);
+      }
+    }
+
+    await conn.commit();
+    return ApiResponse.success(res, {}, 'Product updated.');
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
 });
 
 const deleteProduct = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  await pool.query('DELETE FROM products WHERE id = ?', [id]);
+
+  // Remove linked bundle (bundle_products cascade via FK) if this was a combo
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    if (await columnExists(conn, 'bundles', 'product_id')) {
+      await conn.query('DELETE FROM bundles WHERE product_id = ?', [id]);
+    }
+    await conn.query('DELETE FROM products WHERE id = ?', [id]);
+    await conn.commit();
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+
   return ApiResponse.success(res, {}, 'Product deleted.');
 });
 
@@ -182,6 +340,33 @@ const getProductById = asyncHandler(async (req, res) => {
   product.variants = variants;
   product.tags = tags.map(t => t.tag);
   product.flash_sale = flashSale.length > 0 ? flashSale[0] : null;
+
+  // Attach bundle data if this product is a combo pack
+  // (guarded so a DB without the combo schema never breaks the edit page)
+  let bundles = [];
+  if (await columnExists(pool, 'bundles', 'product_id')) {
+    [bundles] = await pool.query(
+      'SELECT * FROM bundles WHERE product_id = ?',
+      [id]
+    );
+  }
+  if (bundles.length > 0) {
+    const bundle = bundles[0];
+    const [bundleProducts] = await pool.query(
+      `SELECT bp.product_id, bp.quantity,
+              p.name, p.slug, p.price, p.mrp,
+              (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = 1 LIMIT 1) AS primary_image
+       FROM bundle_products bp
+       JOIN products p ON bp.product_id = p.id
+       WHERE bp.bundle_id = ?
+       ORDER BY bp.id ASC`,
+      [bundle.id]
+    );
+    bundle.products = bundleProducts;
+    product.bundle = bundle;
+  } else {
+    product.bundle = null;
+  }
 
   try {
     product.nutritional_info = typeof product.nutritional_info === 'string'
@@ -443,6 +628,18 @@ const deleteBanner = asyncHandler(async (req, res) => {
 });
 
 // ===== FLASH SALE MANAGEMENT =====
+const getFlashSales = asyncHandler(async (req, res) => {
+  const [flashSales] = await pool.query(
+    `SELECT fs.*, p.name as product_name, p.slug as product_slug, p.price as product_price,
+      (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = 1 LIMIT 1) as product_image
+     FROM flash_sales fs
+     JOIN products p ON p.id = fs.product_id
+     ORDER BY fs.is_active DESC, fs.starts_at DESC`
+  );
+
+  return ApiResponse.success(res, { flashSales });
+});
+
 const createFlashSale = asyncHandler(async (req, res) => {
   const { product_id, sale_price, original_price, quantity_limit, starts_at, ends_at } = req.body;
 
@@ -452,6 +649,274 @@ const createFlashSale = asyncHandler(async (req, res) => {
   );
 
   return ApiResponse.created(res, { id: result.insertId }, 'Flash sale created.');
+});
+
+const updateFlashSale = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const updates = req.body;
+  const fields = [];
+  const values = [];
+
+  for (const [key, value] of Object.entries(updates)) {
+    if (value !== undefined && key !== 'id') {
+      fields.push(`${key} = ?`);
+      values.push(value);
+    }
+  }
+
+  if (fields.length === 0) {
+    return ApiResponse.error(res, 'No fields to update.', 400);
+  }
+
+  values.push(id);
+  await pool.query(`UPDATE flash_sales SET ${fields.join(', ')} WHERE id = ?`, values);
+
+  return ApiResponse.success(res, {}, 'Flash sale updated.');
+});
+
+const deleteFlashSale = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  await pool.query('DELETE FROM flash_sales WHERE id = ?', [id]);
+  return ApiResponse.success(res, {}, 'Flash sale deleted.');
+});
+
+// ===== BANK OFFER MANAGEMENT =====
+const getBankOffers = asyncHandler(async (req, res) => {
+  const [bankOffers] = await pool.query(
+    'SELECT * FROM bank_offers ORDER BY sort_order ASC, id DESC'
+  );
+
+  return ApiResponse.success(res, { bankOffers });
+});
+
+const createBankOffer = asyncHandler(async (req, res) => {
+  const { bank_name, bank_code, logo_url, offer_title, offer_description, discount_type, min_order_amount, max_discount, is_active, valid_from, valid_until, terms_url, sort_order } = req.body;
+
+  if (!bank_name || !offer_title) {
+    return ApiResponse.error(res, 'Bank name and offer title are required.', 400);
+  }
+
+  const [result] = await pool.query(
+    `INSERT INTO bank_offers (bank_name, bank_code, logo_url, offer_title, offer_description, discount_type, min_order_amount, max_discount, is_active, valid_from, valid_until, terms_url, sort_order)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [bank_name, bank_code || null, logo_url || null, offer_title, offer_description || null, discount_type || 'credit_card', min_order_amount || 0, max_discount, is_active !== undefined ? is_active : 1, valid_from || null, valid_until || null, terms_url || null, sort_order || 0]
+  );
+
+  return ApiResponse.created(res, { id: result.insertId }, 'Bank offer created.');
+});
+
+const updateBankOffer = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const updates = req.body;
+  const fields = [];
+  const values = [];
+
+  for (const [key, value] of Object.entries(updates)) {
+    if (value !== undefined && key !== 'id') {
+      fields.push(`${key} = ?`);
+      values.push(value);
+    }
+  }
+
+  if (fields.length === 0) {
+    return ApiResponse.error(res, 'No fields to update.', 400);
+  }
+
+  values.push(id);
+  await pool.query(`UPDATE bank_offers SET ${fields.join(', ')} WHERE id = ?`, values);
+
+  return ApiResponse.success(res, {}, 'Bank offer updated.');
+});
+
+const deleteBankOffer = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  await pool.query('DELETE FROM bank_offers WHERE id = ?', [id]);
+  return ApiResponse.success(res, {}, 'Bank offer deleted.');
+});
+
+// ===== BUNDLE MANAGEMENT =====
+const getBundles = asyncHandler(async (req, res) => {
+  const [bundles] = await pool.query(
+    `SELECT b.*,
+            p.name as linked_product_name,
+            p.slug as linked_product_slug,
+            ROUND(((b.original_price - b.bundle_price) / NULLIF(b.original_price, 0)) * 100) AS savings_percent,
+            (SELECT COUNT(*) FROM bundle_products bp WHERE bp.bundle_id = b.id) AS product_count
+     FROM bundles b
+     LEFT JOIN products p ON p.id = b.product_id
+     ORDER BY b.sort_order ASC, b.id DESC`
+  );
+
+  // Attach each bundle's member products (name, slug, price, qty, primary image)
+  for (const bundle of bundles) {
+    const [products] = await pool.query(
+      `SELECT bp.product_id, bp.quantity,
+              p.name, p.slug, p.price, p.mrp,
+              (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = 1 LIMIT 1) AS primary_image
+       FROM bundle_products bp
+       JOIN products p ON bp.product_id = p.id
+       WHERE bp.bundle_id = ?
+       ORDER BY bp.id ASC`,
+      [bundle.id]
+    );
+    bundle.products = products;
+  }
+
+  return ApiResponse.success(res, { bundles });
+});
+
+const getBundleById = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const [bundles] = await pool.query(
+    `SELECT b.*, p.name as linked_product_name, p.slug as linked_product_slug,
+            ROUND(((b.original_price - b.bundle_price) / NULLIF(b.original_price, 0)) * 100) AS savings_percent
+     FROM bundles b
+     LEFT JOIN products p ON p.id = b.product_id
+     WHERE b.id = ?`,
+    [id]
+  );
+
+  if (bundles.length === 0) {
+    return ApiResponse.error(res, 'Bundle not found.', 404);
+  }
+
+  const bundle = bundles[0];
+
+  const [products] = await pool.query(
+    `SELECT bp.product_id, bp.quantity,
+            p.name, p.slug, p.price, p.mrp,
+            (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = 1 LIMIT 1) AS primary_image
+     FROM bundle_products bp
+     JOIN products p ON bp.product_id = p.id
+     WHERE bp.bundle_id = ?
+     ORDER BY bp.id ASC`,
+    [id]
+  );
+  bundle.products = products;
+
+  return ApiResponse.success(res, { bundle });
+});
+
+const createBundle = asyncHandler(async (req, res) => {
+  const { name, description, bundle_price, original_price, is_active, valid_from, valid_until, sort_order, product_id, bundle_products } = req.body;
+
+  if (!name || !bundle_price || !original_price) {
+    return ApiResponse.error(res, 'Name, bundle price and original price are required.', 400);
+  }
+  if (!Array.isArray(bundle_products) || bundle_products.length === 0) {
+    return ApiResponse.error(res, 'Select at least one product for this bundle.', 400);
+  }
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+    await ensureBundleTables(conn);
+
+    const bundleSlug = await generateUniqueSlug(name, 'bundles', conn);
+    const [result] = await conn.query(
+      `INSERT INTO bundles (product_id, name, slug, description, bundle_price, original_price, is_active, valid_from, valid_until, sort_order)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [product_id || null, name, bundleSlug, description || null, bundle_price, original_price, is_active !== undefined ? is_active : 1, valid_from || null, valid_until || null, sort_order || 0]
+    );
+
+    await syncBundleProducts(conn, result.insertId, bundle_products);
+
+    await conn.commit();
+    return ApiResponse.created(res, { id: result.insertId, slug: bundleSlug }, 'Bundle created.');
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+});
+
+const updateBundle = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const updates = req.body;
+
+  const fields = [];
+  const values = [];
+
+  for (const [key, value] of Object.entries(updates)) {
+    if (value !== undefined && key !== 'id' && key !== 'slug' && key !== 'bundle_products') {
+      fields.push(`${key} = ?`);
+      values.push(value);
+    }
+  }
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    if (fields.length > 0) {
+      values.push(id);
+      await conn.query(
+        `UPDATE bundles SET ${fields.join(', ')} WHERE id = ?`,
+        values
+      );
+    }
+
+    if (Array.isArray(updates.bundle_products)) {
+      await syncBundleProducts(conn, id, updates.bundle_products);
+    }
+
+    // Keep the linked combo product in sync so the storefront product grid,
+    // detail page, and the bundle deal always show the same values.
+    const [bundleRows] = await conn.query('SELECT product_id, name, description, bundle_price, original_price, is_active FROM bundles WHERE id = ?', [id]);
+    if (bundleRows.length > 0 && bundleRows[0].product_id) {
+      const b = bundleRows[0];
+      await conn.query(
+        'UPDATE products SET name = ?, short_description = ?, price = ?, mrp = ?, is_active = ? WHERE id = ?',
+        [b.name, b.description || null, b.bundle_price, b.original_price, b.is_active ? 1 : 0, b.product_id]
+      );
+    }
+
+    await conn.commit();
+    return ApiResponse.success(res, {}, 'Bundle updated.');
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
+});
+
+const deleteBundle = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const conn = await pool.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    // Grab linked product id before deleting so we can decide what to clean up
+    const [bundles] = await conn.query('SELECT product_id FROM bundles WHERE id = ?', [id]);
+    const productId = bundles.length > 0 ? bundles[0].product_id : null;
+
+    await conn.query('DELETE FROM bundles WHERE id = ?', [id]);
+
+    // If this bundle was created from a combo product, remove the linked product
+    // too — unless it is also a member of another bundle (avoid cascade-removing
+    // it from that bundle's members via the bundle_products FK).
+    if (productId) {
+      const [usedElsewhere] = await conn.query(
+        'SELECT COUNT(*) AS c FROM bundle_products WHERE product_id = ?',
+        [productId]
+      );
+      if (!usedElsewhere[0].c) {
+        await conn.query('DELETE FROM products WHERE id = ?', [productId]);
+      }
+    }
+
+    await conn.commit();
+    return ApiResponse.success(res, {}, 'Bundle deleted.');
+  } catch (err) {
+    await conn.rollback();
+    throw err;
+  } finally {
+    conn.release();
+  }
 });
 
 // ===== USER MANAGEMENT =====
@@ -525,7 +990,32 @@ const getUsers = asyncHandler(async (req, res) => {
     [limit, offset]
   );
 
-  return ApiResponse.paginated(res, { users }, {
+  // Live user stats for the admin Users page (last_login is updated on every login)
+  const [statsRows] = await pool.query(
+    `SELECT
+       COUNT(*) AS total,
+       SUM(is_active = 1) AS active,
+       SUM(is_active = 0) AS suspended,
+       SUM(role = 'admin') AS admins,
+       SUM(role = 'seller') AS sellers,
+       SUM(role = 'customer') AS customers,
+       SUM(last_login >= NOW() - INTERVAL 24 HOUR) AS logged_in_24h,
+       SUM(last_login >= NOW() - INTERVAL 7 DAY) AS logged_in_7d
+     FROM users`
+  );
+  const s = statsRows[0] || {};
+  const stats = {
+    total: Number(s.total) || 0,
+    active: Number(s.active) || 0,
+    suspended: Number(s.suspended) || 0,
+    admins: Number(s.admins) || 0,
+    sellers: Number(s.sellers) || 0,
+    customers: Number(s.customers) || 0,
+    logged_in_24h: Number(s.logged_in_24h) || 0,
+    logged_in_7d: Number(s.logged_in_7d) || 0,
+  };
+
+  return ApiResponse.paginated(res, { users, stats }, {
     page, limit,
     total: countResult[0].total,
     pages: Math.ceil(countResult[0].total / limit)
@@ -800,7 +1290,11 @@ module.exports = {
   // Banners
   createBanner, updateBanner, deleteBanner,
   // Flash Sales
-  createFlashSale,
+  getFlashSales, createFlashSale, updateFlashSale, deleteFlashSale,
+  // Bank Offers
+  getBankOffers, createBankOffer, updateBankOffer, deleteBankOffer,
+  // Bundles
+  getBundles, getBundleById, createBundle, updateBundle, deleteBundle,
   // Users
   getUsers, updateUserStatus, deleteUser,
   // Orders

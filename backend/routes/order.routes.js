@@ -38,6 +38,36 @@ const { orderValidation } = require('../middleware/validate');
  */
 router.get('/pending-count', verifyToken, orderController.getPendingCount);
 
+/**
+ * @swagger
+ * /orders:
+ *   get:
+ *     summary: Get the current user's orders (paginated, optional status filter)
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [pending, confirmed, processing, shipped, delivered, cancelled]
+ *     responses:
+ *       200:
+ *         description: Paginated list of the user's orders.
+ */
+router.get('/', verifyToken, orderController.getOrders);
+
 router.post('/create', verifyToken, orderValidation, orderController.createOrder);
 
 /**

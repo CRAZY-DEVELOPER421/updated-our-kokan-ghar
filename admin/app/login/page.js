@@ -43,7 +43,7 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#1B4332] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-konkan-earth flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">
@@ -51,23 +51,23 @@ export default function AdminLoginPage() {
             <span className="text-white text-lg font-bold">KB</span>
           </div>
           <h1 className="text-xl font-bold text-white tracking-tight">Control Panel</h1>
-          <p className="text-konkan-green-light/60 text-sm mt-1">Authorized access only</p>
+          <p className="text-[#C9A88C]/80 text-sm mt-1">Authorized access only</p>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="bg-[#1B4332]/80 backdrop-blur-sm border border-konkan-green-primary/30 rounded-xl p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="bg-konkan-earth/80 backdrop-blur-sm border border-white/10 rounded-xl p-6 space-y-5">
           <div>
-            <label className="block text-xs font-medium text-konkan-green-light/70 mb-1.5 tracking-wide uppercase">Access Key</label>
+            <label className="block text-xs font-medium text-[#E8D8C3]/80 mb-1.5 tracking-wide uppercase">Access Key</label>
             <div className="relative">
               <input
                 type="password"
                 value={password}
                 onChange={(e) => { setPassword(e.target.value); setError(''); }}
                 placeholder="Enter access key"
-                className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-2.5 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-konkan-green-primary/30 focus:border-konkan-green-primary/50 transition-all"
+                className="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white placeholder:text-[#C9A88C]/40 focus:outline-none focus:ring-2 focus:ring-konkan-saffron/30 focus:border-konkan-saffron/50 transition-all"
                 autoFocus
               />
-              <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-konkan-green-light/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#C9A88C]/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
             </div>
@@ -84,7 +84,7 @@ export default function AdminLoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 rounded-lg text-sm font-semibold text-white bg-konkan-green-primary hover:bg-konkan-green-dark disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 active:scale-[0.98]"
+            className="w-full py-2.5 rounded-lg text-sm font-semibold text-white bg-konkan-saffron hover:bg-[#D95F0E] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 active:scale-[0.98]"
           >
             {loading ? (
               <span className="flex items-center justify-center gap-2">
@@ -100,7 +100,7 @@ export default function AdminLoginPage() {
           </button>
         </form>
 
-        <p className="text-center text-konkan-green-light/30 text-xs mt-6">Secure management interface</p>
+        <p className="text-center text-[#C9A88C]/40 text-xs mt-6">Secure management interface</p>
       </div>
     </div>
   );

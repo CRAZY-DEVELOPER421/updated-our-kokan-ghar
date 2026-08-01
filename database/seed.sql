@@ -244,15 +244,17 @@ INSERT INTO product_images (product_id, image_url, alt_text, sort_order, is_prim
 -- ============================================================
 -- COUPONS
 -- ============================================================
+-- Coupons use relative dates so they remain active regardless of when the seed is run
 INSERT INTO coupons (code, type, value, min_order_amount, max_discount, usage_limit, is_active, valid_from, valid_until, description) VALUES
-('KONKAN100', 'flat', 100.00, 299.00, 100.00, 1000, 1, '2024-01-01', '2025-12-31', 'Flat ₹100 off on orders above ₹299'),
-('FIRST20', 'percentage', 20.00, 499.00, 200.00, 500, 1, '2024-01-01', '2025-12-31', '20% off on first order (max ₹200)'),
-('FREESHIP', 'free_shipping', 0.00, 499.00, NULL, 9999, 1, '2024-01-01', '2025-12-31', 'Free shipping on all orders above ₹499'),
-('CASHEW50', 'flat', 50.00, 299.00, 50.00, 500, 1, '2024-01-01', '2025-12-31', '₹50 off on cashew products (min ₹299)'),
-('MANGO20', 'percentage', 20.00, 999.00, 300.00, 300, 1, '2024-03-01', '2025-07-31', '20% off on mango products (min ₹999)'),
-('WELCOME15', 'percentage', 15.00, 0.00, 150.00, 2000, 1, '2024-01-01', '2025-12-31', '15% off welcome coupon for new customers'),
-('FESTIVE25', 'percentage', 25.00, 1499.00, 500.00, 200, 1, '2024-10-01', '2025-01-15', '25% off festive special (min ₹1499)'),
-('SEAFOOD10', 'percentage', 10.00, 749.00, 150.00, 500, 1, '2024-01-01', '2025-12-31', '10% off on seafood orders above ₹749');
+('KONKAN100', 'flat', 100.00, 299.00, 100.00, 1000, 1, DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_ADD(NOW(), INTERVAL 90 DAY), 'Flat ₹100 off on orders above ₹299'),
+('FIRST20', 'percentage', 20.00, 499.00, 200.00, 500, 1, DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_ADD(NOW(), INTERVAL 90 DAY), '20% off on first order (max ₹200)'),
+('FREESHIP', 'free_shipping', 0.00, 499.00, NULL, 9999, 1, DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_ADD(NOW(), INTERVAL 90 DAY), 'Free shipping on all orders above ₹499'),
+('CASHEW50', 'flat', 50.00, 299.00, 50.00, 500, 1, DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_ADD(NOW(), INTERVAL 90 DAY), '₹50 off on cashew products (min ₹299)'),
+('MANGO20', 'percentage', 20.00, 999.00, 300.00, 300, 1, DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_ADD(NOW(), INTERVAL 60 DAY), '20% off on mango products (min ₹999)'),
+('WELCOME15', 'percentage', 15.00, 0.00, 150.00, 2000, 1, DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_ADD(NOW(), INTERVAL 90 DAY), '15% off welcome coupon for new customers'),
+('FESTIVE25', 'percentage', 25.00, 1499.00, 500.00, 200, 1, DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_ADD(NOW(), INTERVAL 45 DAY), '25% off festive special (min ₹1499)'),
+('SEAFOOD10', 'percentage', 10.00, 749.00, 150.00, 500, 1, DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_ADD(NOW(), INTERVAL 90 DAY), '10% off on seafood orders above ₹749'),
+('BOGOSNACKS', 'bogo', 0.00, 499.00, NULL, 300, 1, DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_ADD(NOW(), INTERVAL 90 DAY), 'Buy 1 Get 1 on select traditional Konkan snacks');
 
 -- ============================================================
 -- BANNERS
@@ -272,6 +274,16 @@ INSERT INTO flash_sales (product_id, sale_price, original_price, quantity_limit,
 (1, 1599.00, 2499.00, 50, 15, NOW(), DATE_ADD(NOW(), INTERVAL 7 DAY), 1),
 (26, 349.00, 549.00, 100, 30, NOW(), DATE_ADD(NOW(), INTERVAL 5 DAY), 1),
 (116, 449.00, 699.00, 80, 25, NOW(), DATE_ADD(NOW(), INTERVAL 10 DAY), 1);
+
+-- ============================================================
+-- BANK OFFERS
+-- ============================================================
+INSERT INTO bank_offers (bank_name, bank_code, logo_url, offer_title, offer_description, discount_type, min_order_amount, max_discount, is_active, valid_from, valid_until, terms_url, sort_order) VALUES
+('HDFC Bank', 'HDFC', NULL, 'Up to ₹150 OFF on credit cards', 'Flat discount on HDFC Credit Card transactions', 'credit_card', 999.00, 150.00, 1, NOW(), DATE_ADD(NOW(), INTERVAL 30 DAY), NULL, 1),
+('ICICI Bank', 'ICICI', NULL, 'Up to ₹125 OFF on credit cards', 'Instant discount on ICICI Credit Card payments', 'credit_card', 999.00, 125.00, 1, NOW(), DATE_ADD(NOW(), INTERVAL 30 DAY), NULL, 2),
+('State Bank of India', 'SBI', NULL, '10% off on debit cards', '10% instant discount on SBI Debit Card transactions', 'debit_card', 1499.00, 200.00, 1, NOW(), DATE_ADD(NOW(), INTERVAL 30 DAY), NULL, 3),
+('Axis Bank', 'AXIS', NULL, '₹100 OFF on UPI payments', 'Flat ₹100 cashback on Axis UPI payments', 'upi', 799.00, 100.00, 1, NOW(), DATE_ADD(NOW(), INTERVAL 30 DAY), NULL, 4),
+('Kotak Mahindra Bank', 'KOTAK', NULL, 'No-cost EMI on orders above ₹2,999', 'Pay in easy EMI installments with zero interest', 'emi', 2999.00, NULL, 1, NOW(), DATE_ADD(NOW(), INTERVAL 30 DAY), NULL, 5);
 
 -- ============================================================
 -- SAMPLE REVIEWS

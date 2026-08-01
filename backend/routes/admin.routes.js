@@ -780,6 +780,20 @@ router.delete('/banners/:id', verifyToken, isAdmin, adminController.deleteBanner
 /**
  * @swagger
  * /admin/flash-sales:
+ *   get:
+ *     summary: Get all flash sales (admin)
+ *     tags: [Admin - Flash Sales]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of flash sales.
+ */
+router.get('/flash-sales', verifyToken, isAdmin, adminController.getFlashSales);
+
+/**
+ * @swagger
+ * /admin/flash-sales:
  *   post:
  *     summary: Create a flash sale (admin)
  *     tags: [Admin - Flash Sales]
@@ -804,6 +818,263 @@ router.delete('/banners/:id', verifyToken, isAdmin, adminController.deleteBanner
  *         description: Flash sale created.
  */
 router.post('/flash-sales', verifyToken, isAdmin, adminController.createFlashSale);
+
+/**
+ * @swagger
+ * /admin/flash-sales/{id}:
+ *   put:
+ *     summary: Update a flash sale (admin)
+ *     tags: [Admin - Flash Sales]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       200:
+ *         description: Flash sale updated.
+ *       400:
+ *         description: No fields to update.
+ */
+router.put('/flash-sales/:id', verifyToken, isAdmin, adminController.updateFlashSale);
+
+/**
+ * @swagger
+ * /admin/flash-sales/{id}:
+ *   delete:
+ *     summary: Delete a flash sale (admin)
+ *     tags: [Admin - Flash Sales]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Flash sale deleted.
+ */
+router.delete('/flash-sales/:id', verifyToken, isAdmin, adminController.deleteFlashSale);
+
+/**
+ * @swagger
+ * /admin/bank-offers:
+ *   get:
+ *     summary: Get all bank offers (admin)
+ *     tags: [Admin - Bank Offers]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of bank offers.
+ */
+router.get('/bank-offers', verifyToken, isAdmin, adminController.getBankOffers);
+
+/**
+ * @swagger
+ * /admin/bank-offers:
+ *   post:
+ *     summary: Create a bank offer (admin)
+ *     tags: [Admin - Bank Offers]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [bank_name, offer_title]
+ *             properties:
+ *               bank_name: { type: string }
+ *               bank_code: { type: string }
+ *               logo_url: { type: string }
+ *               offer_title: { type: string }
+ *               offer_description: { type: string }
+ *               discount_type: { type: string, enum: [credit_card, debit_card, upi, emi, netbanking], default: credit_card }
+ *               min_order_amount: { type: number }
+ *               max_discount: { type: number }
+ *               is_active: { type: boolean }
+ *               valid_from: { type: string, format: date-time }
+ *               valid_until: { type: string, format: date-time }
+ *               terms_url: { type: string }
+ *               sort_order: { type: integer }
+ *     responses:
+ *       201:
+ *         description: Bank offer created.
+ */
+router.post('/bank-offers', verifyToken, isAdmin, adminController.createBankOffer);
+
+/**
+ * @swagger
+ * /admin/bank-offers/{id}:
+ *   put:
+ *     summary: Update a bank offer (admin)
+ *     tags: [Admin - Bank Offers]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       200:
+ *         description: Bank offer updated.
+ *       400:
+ *         description: No fields to update.
+ */
+router.put('/bank-offers/:id', verifyToken, isAdmin, adminController.updateBankOffer);
+
+/**
+ * @swagger
+ * /admin/bank-offers/{id}:
+ *   delete:
+ *     summary: Delete a bank offer (admin)
+ *     tags: [Admin - Bank Offers]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Bank offer deleted.
+ */
+router.delete('/bank-offers/:id', verifyToken, isAdmin, adminController.deleteBankOffer);
+
+/**
+ * @swagger
+ * /admin/bundles:
+ *   get:
+ *     summary: Get all bundles (admin, includes member products)
+ *     tags: [Admin - Bundles]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of bundles.
+ */
+router.get('/bundles', verifyToken, isAdmin, adminController.getBundles);
+
+/**
+ * @swagger
+ * /admin/bundles/{id}:
+ *   get:
+ *     summary: Get a single bundle by ID (admin, includes member products)
+ *     tags: [Admin - Bundles]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Bundle details.
+ *       404:
+ *         description: Bundle not found.
+ */
+router.get('/bundles/:id', verifyToken, isAdmin, adminController.getBundleById);
+
+/**
+ * @swagger
+ * /admin/bundles:
+ *   post:
+ *     summary: Create a bundle (admin)
+ *     tags: [Admin - Bundles]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name, bundle_price, original_price]
+ *             properties:
+ *               name: { type: string }
+ *               description: { type: string }
+ *               bundle_price: { type: number }
+ *               original_price: { type: number }
+ *               is_active: { type: boolean }
+ *               valid_from: { type: string, format: date-time }
+ *               valid_until: { type: string, format: date-time }
+ *               sort_order: { type: integer }
+ *               product_id: { type: integer, description: 'Optional linked combo product id' }
+ *               bundle_products:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     product_id: { type: integer }
+ *                     quantity: { type: integer }
+ *     responses:
+ *       201:
+ *         description: Bundle created.
+ */
+router.post('/bundles', verifyToken, isAdmin, adminController.createBundle);
+
+/**
+ * @swagger
+ * /admin/bundles/{id}:
+ *   put:
+ *     summary: Update a bundle (admin)
+ *     tags: [Admin - Bundles]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       200:
+ *         description: Bundle updated.
+ *       400:
+ *         description: No fields to update.
+ */
+router.put('/bundles/:id', verifyToken, isAdmin, adminController.updateBundle);
+
+/**
+ * @swagger
+ * /admin/bundles/{id}:
+ *   delete:
+ *     summary: Delete a bundle (admin, also deletes linked combo product if any)
+ *     tags: [Admin - Bundles]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Bundle deleted.
+ */
+router.delete('/bundles/:id', verifyToken, isAdmin, adminController.deleteBundle);
 
 /**
  * @swagger
@@ -861,5 +1132,126 @@ router.get('/settings', verifyToken, isAdmin, settingsController.getSettings);
  *         description: Settings updated successfully.
  */
 router.put('/settings', verifyToken, isAdmin, settingsController.updateSettings);
+
+// ===== CUSTOMER SERVICE PAGES (ADMIN) =====
+const customerServiceController = require('../controllers/customerService.controller');
+
+/**
+ * @swagger
+ * /admin/customer-service:
+ *   get:
+ *     summary: Get all customer service pages (admin)
+ *     tags: [Admin - Customer Service]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: search
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: List of customer service pages.
+ */
+router.get('/customer-service', verifyToken, isAdmin, customerServiceController.getAdminPages);
+
+/**
+ * @swagger
+ * /admin/customer-service/{id}:
+ *   get:
+ *     summary: Get a customer service page by ID (admin)
+ *     tags: [Admin - Customer Service]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Customer service page details.
+ *       404:
+ *         description: Page not found.
+ */
+router.get('/customer-service/:id', verifyToken, isAdmin, customerServiceController.getAdminPageById);
+
+/**
+ * @swagger
+ * /admin/customer-service:
+ *   post:
+ *     summary: Create a customer service page (admin)
+ *     tags: [Admin - Customer Service]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [service_key, title]
+ *             properties:
+ *               service_key: { type: string }
+ *               title: { type: string }
+ *               page_type: { type: string, enum: [text, faq] }
+ *               content: { type: object }
+ *               is_active: { type: boolean }
+ *               sort_order: { type: integer }
+ *     responses:
+ *       201:
+ *         description: Page created.
+ */
+router.post('/customer-service', verifyToken, isAdmin, customerServiceController.createPage);
+
+/**
+ * @swagger
+ * /admin/customer-service/{id}:
+ *   put:
+ *     summary: Update a customer service page (admin)
+ *     tags: [Admin - Customer Service]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               service_key: { type: string }
+ *               title: { type: string }
+ *               page_type: { type: string, enum: [text, faq] }
+ *               content: { type: object }
+ *               is_active: { type: boolean }
+ *               sort_order: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Page updated.
+ */
+router.put('/customer-service/:id', verifyToken, isAdmin, customerServiceController.updatePage);
+
+/**
+ * @swagger
+ * /admin/customer-service/{id}:
+ *   delete:
+ *     summary: Delete a customer service page (admin)
+ *     tags: [Admin - Customer Service]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Page deleted.
+ */
+router.delete('/customer-service/:id', verifyToken, isAdmin, customerServiceController.deletePage);
 
 module.exports = router;

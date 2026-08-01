@@ -77,6 +77,24 @@ export default function AdminProductEditPage({ params }) {
   const [errors, setErrors] = useState({});
   const imageInputRef = useRef(null);
 
+  // ── Combo / Bundle pack ────────────────────────────────
+  const [productType, setProductType] = useState('single');
+  const [bundleItems, setBundleItems] = useState([]); // { product_id, quantity, name, price, primary_image }
+  const [bundleValidFrom, setBundleValidFrom] = useState('');
+  const [bundleValidUntil, setBundleValidUntil] = useState('');
+  const [productSearch, setProductSearch] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+
+  // Auto-open Combo / Bundle Pack when arriving from the Bundles page's
+  // "Add Bundle" button (/products/new?type=combo)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (new URLSearchParams(window.location.search).get('type') === 'combo') {
+      setProductType('combo');
+    }
+  }, []);
+
   // Fetch product
   const { data: productData, isLoading: productLoading } = useQuery({
     queryKey: ['admin-product', productId],
@@ -90,7 +108,19 @@ export default function AdminProductEditPage({ params }) {
 
   // Fetch categories
   useEffect(() => {
-    api.get('/admin/categories').then(res => setCategories(res.data.data?.categories || [])).catch(() => {});
+    api.get('/admin/categories').then(res => {
+      const cats = res.data.data?.categories || [];
+      setCategories(cats);
+      // Auto-select the combo category once loaded, if user chose combo — either by
+      // clicking the toggle or arriving via "Add Bundle" (?type=combo)
+      const wantsCombo = productType === 'combo'
+        || (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('type') === 'combo');
+      if (wantsCombo && !form.category_id) {
+        const comboCat = cats.find(c => c.slug === 'combo-bundles');
+        if (comboCat) setForm(prev => ({ ...prev, category_id: String(comboCat.id) }));
+      }
+    }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Populate form
@@ -110,6 +140,23 @@ export default function AdminProductEditPage({ params }) {
     });
     setImages(productData.images || []);
     setVariants(productData.variants || []);
+
+    // Prefill combo/bundle data if this product is a combo pack
+    if (productData.bundle) {
+      setProductType('combo');
+      setBundleItems((productData.bundle.products || []).map(p => ({
+        product_id: p.product_id,
+        quantity: p.quantity,
+        name: p.name,
+        price: p.price,
+        primary_image: p.primary_image,
+      })));
+      setBundleValidFrom(toLocalInput(productData.bundle.valid_from));
+      setBundleValidUntil(toLocalInput(productData.bundle.valid_until));
+    } else {
+      setProductType('single');
+      setBundleItems([]);
+    }
   }, [productData]);
 
   // Unsaved changes warning
@@ -131,6 +178,61 @@ export default function AdminProductEditPage({ params }) {
     setDirty(true);
   };
 
+  // ── Combo helpers ───────────────────────────────────────
+  const toLocalInput = (dt) => {
+    if (!dt) return '';
+    const d = new Date(dt);
+    if (isNaN(d.getTime())) return '';
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
+  const handleTypeChange = (t) => {
+    setProductType(t);
+    setDirty(true);
+    if (t === 'combo') {
+      const comboCat = categories.find(c => c.slug === 'combo-bundles');
+      if (comboCat && !form.category_id) {
+        setForm(prev => ({ ...prev, category_id: String(comboCat.id) }));
+      }
+    }
+  };
+
+  // Debounced product search for the combo picker
+  useEffect(() => {
+    if (productType !== 'combo' || !productSearch.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const res = await api.get('/admin/products', { params: { search: productSearch, limit: 8 } });
+        const list = (res.data.data?.products || []).filter(p => !bundleItems.some(b => b.product_id === p.id));
+        setSearchResults(list);
+      } catch { setSearchResults([]); }
+      setSearching(false);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [productSearch, productType, bundleItems]);
+
+  const addBundleItem = (p) => {
+    if (bundleItems.some(b => b.product_id === p.id)) return;
+    setBundleItems(prev => [...prev, { product_id: p.id, quantity: 1, name: p.name, price: p.price, primary_image: p.image }]);
+    setProductSearch('');
+    setDirty(true);
+  };
+
+  const updateBundleQty = (productId, quantity) => {
+    setBundleItems(prev => prev.map(b => b.product_id === productId ? { ...b, quantity: Math.max(1, parseInt(quantity) || 1) } : b));
+    setDirty(true);
+  };
+
+  const removeBundleItem = (productId) => {
+    setBundleItems(prev => prev.filter(b => b.product_id !== productId));
+    setDirty(true);
+  };
+
   // ── Validation ─────────────────────────────────────────
   const validate = () => {
     const errs = {};
@@ -139,6 +241,7 @@ export default function AdminProductEditPage({ params }) {
     if (!form.mrp || parseFloat(form.mrp) <= 0) errs.mrp = 'Valid MRP is required';
     if (!form.sku.trim()) errs.sku = 'SKU is required';
     if (!form.category_id) errs.category_id = 'Category is required';
+    if (productType === 'combo' && bundleItems.length === 0) errs.bundle_items = 'Select at least one product for this combo';
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -157,6 +260,10 @@ export default function AdminProductEditPage({ params }) {
         weight_grams: parseFloat(form.weight_grams) || null,
         shelf_life_days: parseInt(form.shelf_life_days) || null,
         nutritional_info: form.nutritional_info ? JSON.parse(form.nutritional_info) : null,
+        product_type: productType,
+        bundle_products: productType === 'combo' ? bundleItems.map(b => ({ product_id: b.product_id, quantity: b.quantity })) : undefined,
+        bundle_valid_from: productType === 'combo' && bundleValidFrom ? bundleValidFrom.replace('T', ' ').slice(0, 19) : null,
+        bundle_valid_until: productType === 'combo' && bundleValidUntil ? bundleValidUntil.replace('T', ' ').slice(0, 19) : null,
       };
       if (isNew) {
         const res = await api.post('/admin/products', payload);
@@ -383,6 +490,53 @@ export default function AdminProductEditPage({ params }) {
         </div>
       </div>
 
+      {/* Product Type selector */}
+      <Section title="Product Type" icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => handleTypeChange('single')}
+            className={`flex items-center gap-3 p-4 rounded-xl border-2 text-left transition-all ${productType === 'single' ? 'border-emerald-500 bg-emerald-50/60 shadow-sm' : 'border-slate-200 hover:border-slate-300'}`}
+          >
+            <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${productType === 'single' ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-400'}`}>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-slate-900">Single Product</p>
+              <p className="text-[11px] text-slate-500 mt-0.5">A standalone product sold individually</p>
+            </div>
+            {productType === 'single' && (
+              <span className="ml-auto shrink-0 text-emerald-600">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              </span>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => handleTypeChange('combo')}
+            className={`flex items-center gap-3 p-4 rounded-xl border-2 text-left transition-all ${productType === 'combo' ? 'border-purple-500 bg-purple-50/60 shadow-sm' : 'border-slate-200 hover:border-slate-300'}`}
+          >
+            <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${productType === 'combo' ? 'bg-purple-500 text-white' : 'bg-slate-100 text-slate-400'}`}>
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-slate-900">Combo / Bundle Pack</p>
+              <p className="text-[11px] text-slate-500 mt-0.5">Combine multiple products at a special price</p>
+            </div>
+            {productType === 'combo' && (
+              <span className="ml-auto shrink-0 text-purple-600">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              </span>
+            )}
+          </button>
+        </div>
+        {productType === 'combo' && (
+          <p className="text-[11px] text-purple-700 bg-purple-50 px-2.5 py-1.5 rounded-lg mt-3 leading-relaxed">
+            💡 Combo packs appear in the <strong>Bundle Deals</strong> section on the Offers page. Pricing fields below act as the combo deal price (Selling Price) and the combined MRP.
+          </p>
+        )}
+      </Section>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* ─── LEFT COLUMN ─────────────────────────────── */}
         <div className="lg:col-span-2 space-y-6">
@@ -434,6 +588,88 @@ export default function AdminProductEditPage({ params }) {
               </div>
             </div>
           </Section>
+
+          {/* Combo Pack Details (only for combo) */}
+          {productType === 'combo' && (
+            <Section title="Combo Pack Details" icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>}>
+              <div className="space-y-4">
+                {/* Product picker */}
+                <div>
+                  <label className={labelClass}>Products in this Combo *</label>
+                  <div className="relative">
+                    <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    <input
+                      className={`${inputClass} pl-9`}
+                      value={productSearch}
+                      onChange={e => setProductSearch(e.target.value)}
+                      placeholder="Search products to add to this combo..."
+                    />
+                    {searching && <div className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />}
+                  </div>
+
+                  {searchResults.length > 0 && (
+                    <div className="mt-2 bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden max-h-56 overflow-y-auto">
+                      {searchResults.map(p => (
+                        <button key={p.id} type="button" onClick={() => addBundleItem(p)} className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-emerald-50 transition-colors text-left">
+                          <div className="w-8 h-8 rounded-md bg-slate-50 flex items-center justify-center overflow-hidden shrink-0 border border-slate-100">
+                            {p.image ? (
+                              <img src={getImageUrl(p.image)} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <svg className="w-3.5 h-3.5 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-slate-900 truncate">{p.name}</p>
+                            <p className="text-[10px] text-slate-500">₹{Number(p.price).toLocaleString('en-IN')}</p>
+                          </div>
+                          <span className="text-[11px] font-medium text-emerald-600 shrink-0">+ Add</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {productSearch && !searching && searchResults.length === 0 && (
+                    <p className="text-[11px] text-slate-400 mt-1.5">No matching products found.</p>
+                  )}
+                </div>
+
+                {/* Selected items */}
+                {bundleItems.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-[11px] font-semibold text-slate-600 uppercase tracking-wider">Selected ({bundleItems.length})</p>
+                    {bundleItems.map(item => (
+                      <div key={item.product_id} className="flex items-center gap-2.5 bg-slate-50 rounded-lg px-3 py-2 border border-slate-100">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-slate-900 truncate">{item.name}</p>
+                          <p className="text-[10px] text-slate-500">₹{Number(item.price).toLocaleString('en-IN')} × {item.quantity}</p>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button type="button" onClick={() => updateBundleQty(item.product_id, item.quantity - 1)} className="w-6 h-6 rounded bg-white border border-slate-200 text-slate-600 text-xs font-bold hover:bg-slate-100 transition-colors">−</button>
+                          <span className="w-8 text-center text-xs font-semibold text-slate-900 tabular-nums">{item.quantity}</span>
+                          <button type="button" onClick={() => updateBundleQty(item.product_id, item.quantity + 1)} className="w-6 h-6 rounded bg-white border border-slate-200 text-slate-600 text-xs font-bold hover:bg-slate-100 transition-colors">+</button>
+                        </div>
+                        <button type="button" onClick={() => removeBundleItem(item.product_id)} className="p-1 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors" title="Remove">
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {errors.bundle_items && <p className="text-[11px] text-rose-500 mt-0.5">{errors.bundle_items}</p>}
+
+                {/* Validity window */}
+                <div className="grid grid-cols-2 gap-4 pt-1 border-t border-slate-100">
+                  <div>
+                    <label className={labelClass}>Valid From</label>
+                    <input type="datetime-local" className={inputClass} value={bundleValidFrom} onChange={e => { setBundleValidFrom(e.target.value); setDirty(true); }} />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Valid Until</label>
+                    <input type="datetime-local" className={inputClass} value={bundleValidUntil} onChange={e => { setBundleValidUntil(e.target.value); setDirty(true); }} />
+                  </div>
+                </div>
+              </div>
+            </Section>
+          )}
 
           {/* Pricing & Stock */}
           <Section title="Pricing & Stock" icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}>

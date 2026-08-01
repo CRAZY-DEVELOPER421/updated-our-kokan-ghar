@@ -83,6 +83,24 @@ const createOrder = asyncHandler(async (req, res) => {
     [orderId, 'pending', 'Order placed successfully.']
   );
 
+  // Record coupon usage so used_count + "used today" counters stay accurate
+  if (cart[0].coupon_code) {
+    const [couponRows] = await pool.query(
+      'SELECT id FROM coupons WHERE code = ?',
+      [cart[0].coupon_code]
+    );
+    if (couponRows.length > 0) {
+      await pool.query(
+        'INSERT INTO coupon_usage (coupon_id, user_id, order_id, discount_applied, used_at) VALUES (?, ?, ?, ?, NOW())',
+        [couponRows[0].id, req.user.id, orderId, couponDiscount]
+      );
+      await pool.query(
+        'UPDATE coupons SET used_count = used_count + 1 WHERE id = ?',
+        [couponRows[0].id]
+      );
+    }
+  }
+
   await pool.query('DELETE FROM cart_items WHERE cart_id = ?', [cart[0].id]);
   await pool.query('UPDATE cart SET coupon_code = NULL, coupon_discount = 0 WHERE id = ?', [cart[0].id]);
 
@@ -261,11 +279,49 @@ const getPendingCount = asyncHandler(async (req, res) => {
   return ApiResponse.success(res, { count: countResult[0].count });
 });
 
+// GET /api/orders — customer-facing order list (paginated, optional status filter)
+const getOrders = asyncHandler(async (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const offset = (page - 1) * limit;
+  const { status } = req.query;
+
+  let whereClause = 'WHERE o.user_id = ?';
+  const params = [req.user.id];
+
+  if (status) {
+    whereClause += ' AND o.status = ?';
+    params.push(status);
+  }
+
+  const [countResult] = await pool.query(
+    `SELECT COUNT(*) as total FROM orders o ${whereClause}`, params
+  );
+
+  const [orders] = await pool.query(
+    `SELECT o.*,
+      (SELECT COUNT(*) FROM order_items oi WHERE oi.order_id = o.id) as item_count,
+      (SELECT product_name FROM order_items oi WHERE oi.order_id = o.id ORDER BY oi.id ASC LIMIT 1) as product_name
+     FROM orders o
+     ${whereClause}
+     ORDER BY o.created_at DESC
+     LIMIT ? OFFSET ?`,
+    [...params, limit, offset]
+  );
+
+  return ApiResponse.paginated(res, { orders }, {
+    page, limit,
+    total: countResult[0].total,
+    pages: Math.ceil(countResult[0].total / limit)
+  });
+});
+
 module.exports = {
   createOrder,
   getOrderByNumber,
   cancelOrder,
   requestReturn,
   getOrderTracking,
-  getPendingCount
+  getPendingCount,
+  getOrders
 };

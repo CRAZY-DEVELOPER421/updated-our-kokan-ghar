@@ -10,6 +10,7 @@ const mysql = require('mysql2/promise');
   });
 
   const defaults = [
+    ['site_logo', ''], // Custom logo URL — leave empty to use the default brand logo
     ['phone_primary', '+919876543210'],
     ['phone_secondary', '+918765432109'],
     ['email_primary', 'hello@kokanghar.in'],
@@ -30,6 +31,8 @@ const mysql = require('mysql2/promise');
     ['social_youtube', 'https://youtube.com/@kokanaghar'],
     ['social_whatsapp', 'https://wa.me/919876543210'],
     ['social_linkedin', 'https://linkedin.com/company/kokanaghar'],
+    // Buy More, Save More tiers — JSON array of { min_order, discount_percent }
+    ['bulk_discount_tiers', '[{"min_order":1000,"discount_percent":5},{"min_order":2000,"discount_percent":10},{"min_order":3000,"discount_percent":15},{"min_order":5000,"discount_percent":20}]'],
   ];
 
   let count = 0;

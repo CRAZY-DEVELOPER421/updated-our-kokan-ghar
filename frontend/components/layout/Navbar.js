@@ -13,6 +13,8 @@ import { useCategories } from '@/lib/hooks/useProducts';
 import SearchBar from '@/components/ui/SearchBar';
 import { useTranslation } from '@/lib/i18n/I18nProvider';
 import LanguageSwitcher from '@/components/ui/LanguageSwitcher';
+import { useSiteSettings } from '@/lib/hooks/useSiteSettings';
+import { getImageUrl } from '@/lib/utils';
 
 const NAV_ITEMS = [
   { labelKey: 'fresh_arrivals', href: '/products?sort=newest' },
@@ -39,7 +41,10 @@ export default function Navbar() {
   const { itemCount: cartCount } = useCartStore();
   const { count: wishlistCount } = useWishlistStore();
   const { data: categoriesData } = useCategories();
+  const { data: settingsData } = useSiteSettings();
   const categoryRef = useRef(null);
+
+  const customLogo = getImageUrl(settingsData?.settings?.site_logo);
 
   // Fallback categories when API data unavailable
   const categories = categoriesData?.categories?.length > 0 ? categoriesData.categories : [
@@ -93,14 +98,19 @@ export default function Navbar() {
         <div className="flex items-center justify-between h-16 lg:h-[72px]">
           {/* Logo - visible on all viewports, left end */}
           <Link href="/" className="flex items-center gap-2 group shrink-0">
-            <Image
-              src="/images/logo/konkan_logo.png"
-              alt="Kokan Ghar Logo"
-              width={120}
-              height={40}
-              className="h-10 w-auto"
-              priority
-            />
+            {customLogo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={customLogo} alt="Kokan Ghar Logo" className="h-10 w-auto" />
+            ) : (
+              <Image
+                src="/images/logo/konkan_logo.png"
+                alt="Kokan Ghar Logo"
+                width={120}
+                height={40}
+                className="h-10 w-auto"
+                priority
+              />
+            )}
           </Link>
 
           {/* Search Bar - Desktop */}
@@ -297,13 +307,18 @@ export default function Navbar() {
             <div className="p-4 sm:p-6 border-b border-konkan-sand/50 shrink-0">
               <div className="flex items-center justify-between mb-4">
                 <Link href="/" onClick={() => setIsMobileOpen(false)}>
-                  <Image
-                    src="/images/logo/konkan_logo.png"
-                    alt="Kokan Ghar Logo"
-                    width={120}
-                    height={40}
-                    className="h-8 w-auto"
-                  />
+                  {customLogo ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={customLogo} alt="Kokan Ghar Logo" className="h-8 w-auto" />
+                  ) : (
+                    <Image
+                      src="/images/logo/konkan_logo.png"
+                      alt="Kokan Ghar Logo"
+                      width={120}
+                      height={40}
+                      className="h-8 w-auto"
+                    />
+                  )}
                 </Link>
                 <button onClick={() => setIsMobileOpen(false)} className="min-w-[44px] min-h-[44px] flex items-center justify-center -mr-2 text-konkan-text-secondary hover:text-konkan-text-primary transition-colors" aria-label="Close menu">
                   <X className="w-5 h-5" />

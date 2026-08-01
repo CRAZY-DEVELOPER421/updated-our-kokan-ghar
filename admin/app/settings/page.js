@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import api from '@/lib/api';
+import { getImageUrl } from '@/lib/utils';
 import Button from '@/components/ui/Button';
+import LogoCropper from '@/components/LogoCropper';
 
 const SETTING_GROUPS = [
   {
@@ -57,7 +59,15 @@ export default function AdminSettingsPage() {
   const [dirty, setDirty] = useState(false);
   const [form, setForm] = useState({});
 
+  // ── Logo & Branding state ──
+  const [logoUrlInput, setLogoUrlInput] = useState('');
+  const [cropSrc, setCropSrc] = useState(null);   // data URL being cropped
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
+
   const settings = data?.settings || {};
+  const siteLogo = form.site_logo || '';
+  const logoPreview = getImageUrl(siteLogo);
 
   // Initialize form from settings when data loads
   if (!dirty && Object.keys(settings).length > 0 && Object.keys(form).length === 0) {
@@ -68,6 +78,47 @@ export default function AdminSettingsPage() {
   const handleChange = (key, value) => {
     setForm(prev => ({ ...prev, [key]: value }));
     setDirty(true);
+  };
+
+  // ── Logo handlers ──
+  const handleLogoUrlApply = () => {
+    const url = logoUrlInput.trim();
+    if (!url) { toast.error('Paste a logo URL first.'); return; }
+    handleChange('site_logo', url);
+    setLogoUrlInput('');
+    toast.success('Logo URL applied — don\'t forget to Save All Changes.');
+  };
+
+  const handleLogoFilePick = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { toast.error('Please choose an image file.'); return; }
+    const reader = new FileReader();
+    reader.onload = () => setCropSrc(reader.result);
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const handleCropConfirm = async (blob) => {
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('image', blob, 'site-logo.png');
+      const res = await api.post('/upload/image', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const url = res.data.data?.url;
+      if (!url) throw new Error('No URL returned from upload.');
+      handleChange('site_logo', url);
+      toast.success('Logo cropped & uploaded — click Save All Changes to apply.');
+      setCropSrc(null);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to upload logo.');
+    }
+    setUploading(false);
+  };
+
+  const handleLogoRemove = () => {
+    if (!confirm('Remove the custom logo? The default logo will be used.')) return;
+    handleChange('site_logo', '');
   };
 
   const handleSave = async () => {
@@ -98,9 +149,74 @@ export default function AdminSettingsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Site Settings</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Manage contact info, social links, map, and more</p>
+          <p className="text-sm text-gray-500 mt-0.5">Manage branding, contact info, social links, map, and more</p>
         </div>
         <Button size="sm" onClick={handleSave} loading={saving}>Save All Changes</Button>
+      </div>
+
+      {/* ── Logo & Branding ── */}
+      <div className="bg-white rounded-xl border border-gray-100 p-5">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="min-w-[220px]">
+            <h2 className="font-semibold text-gray-900 text-base">Logo &amp; Branding</h2>
+            <p className="text-xs text-gray-500 mt-0.5">Set the site logo shown in the header and footer. Upload a file and crop it, or paste an image URL.</p>
+          </div>
+
+          {/* Preview */}
+          <div className="flex flex-col items-center gap-1.5 shrink-0">
+            <div className="w-24 h-24 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 flex items-center justify-center overflow-hidden">
+              {logoPreview ? (
+                <img src={logoPreview} alt="Site logo preview" className="w-full h-full object-contain" />
+              ) : (
+                <div className="text-center px-2">
+                  <svg className="w-7 h-7 mx-auto text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                  <span className="text-[10px] text-gray-400">No custom logo</span>
+                </div>
+              )}
+            </div>
+            {logoPreview && (
+              <button onClick={handleLogoRemove} className="text-[11px] font-medium text-rose-500 hover:text-rose-600 hover:bg-rose-50 px-2 py-0.5 rounded-md transition-all">Remove</button>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Upload + Crop */}
+          <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-4">
+            <p className="text-xs font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
+              <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+              Upload from file
+            </p>
+            <p className="text-[11px] text-gray-400 mb-3">Choose an image, adjust the crop, and it will be uploaded automatically.</p>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+            >
+              {uploading ? 'Uploading...' : 'Choose Image & Crop'}
+            </Button>
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleLogoFilePick} />
+          </div>
+
+          {/* Link */}
+          <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-4">
+            <p className="text-xs font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
+              <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13.828 10.172a4 4 0 010 5.656l-4 4a4 4 0 01-5.656-5.656l1.5-1.5m13.5-1.5l1.5-1.5a4 4 0 00-5.656-5.656l-4 4a4 4 0 000 5.656" /></svg>
+              Set via URL
+            </p>
+            <p className="text-[11px] text-gray-400 mb-3">Paste a direct link to an image (https://...) and apply it.</p>
+            <div className="flex gap-2">
+              <input
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-konkan-green-primary/20 focus:border-konkan-green-primary transition-all"
+                value={logoUrlInput}
+                onChange={e => setLogoUrlInput(e.target.value)}
+                placeholder="https://example.com/logo.png"
+              />
+              <Button size="sm" onClick={handleLogoUrlApply}>Apply</Button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -164,6 +280,15 @@ export default function AdminSettingsPage() {
       <div className="flex justify-end">
         <Button size="sm" onClick={handleSave} loading={saving}>Save All Changes</Button>
       </div>
+
+      {/* Crop modal */}
+      {cropSrc && (
+        <LogoCropper
+          src={cropSrc}
+          onCancel={() => setCropSrc(null)}
+          onConfirm={handleCropConfirm}
+        />
+      )}
     </div>
   );
 }

@@ -290,7 +290,12 @@ export default function AdminProductsPage() {
                           )}
                         </div>
                         <div className="min-w-0">
-                          <span className="font-medium text-slate-900 text-sm block truncate max-w-[260px] group-hover:text-emerald-700 transition-colors">{p.name}</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-medium text-slate-900 text-sm truncate max-w-[230px] group-hover:text-emerald-700 transition-colors">{p.name}</span>
+                            {!!p.is_bundle && (
+                              <span className="shrink-0 text-[9px] font-bold text-purple-700 bg-purple-50 border border-purple-100 px-1.5 py-0.5 rounded-full uppercase tracking-wide">Combo</span>
+                            )}
+                          </div>
                           {p.category_name && <span className="text-[10px] text-slate-400 mt-0.5 block truncate">{p.category_name}{p.region_origin ? ` · ${p.region_origin}` : ''}</span>}
                         </div>
                       </Link>

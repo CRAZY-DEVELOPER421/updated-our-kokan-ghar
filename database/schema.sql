@@ -417,6 +417,36 @@ CREATE TABLE flash_sales (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
+-- 20b. BUNDLES (combo deals)
+-- ============================================================
+CREATE TABLE bundles (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  slug VARCHAR(280) NOT NULL UNIQUE,
+  description VARCHAR(500),
+  bundle_price DECIMAL(10,2) NOT NULL,
+  original_price DECIMAL(10,2) NOT NULL,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  valid_from DATETIME,
+  valid_until DATETIME,
+  sort_order INT NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_bundles_active (is_active, valid_until),
+  INDEX idx_bundles_sort (sort_order)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE bundle_products (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  bundle_id INT UNSIGNED NOT NULL,
+  product_id INT UNSIGNED NOT NULL,
+  quantity INT NOT NULL DEFAULT 1,
+  UNIQUE KEY uk_bundle_product (bundle_id, product_id),
+  FOREIGN KEY (bundle_id) REFERENCES bundles(id) ON DELETE CASCADE,
+  FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+  INDEX idx_bp_product (product_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
 -- 21. LOYALTY POINTS
 -- ============================================================
 CREATE TABLE loyalty_points (
@@ -499,6 +529,30 @@ CREATE TABLE subscribers (
   subscribed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_subs_email (email),
   INDEX idx_subs_active (is_active)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
+-- 27. BANK OFFERS
+-- ============================================================
+CREATE TABLE bank_offers (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  bank_name VARCHAR(100) NOT NULL,
+  bank_code VARCHAR(20),
+  logo_url VARCHAR(500),
+  offer_title VARCHAR(255) NOT NULL,
+  offer_description VARCHAR(500),
+  discount_type ENUM('credit_card','debit_card','upi','emi','netbanking') NOT NULL DEFAULT 'credit_card',
+  min_order_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+  max_discount DECIMAL(10,2),
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  valid_from DATETIME,
+  valid_until DATETIME,
+  terms_url VARCHAR(500),
+  sort_order INT NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_bo_offer (bank_code, offer_title),
+  INDEX idx_bo_active (is_active, valid_until),
+  INDEX idx_bo_sort (sort_order)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
