@@ -53,7 +53,9 @@ export default function ProductCard({ product, view = 'grid' }) {
               await navigator.share(withImage);
               return;
             }
-          } catch {}
+          } catch {
+            // image sharing failed — fall through to text-only share
+          }
         }
         await navigator.share(shareData);
       } catch (err) {

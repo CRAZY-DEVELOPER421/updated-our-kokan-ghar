@@ -1,4 +1,5 @@
 import js from "@eslint/js";
+import globals from "globals";
 import nextPlugin from "@next/eslint-plugin-next";
 
 const nextCoreWebVitals = nextPlugin.configs["core-web-vitals"];
@@ -12,6 +13,12 @@ export default [
       sourceType: "module",
       parserOptions: {
         ecmaFeatures: { jsx: true },
+      },
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+        ...globals.es2021,
+        React: "readonly",
       },
     },
     rules: {

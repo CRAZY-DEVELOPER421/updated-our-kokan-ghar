@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import useAdminAuthStore from '@/lib/store/adminAuthStore';
-import api from '@/lib/api';
 
 export default function AdminLoginPage() {
   const [password, setPassword] = useState('');
@@ -19,21 +18,10 @@ export default function AdminLoginPage() {
     setLoading(true);
     await new Promise(r => setTimeout(r, 400));
 
-    // First authenticate locally (UI access)
+    // Authenticate against the backend — password is never checked in the browser
     const result = await adminLogin(password);
 
     if (result.success) {
-      // Also authenticate with backend to get JWT token for API calls
-      try {
-        const res = await api.post('/admin/login', { password });
-        if (res.data.success && res.data.data.accessToken) {
-          localStorage.setItem('accessToken', res.data.data.accessToken);
-          console.log('✅ Admin JWT token obtained for API calls');
-        }
-      } catch (err) {
-        // Log warning but still allow access - admin pages may show limited data
-        console.warn('⚠️ Backend auth failed (JWT not obtained). Some data may not load:', err.message);
-      }
       router.push('/')
     } else {
       setError(result.message);

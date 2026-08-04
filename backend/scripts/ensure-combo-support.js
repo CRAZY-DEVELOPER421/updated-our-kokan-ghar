@@ -11,7 +11,7 @@
 //
 // Run:  node scripts/ensure-combo-support.js
 // ============================================================
-require('dotenv').config();
+require('dotenv').config({ path: require('path').resolve(__dirname, '../../.env') });
 const mysql = require('mysql2/promise');
 
 (async () => {

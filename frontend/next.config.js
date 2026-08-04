@@ -1,3 +1,9 @@
+// Load the single project-wide .env at the repo root so the frontend shares
+// ONE config file with the backend. NEXT_PUBLIC_* values from it are inlined
+// into the browser bundle at build time.
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {

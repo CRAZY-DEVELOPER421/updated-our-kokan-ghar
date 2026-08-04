@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import Link from 'next/link';
 
 const blogPosts = [
@@ -92,10 +93,12 @@ export default function MobileBlogSection() {
             >
               {/* ── Image with overlayed category tag ── */}
               <div className="relative overflow-hidden aspect-[3/4]">
-                <img
+                <Image
                   src={post.img}
                   alt={post.title}
-                  className="absolute inset-0 w-full h-full object-cover"
+                  fill
+                  sizes="200px"
+                  className="object-cover"
                   loading="lazy"
                 />
                 {/* Category tag pill — top-left, 8px offset */}

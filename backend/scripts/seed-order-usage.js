@@ -13,7 +13,7 @@
 //
 // Run:  node scripts/seed-order-usage.js
 // ============================================================
-require('dotenv').config();
+require('dotenv').config({ path: require('path').resolve(__dirname, '../../.env') });
 const mysql = require('mysql2/promise');
 
 // Sample orders across real customer users. createdDaysAgo: 0 = today

@@ -2,8 +2,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-
-const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_KEY || 'sakshisawant';
+import api from '@/lib/api';
 
 const useAdminAuthStore = create(
   persist(
@@ -11,15 +10,30 @@ const useAdminAuthStore = create(
       isAdminAuthenticated: false,
       adminLoginTime: null,
 
+      // Admin password is verified by the BACKEND only. Never check it
+      // client-side — putting the password in the JS bundle exposes it.
       adminLogin: async (password) => {
-        if (password === ADMIN_PASSWORD) {
-          set({
-            isAdminAuthenticated: true,
-            adminLoginTime: new Date().toISOString(),
-          });
-          return { success: true };
+        try {
+          const res = await api.post('/admin/login', { password });
+          if (res.data?.success && res.data?.data?.accessToken) {
+            localStorage.setItem('accessToken', res.data.data.accessToken);
+            set({
+              isAdminAuthenticated: true,
+              adminLoginTime: new Date().toISOString(),
+            });
+            return { success: true };
+          }
+          return {
+            success: false,
+            message: res.data?.message || 'Invalid admin password.',
+          };
+        } catch (error) {
+          return {
+            success: false,
+            message:
+              error.response?.data?.message || 'Login failed. Please try again.',
+          };
         }
-        return { success: false, message: 'Invalid admin password.' };
       },
 
       adminLogout: () => {

@@ -5,7 +5,7 @@
 //
 // Run:  node scripts/seed-bundles.js
 // ============================================================
-require('dotenv').config();
+require('dotenv').config({ path: require('path').resolve(__dirname, '../../.env') });
 const mysql = require('mysql2/promise');
 
 // Bundle definitions reference real products by slug (verified against DB).

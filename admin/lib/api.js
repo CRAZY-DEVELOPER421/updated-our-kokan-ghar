@@ -28,7 +28,12 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // Don't try to refresh on the login request itself — a 401 here means a
+    // wrong password, and attempting a refresh would swallow the real error
+    // message and surface the refresh failure instead.
+    const isLoginRequest = originalRequest?.url?.includes('/admin/login');
+
+    if (error.response?.status === 401 && !originalRequest._retry && !isLoginRequest) {
       originalRequest._retry = true;
 
       try {

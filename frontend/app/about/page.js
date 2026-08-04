@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import Breadcrumb from '@/components/ui/Breadcrumb';
 import TeamSection from './TeamSection';
 
@@ -185,12 +186,12 @@ export default function AboutPage() {
             Join thousands of happy customers experiencing the authentic flavours of the Konkan coast.
           </p>
           <div className="flex items-center justify-center gap-3">
-            <a href="/products" className="bg-white text-konkan-green-primary px-6 py-3 rounded-lg font-medium hover:bg-konkan-cream transition-colors">
+            <Link href="/products" className="bg-white text-konkan-green-primary px-6 py-3 rounded-lg font-medium hover:bg-konkan-cream transition-colors">
               Shop Now
-            </a>
-            <a href="/contact" className="border-2 border-white/50 text-white px-6 py-3 rounded-lg font-medium hover:bg-white/10 transition-colors">
+            </Link>
+            <Link href="/contact" className="border-2 border-white/50 text-white px-6 py-3 rounded-lg font-medium hover:bg-white/10 transition-colors">
               Contact Us
-            </a>
+            </Link>
           </div>
         </div>
       </div>

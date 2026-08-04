@@ -199,7 +199,9 @@ export function RecentlyViewed() {
     try {
       const stored = localStorage.getItem('konkan-recently-viewed');
       if (stored) setItems(JSON.parse(stored));
-    } catch {}
+    } catch {
+      // ignore corrupt or unavailable localStorage data
+    }
   }, []);
 
   if (items.length === 0) return null;

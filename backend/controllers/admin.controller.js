@@ -1222,7 +1222,14 @@ const deleteVariant = asyncHandler(async (req, res) => {
 // ===== AUTHENTICATION =====
 const adminLogin = asyncHandler(async (req, res) => {
   const { password } = req.body;
-  const adminPassword = process.env.ADMIN_PANEL_PASSWORD || 'sakshisawant';
+  const adminPassword = process.env.ADMIN_PANEL_PASSWORD;
+
+  // Fail closed: require an explicit password in the environment. Never fall
+  // back to a hardcoded default — that would ship a known password to anyone
+  // who reads the source.
+  if (!adminPassword) {
+    return ApiResponse.error(res, 'Admin panel password is not configured. Set ADMIN_PANEL_PASSWORD in the environment.', 500);
+  }
 
   if (!password || password !== adminPassword) {
     return ApiResponse.error(res, 'Invalid admin password.', 401);

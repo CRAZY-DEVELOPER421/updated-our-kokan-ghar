@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Autoplay, Pagination } from 'swiper/modules';
@@ -126,10 +127,12 @@ export default function MobileHero() {
               >
                 {/* Background Image */}
                 {!imgErrors[idx] ? (
-                  <img
+                  <Image
                     src={BANNER_IMAGES[idx]}
                     alt={slide.title}
-                    className="absolute inset-0 w-full h-full object-cover"
+                    fill
+                    sizes="(max-width: 768px) 100vw, 50vw"
+                    className="object-cover"
                     loading={idx === 0 ? 'eager' : 'lazy'}
                     onError={() => handleImgError(idx)}
                   />

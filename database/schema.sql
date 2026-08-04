@@ -16,7 +16,8 @@ CREATE TABLE users (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(100) NOT NULL,
   email VARCHAR(255) NOT NULL UNIQUE,
-  password_hash VARCHAR(255) NOT NULL,
+  -- NULL for social-only (Google/Facebook) accounts; required for password accounts
+  password_hash VARCHAR(255) DEFAULT NULL,
   phone VARCHAR(20),
   role ENUM('customer','admin','seller') NOT NULL DEFAULT 'customer',
   avatar_url VARCHAR(500),
@@ -37,6 +38,10 @@ CREATE TABLE users (
 -- ============================================================
 -- 2. ADDRESSES
 -- ============================================================
+-- NOTE: Social (Google/Facebook) login support requires password_hash to be
+-- nullable. For EXISTING databases run:
+--   ALTER TABLE users MODIFY password_hash VARCHAR(255) DEFAULT NULL;
+-- (see database/social_oauth_migration.sql)
 CREATE TABLE addresses (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   user_id INT UNSIGNED NOT NULL,

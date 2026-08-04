@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
@@ -74,10 +75,12 @@ export default function MobileProductCard({ product }) {
         {/* ── Image Section — square (1:1) ── */}
         <div className="relative aspect-square overflow-hidden" style={{ backgroundColor: '#E8F0EC' }}>
           {product.primary_image && !imageError ? (
-            <img
+            <Image
               src={getImageUrl(product.primary_image)}
               alt={product.name}
-              className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              fill
+              sizes="155px"
+              className="object-cover group-hover:scale-105 transition-transform duration-300"
               loading="lazy"
               onError={() => setImageError(true)}
             />

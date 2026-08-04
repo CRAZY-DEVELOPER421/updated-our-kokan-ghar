@@ -8,7 +8,15 @@ const { sendEmail, sendOTPEmail, sendWelcomeEmail } = require('../services/email
 
 const generateAccessToken = (user) => {
   return jwt.sign(
-    { id: user.id, email: user.email, role: user.role },
+    {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      // Included for role-based access control (brief requirement); refresh
+      // re-checks is_active against the DB, so deactivation takes effect
+      // within one access-token lifetime even if the JWT is stale.
+      is_active: user.is_active ?? 1
+    },
     process.env.JWT_SECRET,
     { expiresIn: '15m' }
   );
@@ -122,7 +130,7 @@ const refreshTokenHandler = asyncHandler(async (req, res) => {
     );
 
     const [users] = await pool.query(
-      'SELECT id, email, role FROM users WHERE id = ? AND is_active = 1',
+      'SELECT id, email, role, is_active FROM users WHERE id = ? AND is_active = 1',
       [decoded.id]
     );
 
@@ -249,5 +257,8 @@ module.exports = {
   forgotPassword,
   resetPassword,
   verifyEmail,
-  resendVerifyEmail
+  resendVerifyEmail,
+  // Reused by social.controller.js so OAuth logins mint identical tokens.
+  generateAccessToken,
+  generateRefreshToken
 };

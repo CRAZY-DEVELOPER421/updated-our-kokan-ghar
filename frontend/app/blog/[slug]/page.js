@@ -9,9 +9,10 @@ import Breadcrumb from '@/components/ui/Breadcrumb';
 
 function renderSection(section, idx) {
   switch (section.type) {
-    case 'heading':
+    case 'heading': {
       const Tag = section.level || 'h2';
       return <Tag key={idx} className="font-display font-bold text-konkan-text-primary mt-8 mb-3" style={{ fontSize: Tag === 'h1' ? '1.75rem' : Tag === 'h2' ? '1.5rem' : '1.25rem' }}>{section.content}</Tag>;
+    }
     case 'text':
       return <p key={idx} className="text-konkan-text-secondary leading-relaxed mb-4">{section.content}</p>;
     case 'image':

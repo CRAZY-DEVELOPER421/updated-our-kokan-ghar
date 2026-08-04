@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
@@ -198,9 +199,11 @@ export default function CategoriesPage() {
                   style={{ backgroundColor: '#E8F0EC' }}
                 >
                   {cat.image_url ? (
-                    <img
+                    <Image
                       src={cat.image_url}
                       alt={cat.name}
+                      width={56}
+                      height={56}
                       className="w-full h-full object-cover"
                       loading="lazy"
                     />
@@ -402,10 +405,12 @@ export default function CategoriesPage() {
               >
                 <div className="relative" style={{ height: '120px', backgroundColor: '#E8F0EC' }}>
                   {cat.image_url ? (
-                    <img
+                    <Image
                       src={cat.image_url}
                       alt={cat.name}
-                      className="absolute inset-0 w-full h-full object-cover"
+                      fill
+                      sizes="140px"
+                      className="object-cover"
                       loading="lazy"
                     />
                   ) : (
@@ -504,10 +509,12 @@ export default function CategoriesPage() {
                     }}
                   >
                     {product.primary_image ? (
-                      <img
+                      <Image
                         src={product.primary_image}
                         alt={product.name}
-                        className="absolute inset-0 w-full h-full object-cover"
+                        fill
+                        sizes="150px"
+                        className="object-cover"
                         loading="lazy"
                       />
                     ) : (

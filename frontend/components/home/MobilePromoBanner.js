@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 
 const PROMO_SLIDES = [
@@ -62,10 +63,12 @@ export default function MobilePromoBanner() {
           style={{ background: 'linear-gradient(135deg, #3D2B1F, #5C4033)' }}
         />
       ) : (
-        <img
+        <Image
           src={slide.image}
           alt={slide.title}
-          className="absolute inset-0 w-full h-full object-cover"
+          fill
+          sizes="(max-width: 768px) 100vw, 50vw"
+          className="object-cover"
           onError={() => setImgErrors((prev) => ({ ...prev, [current]: true }))}
         />
       )}

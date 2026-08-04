@@ -141,7 +141,9 @@ export default function ProductActions({ product, stockQuantity = 0 }) {
               setSharing(false);
               return;
             }
-          } catch {}
+          } catch {
+            // image sharing failed — fall through to text-only share
+          }
         }
         await navigator.share(shareData);
       } catch (err) {

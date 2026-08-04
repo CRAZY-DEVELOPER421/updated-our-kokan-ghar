@@ -105,8 +105,8 @@ export default function Navbar() {
               <Image
                 src="/images/logo/konkan_logo.png"
                 alt="Kokan Ghar Logo"
-                width={120}
-                height={40}
+                width={740}
+                height={337}
                 className="h-10 w-auto"
                 priority
               />
@@ -314,8 +314,8 @@ export default function Navbar() {
                     <Image
                       src="/images/logo/konkan_logo.png"
                       alt="Kokan Ghar Logo"
-                      width={120}
-                      height={40}
+                      width={740}
+                      height={337}
                       className="h-8 w-auto"
                     />
                   )}

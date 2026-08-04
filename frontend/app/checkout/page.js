@@ -61,7 +61,9 @@ export default function CheckoutPage() {
         const defaultAddr = res.data.data.addresses.find(a => a.is_default);
         if (defaultAddr) setSelectedAddress(defaultAddr.id);
       }
-    } catch {}
+    } catch {
+      // silently ignore — address list is optional until user adds one
+    }
   };
 
   const validateAddressForm = () => {

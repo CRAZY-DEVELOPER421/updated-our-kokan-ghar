@@ -39,7 +39,9 @@ export default function QuickView({ product, isOpen, onClose }) {
       try {
         const wStore = getWishlistStore();
         if (wStore) setIsWishlisted(wStore.getState().isInWishlist(product.id));
-      } catch (e) {}
+      } catch (e) {
+        // store not initialised yet — wishlist state stays false
+      }
     }
   }, [isOpen, product?.id]);
 

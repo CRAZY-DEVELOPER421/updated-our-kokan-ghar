@@ -1,8 +1,82 @@
 const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/auth.controller');
+const socialController = require('../controllers/social.controller');
 const { registerValidation, loginValidation, forgotPasswordValidation, resetPasswordValidation } = require('../middleware/validate');
 const { authLimiter } = require('../middleware/rateLimiter');
+
+// ===== SOCIAL OAUTH (Google / Facebook) =====
+// These GET endpoints drive the browser redirect flow. `redirect` is an
+// optional same-site path (e.g. /checkout) the user should land on after
+// login — it is carried through the provider round-trip and back.
+//
+//   /api/auth/google            -> provider consent screen
+//   /api/auth/google/callback   -> provider returns here; session is created
+//   /api/auth/facebook          -> provider consent screen
+//   /api/auth/facebook/callback -> provider returns here; session is created
+//
+// The start routes only issue a redirect (no secrets), so the global apiLimiter
+// is enough — authLimiter (5/15min/IP) is too tight for users retrying flows.
+
+/**
+ * @swagger
+ * /auth/google:
+ *   get:
+ *     summary: Start Google OAuth login (redirects to Google consent screen)
+ *     tags: [Auth]
+ *     parameters:
+ *       - in: query
+ *         name: redirect
+ *         required: false
+ *         schema: { type: string, example: /checkout }
+ *         description: Same-site path to land on after login
+ *     responses:
+ *       302:
+ *         description: Redirect to Google
+ */
+router.get('/google', socialController.googleLogin);
+
+/**
+ * @swagger
+ * /auth/google/callback:
+ *   get:
+ *     summary: Google OAuth callback (exchanges code, creates/looks up user)
+ *     tags: [Auth]
+ *     responses:
+ *       302:
+ *         description: Redirect to frontend /social-callback
+ */
+router.get('/google/callback', socialController.googleCallback);
+
+/**
+ * @swagger
+ * /auth/facebook:
+ *   get:
+ *     summary: Start Facebook OAuth login (redirects to Facebook login dialog)
+ *     tags: [Auth]
+ *     parameters:
+ *       - in: query
+ *         name: redirect
+ *         required: false
+ *         schema: { type: string, example: /checkout }
+ *         description: Same-site path to land on after login
+ *     responses:
+ *       302:
+ *         description: Redirect to Facebook
+ */
+router.get('/facebook', socialController.facebookLogin);
+
+/**
+ * @swagger
+ * /auth/facebook/callback:
+ *   get:
+ *     summary: Facebook OAuth callback (exchanges code, creates/looks up user)
+ *     tags: [Auth]
+ *     responses:
+ *       302:
+ *         description: Redirect to frontend /social-callback
+ */
+router.get('/facebook/callback', socialController.facebookCallback);
 
 /**
  * @swagger

@@ -49,9 +49,9 @@ api.interceptors.response.use(
           localStorage.removeItem('accessToken');
           localStorage.removeItem('konkan-admin-auth');
           window.dispatchEvent(new Event('auth:logout'));
-          // Redirect to admin login — refresh token also expired/absent
-          if (window.location.pathname.startsWith('/konkanbazar')) {
-            window.location.href = '/konkanbazar/login';
+          // Refresh token expired/absent — redirect to the storefront login
+          if (!window.location.pathname.startsWith('/login')) {
+            window.location.href = '/login';
           }
         }
         return Promise.reject(refreshError);
