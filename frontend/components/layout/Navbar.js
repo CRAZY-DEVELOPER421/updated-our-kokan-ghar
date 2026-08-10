@@ -35,6 +35,8 @@ export default function Navbar() {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const { isScrolled } = useScrollDirection({ threshold: 5 });
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+  const [activeCat, setActiveCat] = useState(null);
+  const closeCategoryMenu = () => { setIsCategoryOpen(false); setActiveCat(null); };
   const pathname = usePathname();
   const router = useRouter();
   const { user, isAuthenticated, logout } = useAuthStore();
@@ -66,7 +68,7 @@ export default function Navbar() {
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (categoryRef.current && !categoryRef.current.contains(e.target)) {
-        setIsCategoryOpen(false);
+        closeCategoryMenu();
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -217,7 +219,9 @@ export default function Navbar() {
               <button
                 className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-white bg-konkan-green-primary hover:bg-konkan-green-dark transition-colors rounded-t-xl"
                 onMouseEnter={() => setIsCategoryOpen(true)}
-                onClick={() => setIsCategoryOpen(!isCategoryOpen)}
+                onClick={() => (isCategoryOpen ? closeCategoryMenu() : setIsCategoryOpen(true))}
+                aria-haspopup="menu"
+                aria-expanded={isCategoryOpen}
               >
                 <Menu className="w-4 h-4" />
                 {t('nav.all_categories')}
@@ -225,40 +229,53 @@ export default function Navbar() {
               </button>
               {isCategoryOpen && (
                 <div
-                  className="absolute top-full left-0 w-64 bg-white rounded-b-2xl shadow-modal border border-konkan-sand z-50 py-2 max-h-[calc(100vh-12rem)] overflow-y-auto"
-                  onMouseLeave={() => setIsCategoryOpen(false)}
+                  className="absolute top-full left-0 flex z-50 rounded-b-2xl shadow-modal border border-konkan-sand overflow-hidden"
+                  onMouseLeave={closeCategoryMenu}
                 >
-                  {categories.map((cat) => {
-                    const catKey = cat.slug?.replace(/-/g, '_');
-                    return (
-                      <div key={cat.id} className="relative group/cat">
-                      <Link
-                        href={`/categories/${cat.slug}`}
-                        className="flex items-center justify-between px-4 py-2.5 text-sm text-konkan-text-primary hover:bg-konkan-cream transition-colors"
-                        onClick={() => setIsCategoryOpen(false)}
-                      >
-                        <span>{t(`nav.${catKey}`, { _default: cat.name })}</span>
-                        {cat.children?.length > 0 && (
-                          <ChevronRight className="w-3 h-3 text-konkan-text-secondary" />
-                        )}
-                      </Link>
-                      {cat.children?.length > 0 && (
-                        <div className="absolute left-full top-0 w-56 bg-white rounded-2xl shadow-modal border border-konkan-sand opacity-0 invisible group-hover/cat:opacity-100 group-hover/cat:visible transition-all duration-200 py-2 ml-1">
-                          {cat.children.map((child) => (
-                            <Link
-                              key={child.id}
-                              href={`/categories/${child.slug}`}
-                              className="block px-4 py-2.5 text-sm text-konkan-text-primary hover:bg-konkan-cream transition-colors"
-                              onClick={() => setIsCategoryOpen(false)}
-                            >
-                              {child.name}
-                            </Link>
-                          ))}
+                  {/* Left column: all categories (vertical scroll only) */}
+                  <div className="w-64 bg-white py-2 max-h-[calc(100vh-12rem)] overflow-y-auto overflow-x-hidden">
+                    {categories.map((cat) => {
+                      const catKey = cat.slug?.replace(/-/g, '_');
+                      const isActive = activeCat?.id === cat.id;
+                      return (
+                        <div
+                          key={cat.id}
+                          onMouseEnter={() => setActiveCat(cat)}
+                          className={`${isActive ? 'bg-konkan-cream' : ''} transition-colors duration-150`}
+                        >
+                          <Link
+                            href={`/categories/${cat.slug}`}
+                            className="flex items-center justify-between px-4 py-2.5 text-sm text-konkan-text-primary hover:bg-konkan-cream transition-colors"
+                            onClick={closeCategoryMenu}
+                          >
+                            <span className="min-w-0 line-clamp-2">{t(`nav.${catKey}`, { _default: cat.name })}</span>
+                            {cat.children?.length > 0 && (
+                              <ChevronRight className="w-3 h-3 text-konkan-text-secondary shrink-0 ml-1" />
+                            )}
+                          </Link>
                         </div>
-                      )}
+                      );
+                    })}
+                  </div>
+
+                  {/* Right column: subcategories of the hovered category (vertical scroll only) */}
+                  {activeCat?.children?.length > 0 && (
+                    <div className="w-64 bg-white py-2 max-h-[calc(100vh-12rem)] overflow-y-auto overflow-x-hidden border-l border-konkan-sand/60">
+                      <p className="px-4 pt-1 pb-2 text-[10px] font-semibold uppercase tracking-widest text-konkan-text-secondary">
+                        {activeCat.name}
+                      </p>
+                      {activeCat.children.map((child) => (
+                        <Link
+                          key={child.id}
+                          href={`/categories/${child.slug}`}
+                          className="block px-4 py-2 text-sm text-konkan-text-primary hover:bg-konkan-cream transition-colors"
+                          onClick={closeCategoryMenu}
+                        >
+                          {child.name}
+                        </Link>
+                      ))}
                     </div>
-                  )
-                  })}
+                  )}
                 </div>
               )}
             </div>

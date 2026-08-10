@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Served under /admin so one ngrok tunnel / gateway can host the admin
+  // panel alongside the storefront (see tools/ngrok-gateway.js).
+  basePath: '/admin',
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'images.unsplash.com' },

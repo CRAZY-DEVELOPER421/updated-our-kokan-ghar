@@ -49,7 +49,8 @@ export default function AdminFlashSalesPage() {
   const loadProducts = async () => {
     setLoadingProducts(true);
     try {
-      const res = await api.get(`/admin/products?limit=200${productSearch ? `&search=${encodeURIComponent(productSearch)}` : ''}`);
+      // Fetch the full catalog so every product is pickable (not just the newest 200)
+      const res = await api.get(`/admin/products?limit=5000${productSearch ? `&search=${encodeURIComponent(productSearch)}` : ''}`);
       setProducts(res.data.data?.products || []);
     } catch (err) {
       toast.error('Failed to load products.');

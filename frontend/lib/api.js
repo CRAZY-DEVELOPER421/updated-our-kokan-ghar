@@ -1,6 +1,18 @@
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+// Resolve the API base at RUNTIME so a single build works everywhere:
+//  - storefront dev (:3000) / admin panel (:3001) → talk straight to the backend
+//  - any other origin (ngrok tunnel/gateway)      → relative /api (gateway proxies it)
+// This also makes builds immune to Git-Bash mangling build-time env paths.
+function resolveApiBase() {
+  if (typeof window === 'undefined') {
+    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+  }
+  const port = window.location.port;
+  if (port === '3000' || port === '3001') return 'http://localhost:5000/api';
+  return '/api';
+}
+const API_URL = resolveApiBase();
 
 const api = axios.create({
   baseURL: API_URL,

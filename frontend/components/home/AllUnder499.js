@@ -22,6 +22,10 @@ export default function AllUnder499() {
     return null;
   }
 
+  // Mobile only: keep this section compact — show just the top 20 deals.
+  // "See all →" links to /products?max_price=499 (full list + filters).
+  const MAX_CATEGORIES = 20;
+
   return (
     <section>
       {/* ── Section Header ── */}
@@ -80,7 +84,7 @@ export default function AllUnder499() {
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-2" style={{ padding: '0 16px' }}>
-          {categories.map((cat) => {
+          {categories.slice(0, MAX_CATEGORIES).map((cat) => {
             const imgSrc = cat.representative_image || cat.category_image || '/images/placeholder.svg';
             return (
               <Link

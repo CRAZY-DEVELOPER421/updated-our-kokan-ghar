@@ -67,7 +67,9 @@ export default function AdminProductsPage() {
   }, [searchInput]);
 
   const queryParams = useMemo(() => {
-    const p = new URLSearchParams({ page: String(page), limit: '200' });
+    // Fetch ALL products (current catalog = 570) so every product is visible;
+    // sorting + pagination happen client-side below. Bump if the catalog grows.
+    const p = new URLSearchParams({ page: String(page), limit: '5000' });
     if (searchTerm) p.set('search', searchTerm);
     if (selectedCategory) p.set('category', selectedCategory);
     if (imageStatus) p.set('imageStatus', imageStatus);

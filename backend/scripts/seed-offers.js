@@ -1,6 +1,8 @@
 // ============================================================
-// SEED OFFERS — coupons, flash sales, bank offers
+// SEED OFFERS — coupons + bank offers
 // Idempotent: safe to re-run. Powers the Offers & Deals page.
+// (Flash sales are created via the admin panel — the old seed
+// entries referenced product slugs that no longer exist.)
 //
 // Run:  node scripts/seed-offers.js
 // ============================================================
@@ -16,14 +18,6 @@ const COUPONS = [
   { code: 'SEAFOOD10', type: 'percentage', value: 10, min_order_amount: 749, max_discount: 150, usage_limit: 500, description: '10% off on seafood orders above ₹749' },
   { code: 'FESTIVE25', type: 'percentage', value: 25, min_order_amount: 1499, max_discount: 500, usage_limit: 200, description: '25% off festive special (min ₹1499)' },
   { code: 'BOGOSNACKS', type: 'bogo', value: 0, min_order_amount: 499, max_discount: null, usage_limit: 300, description: 'Buy 1 Get 1 on select traditional Konkan snacks' },
-];
-
-// Flash sales reference real products by slug (idempotent refresh)
-const FLASH_SALES = [
-  { slug: 'devgad-alphonso-mango-premium-box-12-pcs', sale_price: 1599, original_price: 2499, quantity_limit: 50, sold_count: 15, days: 7 },
-  { slug: 'sundried-bombay-duck-bombil-500g', sale_price: 349, original_price: 549, quantity_limit: 100, sold_count: 30, days: 5 },
-  { slug: 'cold-pressed-coconut-oil-1l', sale_price: 449, original_price: 699, quantity_limit: 80, sold_count: 25, days: 10 },
-  { slug: 'indrayani-rice-premium-5kg', sale_price: 649, original_price: 949, quantity_limit: 60, sold_count: 12, days: 4 },
 ];
 
 const BANK_OFFERS = [
@@ -88,28 +82,7 @@ CREATE TABLE IF NOT EXISTS bank_offers (
   }
   console.log(`✅ Coupons upserted: ${couponCount}`);
 
-  // 3. Flash sales — refresh for the selected products
-  let flashCount = 0;
-  for (const fs of FLASH_SALES) {
-    const [rows] = await c.query('SELECT id FROM products WHERE slug = ?', [fs.slug]);
-    if (rows.length === 0) {
-      console.log(`   ⚠ Product not found, skipped: ${fs.slug}`);
-      continue;
-    }
-    const productId = rows[0].id;
-    // NOTE: intentionally overrides any existing (incl. admin-created) flash
-    // sale for these products on re-run, so the page always has fresh deals.
-    await c.query('DELETE FROM flash_sales WHERE product_id = ?', [productId]);
-    await c.query(
-      `INSERT INTO flash_sales (product_id, sale_price, original_price, quantity_limit, sold_count, starts_at, ends_at, is_active)
-       VALUES (?, ?, ?, ?, ?, NOW(), DATE_ADD(NOW(), INTERVAL ? DAY), 1)`,
-      [productId, fs.sale_price, fs.original_price, fs.quantity_limit, fs.sold_count, fs.days]
-    );
-    flashCount++;
-  }
-  console.log(`✅ Flash sales seeded: ${flashCount}`);
-
-  // 4. Bank offers — INSERT IGNORE (uk_bo_offer prevents duplicates)
+  // 3. Bank offers — INSERT IGNORE (uk_bo_offer prevents duplicates)
   let bankCount = 0;
   for (const bo of BANK_OFFERS) {
     await c.query(
@@ -125,12 +98,10 @@ CREATE TABLE IF NOT EXISTS bank_offers (
   const [[counts]] = await c.query(
     `SELECT
        (SELECT COUNT(*) FROM coupons WHERE is_active = 1 AND valid_until >= NOW()) AS active_coupons,
-       (SELECT COUNT(*) FROM flash_sales WHERE is_active = 1 AND NOW() BETWEEN starts_at AND ends_at) AS active_flash_sales,
        (SELECT COUNT(*) FROM bank_offers WHERE is_active = 1 AND (valid_until IS NULL OR valid_until >= NOW())) AS active_bank_offers`
   );
   console.log('\n📊 Active data now in DB:');
   console.log(`   Coupons:      ${counts.active_coupons}`);
-  console.log(`   Flash sales:  ${counts.active_flash_sales}`);
   console.log(`   Bank offers:  ${counts.active_bank_offers}`);
 
   await c.end();

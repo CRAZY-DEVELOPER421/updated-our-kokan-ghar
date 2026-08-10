@@ -36,7 +36,7 @@ const ensureBundleTables = async (conn) => {
     INDEX idx_bundles_product (product_id)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
 
-  // Self-heal: if the table pre-existed (e.g. from seed-bundles.js) without
+  // Self-heal: if the table pre-existed (e.g. from an older seed) without
   // the product_id column, add it so combo saves never fail.
   if (!(await columnExists(conn, 'bundles', 'product_id'))) {
     await conn.query('ALTER TABLE bundles ADD COLUMN product_id INT UNSIGNED NULL AFTER id, ADD INDEX idx_bundles_product (product_id)');

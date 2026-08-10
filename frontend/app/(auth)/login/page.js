@@ -9,7 +9,16 @@ import useAuthStore from '@/lib/store/authStore';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+// Runtime-resolved API base — works on localhost dev AND behind the tunnel/gateway.
+function resolveApiBase() {
+  if (typeof window === 'undefined') {
+    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+  }
+  const port = window.location.port;
+  if (port === '3000' || port === '3001') return 'http://localhost:5000/api';
+  return '/api';
+}
+const API_URL = resolveApiBase();
 
 // Start a provider OAuth flow. The backend handles the redirect round-trip and
 // sends the browser back to /auth/social-callback which completes the session.

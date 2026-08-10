@@ -9,7 +9,7 @@ Monorepo with three apps: a customer-facing **storefront**, an **admin panel**, 
 ## ✨ Features
 
 ### Storefront (`frontend/`)
-- 🥭 200+ products across 10+ categories (mangoes, fruits, spices, cashews, snacks…)
+- 🥭 570 products across 53 categories & 633 subcategories (mangoes, kokum, cashews, spices, pickles, handicrafts…)
 - 🔍 Full-text search with autocomplete + trending suggestions
 - 🛒 Cart, wishlist, coupons & combo/bundle deals
 - 💳 Checkout with **Razorpay** payments + order tracking timeline
@@ -90,10 +90,20 @@ mysql -u root -p konkan_bazaar < database/customer_service_schema.sql
 mysql -u root -p konkan_bazaar < database/settings_schema.sql
 mysql -u root -p konkan_bazaar < database/social_oauth_migration.sql
 
+# 🛒 Load the full Kokan catalog (53 categories, 633 subcategories, 570 products)
+# All catalog data comes from database/kokan-catalog-data.js — nothing is hardcoded in the app.
+# Duplicate products (same item in multiple categories) are removed automatically.
+node database/migrate-kokan-catalog.js --reset-all
+
 # Verify
 mysql -u root -p konkan_bazaar -e "SELECT COUNT(*) AS total_products FROM products"
-# Expected: 200
+# Expected: 570
 ```
+
+> **Note:** `migrate-kokan-catalog.js` is the single source of truth for the store catalog.
+> `--reset-all` gives a clean slate (also clears test orders/reviews/carts); use plain
+> `node database/migrate-kokan-catalog.js` for a non-destructive upsert. See
+> [`database/README.md`](database/README.md) for details.
 
 ### 2. Environment — ONE file for the whole project
 
@@ -182,8 +192,7 @@ All queries use parameterized statements — no ORM.
 ```bash
 # Backend seed scripts (after DB setup)
 cd backend
-node scripts/seed-bundles.js          # combo/bundle products
-node scripts/seed-offers.js           # offer pages
+node scripts/seed-offers.js           # coupons + bank offers
 node scripts/seed-customer-service.js # terms/shipping/FAQ pages
 node scripts/seed-settings.js         # site settings
 ```

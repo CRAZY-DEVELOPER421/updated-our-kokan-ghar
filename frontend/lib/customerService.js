@@ -1,4 +1,13 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+// Runtime-resolved API base — works on localhost dev AND behind the tunnel/gateway.
+function resolveApiBase() {
+  if (typeof window === 'undefined') {
+    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+  }
+  const port = window.location.port;
+  if (port === '3000' || port === '3001') return 'http://localhost:5000/api';
+  return '/api';
+}
+const API_URL = resolveApiBase();
 
 // ── Fallback content (mirrors the previous static pages) ──
 // Used when the API is unreachable or a page is missing from the DB,
