@@ -100,6 +100,8 @@ CREATE TABLE products (
   brand VARCHAR(100),
   weight_grams DECIMAL(10,2),
   unit VARCHAR(50) DEFAULT 'piece',
+  free_delivery TINYINT(1) NOT NULL DEFAULT 1,
+  delivery_estimate VARCHAR(50) NOT NULL DEFAULT '3-5 days',
   is_active TINYINT(1) NOT NULL DEFAULT 1,
   is_featured TINYINT(1) NOT NULL DEFAULT 0,
   is_bestseller TINYINT(1) NOT NULL DEFAULT 0,

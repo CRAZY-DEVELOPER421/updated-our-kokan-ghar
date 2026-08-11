@@ -171,11 +171,13 @@ export default function HomePage() {
         <CategoryGrid />
       </section>
 
-      {/* Flash Sale — desktop only */}
-      <section className="hidden lg:block max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
-        <Suspense fallback={<div className="skeleton h-80 rounded-2xl" />}>
-          <FlashSaleTimer />
-        </Suspense>
+      {/* Flash Sale — desktop only, full-bleed background */}
+      <section className="hidden lg:block w-full" style={{ backgroundColor: '#FFF3E0' }}>
+        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <Suspense fallback={<div className="skeleton h-80 rounded-2xl" />}>
+            <FlashSaleTimer />
+          </Suspense>
+        </div>
       </section>
 
       {/* 🆕 Deals Under ₹999 — desktop only */}
@@ -206,13 +208,6 @@ export default function HomePage() {
         </Suspense>
       </section>
 
-      {/* Seasonal Picks — HIDDEN (not in reference design) */}
-      {/* <section className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
-        <Suspense fallback={<div className="skeleton h-96 rounded-2xl" />}>
-          <SeasonalSection />
-        </Suspense>
-      </section> */}
-
       {/* New Arrivals — desktop only */}
       <section className="hidden lg:block max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
         <Suspense fallback={<div className="skeleton h-64 rounded-2xl" />}>
@@ -223,22 +218,23 @@ export default function HomePage() {
         </Suspense>
       </section>
 
-      {/* 🆕 Discover Products For You — desktop only */}
-      <section className="hidden lg:block max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
-        <Suspense fallback={<div className="skeleton h-80 rounded-2xl" />}>
-          <DiscoverForYouDesktop />
-        </Suspense>
-      </section>
-
-      {/* Why Choose Us — HIDDEN (not in reference design) */}
-      {/* <WhyChooseUs /> */}
-
-      {/* Testimonials — desktop only */}
-      <section className="hidden lg:block max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
-        <Suspense fallback={<div className="skeleton h-64 rounded-2xl" />}>
-          <TestimonialsSection />
-        </Suspense>
-      </section>
+      {/* 🆕 Discover Products For You + Testimonials — desktop only, full-bleed, no gap between */}
+      <div className="hidden lg:block">
+        <section className="w-full" style={{ backgroundColor: '#FFF0F3' }}>
+          <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <Suspense fallback={<div className="skeleton h-80 rounded-2xl" />}>
+              <DiscoverForYouDesktop />
+            </Suspense>
+          </div>
+        </section>
+        <section className="w-full bg-konkan-cream">
+          <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <Suspense fallback={<div className="skeleton h-64 rounded-2xl" />}>
+              <TestimonialsSection />
+            </Suspense>
+          </div>
+        </section>
+      </div>
 
       {/* Blog Preview — desktop only */}
       <div className="hidden lg:block">

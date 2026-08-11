@@ -235,24 +235,43 @@ export default function Footer() {
           </p>
           <div className="flex flex-wrap items-center justify-center gap-2">
             <span className="text-konkan-sand/60 text-xs">We Accept:</span>
-            <span className="px-2 py-1 bg-white/10 rounded-lg text-[10px] sm:text-xs text-konkan-cream/80">Razorpay</span>
+            {/* Razorpay */}
+            <span className="flex items-center justify-center" style={{ height: '28px', padding: '0 10px', backgroundColor: '#FFFFFF', borderRadius: '6px' }}>
+              <svg width="80" height="20" viewBox="0 0 116 30" aria-label="Razorpay">
+                <text x="0" y="22" fontFamily="Arial, Helvetica, sans-serif" fontSize="20" fontWeight="bold" fill="#0A2540">Razorpay</text>
+              </svg>
+            </span>
             {/* UPI */}
-            <span className="flex items-center justify-center" style={{ height: '26px', padding: '0 8px', backgroundColor: '#FFFFFF', borderRadius: '6px' }}>
-              <Image src="/images/payments/upi.svg" alt="UPI" width={24} height={14} className="h-3.5 w-auto" unoptimized />
+            <span className="flex items-center justify-center" style={{ height: '28px', padding: '0 10px', backgroundColor: '#FFFFFF', borderRadius: '6px' }}>
+              <Image src="/images/payments/upi.svg" alt="UPI" width={60} height={20} className="h-5 w-auto" unoptimized />
             </span>
             {/* Visa */}
-            <span className="flex items-center justify-center" style={{ height: '26px', padding: '0 8px', backgroundColor: '#FFFFFF', borderRadius: '6px' }}>
-              <Image src="/images/payments/visa.svg" alt="Visa" width={28} height={14} className="h-3.5 w-auto" unoptimized />
+            <span className="flex items-center justify-center" style={{ height: '28px', padding: '0 10px', backgroundColor: '#FFFFFF', borderRadius: '6px' }}>
+              <Image src="/images/payments/visa.svg" alt="Visa" width={56} height={18} className="h-5 w-auto" unoptimized />
             </span>
             {/* Mastercard */}
-            <span className="flex items-center justify-center" style={{ height: '26px', padding: '0 8px', backgroundColor: '#FFFFFF', borderRadius: '6px' }}>
-              <Image src="/images/payments/mastercard.svg" alt="Mastercard" width={28} height={14} className="h-3.5 w-auto" unoptimized />
+            <span className="flex items-center justify-center" style={{ height: '28px', padding: '0 10px', backgroundColor: '#FFFFFF', borderRadius: '6px' }}>
+              <Image src="/images/payments/mastercard.svg" alt="Mastercard" width={66} height={20} className="h-5 w-auto" unoptimized />
             </span>
             {/* RuPay */}
-            <span className="flex items-center justify-center" style={{ height: '26px', padding: '0 8px', backgroundColor: '#FFFFFF', borderRadius: '6px' }}>
-              <Image src="/images/payments/rupay.svg" alt="RuPay" width={28} height={14} className="h-3.5 w-auto" unoptimized />
+            <span className="flex items-center justify-center" style={{ height: '28px', padding: '0 10px', backgroundColor: '#FFFFFF', borderRadius: '6px' }}>
+              <Image src="/images/payments/rupay.svg" alt="RuPay" width={64} height={20} className="h-5 w-auto" unoptimized />
             </span>
-            <span className="px-2 py-1 bg-white/10 rounded-lg text-[10px] sm:text-xs text-konkan-cream/80">Net Banking</span>
+            {/* Net Banking */}
+            <span className="flex items-center justify-center" style={{ height: '28px', padding: '0 10px', backgroundColor: '#FFFFFF', borderRadius: '6px' }}>
+              <svg width="110" height="20" viewBox="0 0 132 30" aria-label="Net Banking">
+                <g fill="none" stroke="#0A2540" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" transform="translate(1 6)">
+                  <path d="M2 10l10-7 10 7" />
+                  <path d="M4 11v8" />
+                  <path d="M11 11v8" />
+                  <path d="M18 11v8" />
+                  <path d="M1 21h22" />
+                  <path d="M6 21v-2" />
+                  <path d="M16 21v-2" />
+                </g>
+                <text x="32" y="21" fontFamily="Arial, Helvetica, sans-serif" fontSize="14" fontWeight="bold" fill="#0A2540">Net Banking</text>
+              </svg>
+            </span>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-5">
             <Link href="/privacy" className="text-[#666] hover:text-konkan-gold text-xs transition-colors">{t('footer.privacy_policy')}</Link>

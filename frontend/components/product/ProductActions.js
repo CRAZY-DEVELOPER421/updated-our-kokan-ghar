@@ -9,13 +9,34 @@ import useAuthStore from '@/lib/store/authStore';
 import useWishlistStore from '@/lib/store/wishlistStore';
 import { getImageUrl } from '@/lib/utils';
 
-export default function ProductActions({ product, stockQuantity = 0 }) {
+export default function ProductActions({ product, stockQuantity = 0, variants = [] }) {
   const router = useRouter();
   const { isAuthenticated } = useAuthStore();
   const items = useCartStore((s) => s.items);
   const addToCart = useCartStore((s) => s.addToCart);
   const updateQuantity = useCartStore((s) => s.updateQuantity);
   const [isAdding, setIsAdding] = useState(false);
+
+  // ── Variant selection (auto-selects the first IN-STOCK variant so price/
+  //    stock/cart are consistent and the buy box never defaults to sold-out) ──
+  const [selectedVariant, setSelectedVariant] = useState(null);
+  useEffect(() => {
+    if (variants.length > 0 && !selectedVariant) {
+      setSelectedVariant(variants.find((v) => Number(v.stock_quantity) > 0) || variants[0]);
+    }
+    if (variants.length === 0 && selectedVariant) {
+      setSelectedVariant(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [variants]);
+
+  // Effective price / stock come from the selected variant when one exists
+  const basePrice = Number(product.price) || 0;
+  const variantPrice = selectedVariant ? basePrice + (Number(selectedVariant.price_modifier) || 0) : basePrice;
+  const effectiveStock = selectedVariant ? Number(selectedVariant.stock_quantity) || 0 : stockQuantity;
+  const mrp = Number(product.mrp) || 0;
+  const savings = mrp > variantPrice ? mrp - variantPrice : 0;
+  const discountPercent = mrp > variantPrice ? Math.round(((mrp - variantPrice) / mrp) * 100) : 0;
 
   // Wishlist
   const toggleWishlist = useWishlistStore((s) => s.toggleWishlist);
@@ -29,9 +50,13 @@ export default function ProductActions({ product, stockQuantity = 0 }) {
 
   const productId = product.id;
 
-  // Check if product is already in cart
+  // Check if this exact product + variant is already in cart
   const cartItem = items.find(
-    (item) => parseInt(item.product_id) === parseInt(productId),
+    (item) =>
+      parseInt(item.product_id) === parseInt(productId) &&
+      (selectedVariant
+        ? parseInt(item.variant_id || 0) === parseInt(selectedVariant.id)
+        : !item.variant_id),
   );
   const cartItemId = cartItem?.id;
   const isInCart = !!cartItem;
@@ -55,7 +80,7 @@ export default function ProductActions({ product, stockQuantity = 0 }) {
   };
 
   const increaseQty = () => {
-    const nextQty = Math.min(stockQuantity || 99, qty + 1);
+    const nextQty = Math.min(effectiveStock || 99, qty + 1);
     setQty(nextQty);
     if (isInCart && cartItemId) {
       updateQuantity(cartItemId, nextQty);
@@ -70,14 +95,14 @@ export default function ProductActions({ product, stockQuantity = 0 }) {
       return;
     }
     setIsAdding(true);
-    const res = await addToCart(productId, null, qty);
+    const res = await addToCart(productId, selectedVariant?.id || null, qty);
     setIsAdding(false);
     if (res.success) {
-      toast.success(`${qty} × ${product.name} added to cart`);
+      toast.success(`${qty} × ${selectedVariant?.variant_value || product.name} added to cart`);
     } else {
       toast.error(res.message || 'Failed to add to cart');
     }
-  }, [isAuthenticated, productId, qty, addToCart, router, product.name]);
+  }, [isAuthenticated, productId, selectedVariant, qty, addToCart, router, product.name]);
 
   // ── Buy Now ─────────────────────────────────────────
   const handleBuyNow = useCallback(async () => {
@@ -87,14 +112,14 @@ export default function ProductActions({ product, stockQuantity = 0 }) {
       return;
     }
     setIsAdding(true);
-    const res = await addToCart(productId, null, qty);
+    const res = await addToCart(productId, selectedVariant?.id || null, qty);
     setIsAdding(false);
     if (res.success) {
       router.push('/checkout');
     } else {
       toast.error(res.message || 'Failed to add to cart');
     }
-  }, [isAuthenticated, productId, qty, addToCart, router]);
+  }, [isAuthenticated, productId, selectedVariant, qty, addToCart, router]);
 
   // ── Wishlist Toggle ─────────────────────────────────
   const handleWishlist = useCallback(async () => {
@@ -167,7 +192,52 @@ export default function ProductActions({ product, stockQuantity = 0 }) {
     'flex-1 py-3 text-xs sm:text-sm font-semibold rounded-xl transition-all duration-200 border border-konkan-sand text-konkan-text-secondary hover:text-konkan-green-primary hover:border-konkan-green-primary/30 hover:bg-green-50 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 sm:gap-2';
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
+      {/* Price — dynamic (base + selected variant modifier) */}
+      <div className="flex items-baseline gap-3 p-4 bg-konkan-cream/50 rounded-xl">
+        <span className="text-3xl font-bold text-konkan-saffron">₹{variantPrice}</span>
+        {mrp > variantPrice && (
+          <>
+            <span className="text-lg text-konkan-text-secondary line-through">₹{mrp}</span>
+            <span className="px-2 py-0.5 bg-konkan-saffron/10 text-konkan-saffron text-sm font-semibold rounded">
+              Save ₹{savings} ({discountPercent}% OFF)
+            </span>
+          </>
+        )}
+      </div>
+
+      {/* Variants — each with its own price difference + stock */}
+      {variants.length > 0 && (
+        <div>
+          <p className="text-sm font-medium text-konkan-text-primary mb-2">{variants[0]?.variant_name || 'Size / Variant'}</p>
+          <div className="flex flex-wrap gap-2">
+            {variants.map((v) => {
+              const mod = Number(v.price_modifier) || 0;
+              const out = (Number(v.stock_quantity) || 0) === 0;
+              return (
+                <button
+                  key={v.id}
+                  onClick={() => setSelectedVariant(v)}
+                  className={`px-4 py-2 text-sm rounded-lg border font-medium transition-all ${out ? 'opacity-60' : ''} ${
+                    selectedVariant?.id === v.id
+                      ? 'border-konkan-green-primary bg-konkan-green-primary/5 text-konkan-green-primary'
+                      : 'border-konkan-sand text-konkan-text-secondary hover:border-konkan-green-primary'
+                  }`}
+                >
+                  {v.variant_value}
+                  {mod !== 0 && (
+                    <span className={`ml-1 text-xs ${mod > 0 ? 'text-konkan-saffron' : 'text-konkan-success'}`}>
+                      {mod > 0 ? '+' : ''}₹{mod}
+                    </span>
+                  )}
+                  {out && <span className="ml-1 text-xs text-konkan-error">(Out)</span>}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Quantity Selector */}
       <div className="flex items-center gap-3">
         <span className="text-sm font-medium text-konkan-text-primary">Quantity:</span>
@@ -185,15 +255,15 @@ export default function ProductActions({ product, stockQuantity = 0 }) {
           </span>
           <button
             onClick={increaseQty}
-            disabled={qty >= stockQuantity}
+            disabled={qty >= effectiveStock}
             className="px-3 py-1.5 text-konkan-text-secondary hover:text-konkan-text-primary hover:bg-konkan-cream transition-colors disabled:opacity-30"
             aria-label="Increase quantity"
           >
             +
           </button>
         </div>
-        {stockQuantity > 0 && stockQuantity <= 5 && (
-          <span className="text-xs text-konkan-error font-medium">Only {stockQuantity} left!</span>
+        {effectiveStock > 0 && effectiveStock <= 5 && (
+          <span className="text-xs text-konkan-error font-medium">Only {effectiveStock} left!</span>
         )}
       </div>
 
@@ -214,7 +284,7 @@ export default function ProductActions({ product, stockQuantity = 0 }) {
           ) : (
             <button
               onClick={handleAddToCart}
-              disabled={isAdding || stockQuantity === 0}
+              disabled={isAdding || effectiveStock === 0}
               className="w-full py-3 text-sm sm:text-base font-semibold rounded-xl transition-all duration-200 bg-gradient-to-r from-konkan-green-primary to-konkan-green-secondary text-white hover:from-konkan-green-dark hover:to-konkan-green-primary active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {isAdding ? (
@@ -227,7 +297,7 @@ export default function ProductActions({ product, stockQuantity = 0 }) {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z" />
                 </svg>
               )}
-              {stockQuantity === 0 ? 'Out of Stock' : isAdding ? 'Adding...' : 'Add to Cart'}
+              {effectiveStock === 0 ? 'Out of Stock' : isAdding ? 'Adding...' : 'Add to Cart'}
             </button>
           )}
         </div>
@@ -280,7 +350,7 @@ export default function ProductActions({ product, stockQuantity = 0 }) {
       {!isInCart && (
         <button
           onClick={handleBuyNow}
-          disabled={isAdding || stockQuantity === 0}
+          disabled={isAdding || effectiveStock === 0}
           className="w-full py-3 text-sm sm:text-base font-semibold rounded-xl transition-all duration-200 bg-gradient-to-r from-konkan-saffron to-orange-500 text-white hover:from-orange-600 hover:to-orange-700 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">

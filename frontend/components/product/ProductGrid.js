@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import ProductCard from './ProductCard';
+import ProductCarouselCard, { ProductCarouselCardSkeleton } from './ProductCarouselCard';
 
 function useMediaQuery(query) {
   const [matches, setMatches] = useState(null);
@@ -17,19 +18,11 @@ function useMediaQuery(query) {
   return matches;
 }
 
+// Product listing / category / search grid.
+// Desktop (≥768px): shared ProductCarouselCard design (same as homepage sections).
+// Mobile (<768px): original Amazon-style list rows (ProductCard view="list").
 export default function ProductGrid({ products = [], loading = false, skeletonCount = 8 }) {
   const isMobile = useMediaQuery('(max-width: 767px)');
-  const [view, setView] = useState('grid');
-
-  useEffect(() => {
-    const saved = localStorage.getItem('productView');
-    if (saved === 'list' || saved === 'grid') setView(saved);
-  }, []);
-
-  const handleViewChange = useCallback((v) => {
-    setView(v);
-    localStorage.setItem('productView', v);
-  }, []);
 
   // SSR-safe: don't decide the layout until we know the viewport
   const resolved = isMobile !== null;
@@ -59,15 +52,8 @@ export default function ProductGrid({ products = [], loading = false, skeletonCo
         ) : (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
             {Array.from({ length: skeletonCount }).map((_, i) => (
-              <div key={i} className="bg-white rounded-2xl card p-3 space-y-3 animate-fade-up" style={{ animationDelay: `${i * 50}ms` }}>
-                <div className="skeleton aspect-square w-full rounded-xl" />
-                <div className="skeleton h-4 w-3/4 rounded" />
-                <div className="skeleton h-3 w-1/2 rounded" />
-                <div className="flex items-center gap-2">
-                  <div className="skeleton h-5 w-16 rounded" />
-                  <div className="skeleton h-4 w-12 rounded" />
-                </div>
-                <div className="skeleton h-9 w-full rounded-xl" />
+              <div key={i} className="animate-fade-up" style={{ animationDelay: `${i * 50}ms` }}>
+                <ProductCarouselCardSkeleton />
               </div>
             ))}
           </div>
@@ -96,7 +82,7 @@ export default function ProductGrid({ products = [], loading = false, skeletonCo
     );
   }
 
-  // ─── Desktop (≥768px): with view toggle ───────────────
+  // ─── Desktop (≥768px): 4-col grid of the shared card ──
   if (!isMobile) {
     return (
       <div>
@@ -104,32 +90,12 @@ export default function ProductGrid({ products = [], loading = false, skeletonCo
           <span className="text-sm text-konkan-text-secondary">
             Showing <strong className="text-konkan-text-primary">{products.length}</strong> products
           </span>
-          <div className="flex items-center gap-1 bg-konkan-cream rounded-lg p-1">
-            <button
-              onClick={() => handleViewChange('grid')}
-              className={`p-1.5 rounded ${view === 'grid' ? 'bg-white shadow-sm text-konkan-green-primary' : 'text-konkan-text-secondary hover:text-konkan-text-primary'}`}
-              aria-label="Grid view"
-            >
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16">
-                <path d="M1 2.5A1.5 1.5 0 012.5 1h3A1.5 1.5 0 017 2.5v3A1.5 1.5 0 015.5 7h-3A1.5 1.5 0 011 5.5v-3zm8 0A1.5 1.5 0 0111.5 1h3A1.5 1.5 0 0116 2.5v3A1.5 1.5 0 0114.5 7h-3A1.5 1.5 0 019 5.5v-3zm-8 8A1.5 1.5 0 012.5 9h3A1.5 1.5 0 017 10.5v3A1.5 1.5 0 015.5 15h-3A1.5 1.5 0 011 13.5v-3zm8 0A1.5 1.5 0 0111.5 9h3a1.5 1.5 0 011.5 1.5v3a1.5 1.5 0 01-1.5 1.5h-3A1.5 1.5 0 019 13.5v-3z" />
-              </svg>
-            </button>
-            <button
-              onClick={() => handleViewChange('list')}
-              className={`p-1.5 rounded ${view === 'list' ? 'bg-white shadow-sm text-konkan-green-primary' : 'text-konkan-text-secondary hover:text-konkan-text-primary'}`}
-              aria-label="List view"
-            >
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 16 16">
-                <path fillRule="evenodd" d="M2.5 12a.5.5 0 01.5-.5h10a.5.5 0 010 1H3a.5.5 0 01-.5-.5zm0-4a.5.5 0 01.5-.5h10a.5.5 0 010 1H3a.5.5 0 01-.5-.5zm0-4a.5.5 0 01.5-.5h10a.5.5 0 010 1H3a.5.5 0 01-.5-.5z" />
-              </svg>
-            </button>
-          </div>
         </div>
 
-        <div className={view === 'grid' ? 'grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4' : 'space-y-4'}>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
           {products.map((product, idx) => (
             <div key={product.id} className="animate-fade-up" style={{ animationDelay: `${idx * 30}ms` }}>
-              <ProductCard product={product} view={view} />
+              <ProductCarouselCard product={product} />
             </div>
           ))}
         </div>

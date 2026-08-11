@@ -4,6 +4,10 @@
  * This is the SINGLE SOURCE OF TRUTH for hero banner content.
  * Both HeroSlider (desktop) and MobileHero import from here.
  * Update this file to change hero content — both breakpoints will reflect the change.
+ *
+ * `image`: desktop hero right-side image (mobile does not use it).
+ * Replace the placeholder paths below when new hero images are uploaded
+ * (e.g. to /public/images/hero/).
  */
 
 const heroSlides = [
@@ -13,6 +17,7 @@ const heroSlides = [
     subtitle: 'Premium Devgad & Ratnagiri Hapus — Direct from Konkan Orchards',
     cta: 'Shop Mangoes',
     href: '/categories/konkan-mangoes-fruits',
+    image: '/images/categories/mangoes.jpg',
   },
   {
     badge: 'Monsoon Special',
@@ -20,6 +25,7 @@ const heroSlides = [
     subtitle: 'Crispy Bhajjis, Dried Fish, and Konkan Chai — Rainy Season Favorites',
     cta: 'Explore Monsoon Picks',
     href: '/categories/monsoon-specials',
+    image: '/images/banners/monsoon-hero.jpg',
   },
   {
     badge: 'Best Price',
@@ -27,6 +33,7 @@ const heroSlides = [
     subtitle: 'W180 Grade Cashews — Roasted, Salted & Masala. Direct from Goa Farms',
     cta: 'Shop Cashews',
     href: '/categories/cashew-dry-fruits',
+    image: '/images/categories/cashew.jpg',
   },
   {
     badge: 'Free Shipping',
@@ -34,6 +41,7 @@ const heroSlides = [
     subtitle: 'Indrayani, Ambemohar & Red Rice — The Soul of Konkan Cuisine',
     cta: 'Browse Rice',
     href: '/categories/konkan-rice-varieties',
+    image: '/images/categories/rice.jpg',
   },
   {
     badge: 'Natural',
@@ -41,6 +49,7 @@ const heroSlides = [
     subtitle: 'Organic Spices from Sahyadri Hills & Refreshing Kokum Beverages',
     cta: 'Explore Spices',
     href: '/categories/natural-spices',
+    image: '/images/categories/spices.jpg',
   },
 ];
 

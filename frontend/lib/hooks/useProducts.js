@@ -15,17 +15,6 @@ export function useProducts(params = {}) {
   });
 }
 
-export function useFeaturedProducts() {
-  return useQuery({
-    queryKey: ['products', 'featured'],
-    queryFn: async () => {
-      const res = await api.get('/products/featured');
-      return res.data.data.products;
-    },
-    staleTime: 120000,
-  });
-}
-
 export function useBestsellers() {
   return useQuery({
     queryKey: ['products', 'bestsellers'],

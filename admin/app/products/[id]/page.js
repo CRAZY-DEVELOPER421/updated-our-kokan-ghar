@@ -13,7 +13,8 @@ const defaultProduct = {
   brand: '', weight_grams: '', unit: 'piece', description: '', short_description: '',
   region_origin: '', shelf_life_days: '', ingredients: '', storage_instructions: '',
   nutritional_info: '', meta_title: '', meta_description: '',
-  is_active: 1, is_featured: 0, is_bestseller: 0, is_seasonal: 0, is_organic: 0
+  is_active: 1, is_featured: 0, is_bestseller: 0, is_seasonal: 0, is_organic: 0,
+  free_delivery: 1, delivery_estimate: '3-5 days'
 };
 
 // ── Section Header ───────────────────────────────────────
@@ -71,6 +72,7 @@ export default function AdminProductEditPage({ params }) {
   const [pendingImages, setPendingImages] = useState([]); // For new products (local images before save)
   const [newVariant, setNewVariant] = useState({ variant_name: '', variant_value: '', price_modifier: 0, stock_quantity: 0, sku_suffix: '' });
   const [editingVariant, setEditingVariant] = useState(null);
+  const [pendingVariants, setPendingVariants] = useState([]); // For new products (staged until save)
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -137,6 +139,7 @@ export default function AdminProductEditPage({ params }) {
       meta_title: productData.meta_title || '', meta_description: productData.meta_description || '',
       is_active: productData.is_active ?? 1, is_featured: productData.is_featured ?? 0, is_bestseller: productData.is_bestseller ?? 0,
       is_seasonal: productData.is_seasonal ?? 0, is_organic: productData.is_organic ?? 0,
+      free_delivery: productData.free_delivery ?? 1, delivery_estimate: productData.delivery_estimate || '3-5 days',
     });
     setImages(productData.images || []);
     setVariants(productData.variants || []);
@@ -292,6 +295,23 @@ export default function AdminProductEditPage({ params }) {
           } catch (e) { /* ignore */ }
         }
         
+        // Persist any staged variants to the newly created product
+        if (pendingVariants.length > 0) {
+          for (const v of pendingVariants) {
+            try {
+              await api.post(`/admin/products/${newId}/variants`, {
+                variant_name: v.variant_name,
+                variant_value: v.variant_value,
+                price_modifier: v.price_modifier || 0,
+                stock_quantity: v.stock_quantity || 0,
+                sku_suffix: v.sku_suffix || null,
+              });
+            } catch (vErr) {
+              console.warn('Failed to save variant for new product:', vErr);
+            }
+          }
+        }
+        
         toast.success('Product created!');
         setDirty(false);
         queryClient.invalidateQueries({ queryKey: ['admin-products'] });
@@ -387,6 +407,14 @@ export default function AdminProductEditPage({ params }) {
     if (!newVariant.variant_name.trim() || !newVariant.variant_value.trim()) {
       toast.error('Variant name and value are required.'); return;
     }
+    if (isNew) {
+      // New product: stage locally until the product is created (product id needed to persist)
+      setPendingVariants(prev => [...prev, { ...newVariant, tempId: Date.now() }]);
+      setNewVariant({ variant_name: '', variant_value: '', price_modifier: 0, stock_quantity: 0, sku_suffix: '' });
+      toast.success('Variant added (will be saved with product)!');
+      setDirty(true);
+      return;
+    }
     try {
       await api.post(`/admin/products/${productId}/variants`, newVariant);
       setNewVariant({ variant_name: '', variant_value: '', price_modifier: 0, stock_quantity: 0, sku_suffix: '' });
@@ -409,6 +437,13 @@ export default function AdminProductEditPage({ params }) {
 
   const handleDeleteVariant = async (variantId) => {
     if (!confirm('Delete this variant?')) return;
+    if (isNew) {
+      // Staged variant — just drop it from the local list
+      setPendingVariants(prev => prev.filter(v => v.tempId !== variantId));
+      setDirty(true);
+      toast.success('Variant removed.');
+      return;
+    }
     try {
       await api.delete(`/admin/products/${productId}/variants/${variantId}`);
       toast.success('Variant deleted.');
@@ -775,6 +810,22 @@ export default function AdminProductEditPage({ params }) {
             </div>
           </Section>
 
+          {/* Delivery */}
+          <Section title="Delivery" icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z" /></svg>}>
+            <Toggle value={form.free_delivery} onChange={() => toggleBool('free_delivery')} label="Free Delivery" desc="Shows 'Free delivery' on the product card" />
+            <div className="pt-2.5">
+              <label className={labelClass}>Delivery Time</label>
+              <select className={inputClass} value={form.delivery_estimate} onChange={e => updateField('delivery_estimate', e.target.value)}>
+                <option value="today">Today</option>
+                <option value="tomorrow">Tomorrow</option>
+                <option value="2-3 days">2-3 days</option>
+                <option value="3-5 days">3-5 days</option>
+                <option value="5-7 days">5-7 days</option>
+              </select>
+              <p className="text-[11px] text-slate-500 mt-1">Shown on the product card as "Get it by …"</p>
+            </div>
+          </Section>
+
           {/* Images */}
           <Section title={`Images (${images.length})`} icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>}>
             {images.length > 0 && (
@@ -842,8 +893,29 @@ export default function AdminProductEditPage({ params }) {
           </Section>
 
           {/* Variants */}
-          <Section title={`Variants (${variants.length})`} icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>}>
-            {variants.length > 0 && (
+          <Section title={`Variants (${isNew ? pendingVariants.length : variants.length})`} icon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>}>
+            <p className="text-[11px] text-slate-500 leading-relaxed mb-3">
+              Options customers pick on the product page — e.g. <strong>Size / Weight / Pack</strong> (1kg, 500g). Each variant can have its own price difference and stock.
+            </p>
+
+            {/* Staged variants for a NEW product (persisted after creation) */}
+            {isNew && pendingVariants.length > 0 && (
+              <div className="space-y-2 mb-4">
+                {pendingVariants.map((v) => (
+                  <div key={v.tempId} className="flex items-center justify-between px-3 py-2 bg-slate-50 rounded-lg border border-slate-100">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-xs font-semibold text-slate-700 bg-white px-2 py-0.5 rounded border border-slate-200">{v.variant_name}</span>
+                      <span className="text-xs text-slate-900 font-medium truncate">{v.variant_value}</span>
+                      {v.price_modifier > 0 && <span className="text-[10px] font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">+₹{v.price_modifier}</span>}
+                      <span className="text-[10px] text-slate-500">Stock: {v.stock_quantity}</span>
+                    </div>
+                    <button type="button" onClick={() => handleDeleteVariant(v.tempId)} className="text-[10px] font-medium text-rose-500 hover:bg-rose-50 px-1.5 py-1 rounded transition-all shrink-0">Remove</button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {!isNew && variants.length > 0 && (
               <div className="space-y-2 mb-4">
                 {variants.map((v) => (
                   <div key={v.id} className="text-sm bg-slate-50 rounded-lg overflow-hidden">
@@ -879,18 +951,17 @@ export default function AdminProductEditPage({ params }) {
               </div>
             )}
 
-            {!isNew && (
-              <div className="space-y-2 border-t border-slate-100 pt-3">
-                <p className="text-[11px] font-semibold text-slate-600 uppercase tracking-wider">Add Variant</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <input className={`${inputClass} text-xs`} value={newVariant.variant_name} onChange={e => setNewVariant({...newVariant, variant_name: e.target.value})} placeholder="e.g. Size" />
-                  <input className={`${inputClass} text-xs`} value={newVariant.variant_value} onChange={e => setNewVariant({...newVariant, variant_value: e.target.value})} placeholder="e.g. 1kg" />
-                  <input className={`${inputClass} text-xs`} type="number" value={newVariant.price_modifier} onChange={e => setNewVariant({...newVariant, price_modifier: parseFloat(e.target.value) || 0})} placeholder="Price mod (+₹)" />
-                  <input className={`${inputClass} text-xs`} type="number" value={newVariant.stock_quantity} onChange={e => setNewVariant({...newVariant, stock_quantity: parseInt(e.target.value) || 0})} placeholder="Stock" />
-                </div>
-                <Button size="sm" className="w-full mt-1" onClick={handleAddVariant}>Add Variant</Button>
+            <div className="space-y-2 border-t border-slate-100 pt-3">
+              <p className="text-[11px] font-semibold text-slate-600 uppercase tracking-wider">Add Variant</p>
+              <div className="grid grid-cols-2 gap-2">
+                <input className={`${inputClass} text-xs`} value={newVariant.variant_name} onChange={e => setNewVariant({...newVariant, variant_name: e.target.value})} placeholder="e.g. Size / Weight" />
+                <input className={`${inputClass} text-xs`} value={newVariant.variant_value} onChange={e => setNewVariant({...newVariant, variant_value: e.target.value})} placeholder="e.g. 1kg" />
+                <input className={`${inputClass} text-xs`} type="number" value={newVariant.price_modifier} onChange={e => setNewVariant({...newVariant, price_modifier: parseFloat(e.target.value) || 0})} placeholder="Price diff (+₹ or -₹)" />
+                <input className={`${inputClass} text-xs`} type="number" value={newVariant.stock_quantity} onChange={e => setNewVariant({...newVariant, stock_quantity: parseInt(e.target.value) || 0})} placeholder="Variant stock" />
               </div>
-            )}
+              <Button size="sm" className="w-full mt-1" onClick={handleAddVariant}>Add Variant</Button>
+              {isNew && <p className="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-1.5 rounded-lg">💡 Variants added here are saved automatically after the product is created.</p>}
+            </div>
           </Section>
         </div>
       </div>

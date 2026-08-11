@@ -1,24 +1,22 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
+import ProductCarouselCard, { ProductCarouselCardSkeleton } from '@/components/product/ProductCarouselCard';
 
 export default function AllUnder499Desktop() {
-  const { data, isLoading } = useQuery({
-    queryKey: ['category-deals', 'desktop'],
+  const { data: products, isLoading } = useQuery({
+    queryKey: ['all-under-499', 'desktop'],
     queryFn: async () => {
-      const res = await api.get('/products/category-deals?max_price=499');
-      return res.data.data?.categories || [];
+      const res = await api.get('/products?max_price=499&limit=20&sort=discount');
+      return res.data.data?.products || [];
     },
     staleTime: 120000,
   });
 
-  const categories = data || [];
-
-  // Hide section if no categories qualify
-  if (!isLoading && categories.length === 0) {
+  // Hide section if no products qualify
+  if (!isLoading && (!products || products.length === 0)) {
     return null;
   }
 
@@ -31,93 +29,23 @@ export default function AllUnder499Desktop() {
         </div>
       </div>
 
-      {/* ── 4-Column Grid with hover effects ── */}
-      {isLoading ? (
-        <div className="grid grid-cols-4 gap-5">
-          {Array.from({ length: 4 }).map((_, i) => (
+      {/* ── 5 cards per row — same height/width as Flash Sale cards ── */}
+      <div className="grid grid-cols-5 gap-4">
+        {isLoading ? (
+          Array.from({ length: 5 }).map((_, i) => (
             <div key={i}>
-              <div
-                className="w-full rounded-2xl overflow-hidden"
-                style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
-              >
-                <div
-                  className="h-[220px] w-full"
-                  style={{
-                    backgroundColor: '#E8F0EC',
-                    animation: 'shimmer 2s infinite linear',
-                    backgroundImage:
-                      'linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0) 100%)',
-                    backgroundSize: '200% 100%',
-                  }}
-                />
-                <div className="p-4 space-y-2">
-                  <div className="h-4 w-3/4 rounded" style={{ backgroundColor: '#E8F0EC' }} />
-                  <div className="h-3 w-1/2 rounded" style={{ backgroundColor: '#E8F0EC' }} />
-                </div>
-              </div>
+              <ProductCarouselCardSkeleton simplified />
             </div>
-          ))}
-        </div>
-      ) : (
-        <div className="grid grid-cols-4 gap-5">
-          {categories.map((cat) => {
-            const imgSrc = cat.representative_image || cat.category_image || '/images/placeholder.svg';
-            return (
-              <Link
-                key={cat.id}
-                href={`/categories/${cat.slug}?max_price=499`}
-                className="group block rounded-2xl overflow-hidden transition-all duration-300 hover:scale-[1.02] hover:shadow-xl"
-                style={{
-                  backgroundColor: '#FFFFFF',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                }}
-              >
-                {/* Image */}
-                <div className="relative h-[220px] w-full overflow-hidden" style={{ backgroundColor: '#F5F5F5' }}>
-                  <Image
-                    src={imgSrc}
-                    alt={cat.name}
-                    fill
-                    sizes="25vw"
-                    style={{ objectFit: 'cover' }}
-                    className="transition-transform duration-500 group-hover:scale-110"
-                  />
-                  {/* Starting price badge */}
-                  <div
-                    className="absolute bottom-3 right-3 text-white font-bold flex items-center justify-center"
-                    style={{
-                      backgroundColor: '#F5821F',
-                      minWidth: '48px',
-                      height: '48px',
-                      borderRadius: '999px',
-                      fontSize: '12px',
-                      padding: '0 10px',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
-                    }}
-                  >
-                    ₹{parseFloat(cat.starting_price).toLocaleString('en-IN')}+
-                  </div>
-                </div>
-                {/* Category name */}
-                <div className="p-4">
-                  <h3
-                    className="font-bold group-hover:text-konkan-green-primary transition-colors"
-                    style={{ fontSize: '15px', color: '#1A1A1A' }}
-                  >
-                    {cat.name}
-                  </h3>
-                  <p style={{ fontSize: '13px', color: '#8A8A8A', marginTop: '4px' }}>
-                    Starting ₹{parseFloat(cat.starting_price).toLocaleString('en-IN')} · {cat.product_count} items
-                  </p>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
-      )}
+          ))
+        ) : (
+          (products || []).slice(0, 10).map((product) => (
+            <ProductCarouselCard key={product.id} product={product} simplified />
+          ))
+        )}
+      </div>
 
       {/* ── Centered View All Button ── */}
-      {!isLoading && categories.length > 0 && (
+      {!isLoading && products && products.length > 0 && (
         <div className="text-center mt-8">
           <Link
             href="/products?max_price=499"

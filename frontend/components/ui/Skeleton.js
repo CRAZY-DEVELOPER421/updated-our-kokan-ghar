@@ -46,40 +46,4 @@ export function ProductGridSkeleton({ count = 8 }) {
   );
 }
 
-export function ProductDetailSkeleton() {
-  return (
-    <div className="container-custom py-8 space-y-8">
-      <Skeleton variant="text" className="w-1/4" />
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <Skeleton variant="image" className="aspect-square" />
-        <div className="space-y-4">
-          <Skeleton variant="heading" />
-          <Skeleton variant="text" />
-          <Skeleton variant="text" className="w-2/3" />
-          <div className="flex gap-2">
-            <Skeleton variant="price" />
-            <Skeleton variant="badge" />
-          </div>
-          <Skeleton variant="button" className="w-full" />
-        </div>
-      </div>
-    </div>
-  );
-}
 
-export function CartSkeleton() {
-  return (
-    <div className="space-y-4">
-      {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} className="card p-4 flex gap-4">
-          <Skeleton variant="image" className="w-20 h-20 rounded-lg" />
-          <div className="flex-1 space-y-2">
-            <Skeleton variant="title" />
-            <Skeleton variant="text" className="w-1/4" />
-            <Skeleton variant="button" className="w-20" />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}

@@ -66,9 +66,12 @@ api.interceptors.response.use(
           localStorage.removeItem('accessToken');
           localStorage.removeItem('konkan-admin-auth');
           window.dispatchEvent(new Event('auth:logout'));
-          // Redirect to admin login — refresh token also expired/absent
-          if (window.location.pathname !== '/login') {
-            window.location.href = '/login';
+          // Redirect to admin login. This is a HARD browser redirect (not
+          // next/navigation), so it must include the /admin basePath — otherwise
+          // it lands on localhost:3001/login and 404s.
+          const basePath = window.location.pathname.startsWith('/admin') ? '/admin' : '';
+          if (window.location.pathname !== `${basePath}/login`) {
+            window.location.href = `${basePath}/login`;
           }
         }
         return Promise.reject(refreshError);

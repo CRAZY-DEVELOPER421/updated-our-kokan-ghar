@@ -48,6 +48,10 @@ export const metadata = {
   },
   description: 'Shop authentic Konkan region products including Alphonso mangoes, cashews, spices, seafood, and traditional delicacies. Direct from farmers and artisans of the Konkan coast.',
   keywords: ['Konkan', 'Konkan products', 'Alphonso mangoes', 'Goan cashews', 'Konkan spices', 'organic', 'natural', 'buy online', 'India', 'Maharashtra', 'Goa'],
+  icons: {
+    icon: '/favicon.svg',
+    shortcut: '/favicon.svg',
+  },
   openGraph: {
     title: 'Kokan Ghar - Authentic Konkan Products Online',
     description: 'Shop authentic Konkan region products. Direct from farmers and artisans.',
@@ -75,7 +79,7 @@ const jsonLd = {
   '@type': 'Organization',
   name: 'Kokan Ghar',
   url: 'https://www.kokanaghar.in',
-  logo: 'https://www.kokanaghar.in/favicon.ico',
+  logo: 'https://www.kokanaghar.in/images/logo/konkan_logo.png',
   description: 'Authentic Konkan region products marketplace',
   address: {
     '@type': 'PostalAddress',
@@ -115,7 +119,7 @@ export default function RootLayout({ children }) {
         <QueryProviders>
           <I18nProvider>
             <ToastProvider />
-            <div className="hidden lg:block"><Navbar /></div>
+            <div className="hidden lg:block sticky top-0 z-50"><Navbar /></div>
             <div className="lg:hidden sticky top-0 z-50"><MobileHeader /></div>
             {/* ── Delivery Address Bar (scrolls away smoothly) ── */}
             <div className="lg:hidden flex items-center h-8 px-4 gap-1" style={{ backgroundColor: '#E8F0EC' }}>

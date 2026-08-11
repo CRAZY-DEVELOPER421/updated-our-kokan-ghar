@@ -3,8 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
-import ProductCard from '@/components/product/ProductCard';
-import { ProductCardSkeleton } from '@/components/ui/Skeleton';
+import ProductCarouselCard, { ProductCarouselCardSkeleton } from '@/components/product/ProductCarouselCard';
 import { ChevronDown } from 'lucide-react';
 
 const PRICE_CHIPS = [
@@ -70,9 +69,9 @@ export default function DiscoverForYouDesktop() {
         setAllProducts((prev) => {
           const existingIds = new Set(prev.map(p => p.id));
           let newProducts = products.filter(p => !existingIds.has(p.id));
-          // Ensure even count so grid rows stay balanced
-          if (newProducts.length % 2 !== 0) {
-            newProducts = newProducts.slice(0, -1);
+          // Ensure count is a multiple of 5 so 5-col grid rows stay balanced
+          if (newProducts.length % 5 !== 0) {
+            newProducts = newProducts.slice(0, -(newProducts.length % 5));
           }
           return [...prev, ...newProducts];
         });
@@ -111,7 +110,7 @@ export default function DiscoverForYouDesktop() {
     selectedPrice?.min === chip.min && selectedPrice?.max === chip.max;
 
   return (
-    <section style={{ backgroundColor: '#FFF0F3', padding: '32px 0 40px', borderRadius: '20px' }}>
+    <section>
       <style>{`
         @keyframes fadeInUp {
           from { opacity: 0; transform: translateY(16px); }
@@ -187,31 +186,32 @@ export default function DiscoverForYouDesktop() {
         ))}
       </div>
 
-      {/* ── Product Grid: 3 Columns (wider cards) ── */}
-      <div className="grid grid-cols-3 gap-6">
+      {/* ── Product Grid: 5 columns — same height/width as Flash Sale cards ── */}
+      <div className="grid grid-cols-5 gap-4">
         {isLoading ? (
-          Array.from({ length: 6 }).map((_, i) => (
+          Array.from({ length: 5 }).map((_, i) => (
             <div key={i}>
-              <ProductCardSkeleton />
+              <ProductCarouselCardSkeleton />
             </div>
           ))
         ) : allProducts.length > 0 ? (
-          allProducts.slice(0, page * 18).map((product, index) => {
+          allProducts.slice(0, page * 15).map((product, index) => {
             const isNew = index >= prevCountRef.current;
             return (
               <div
                 key={product.id}
+                className="h-full"
                 style={isNew ? {
                   animation: `fadeInUp 0.4s ease-out ${Math.min((index - prevCountRef.current) * 0.03, 0.25)}s both`,
                 } : undefined}
               >
-                <ProductCard product={product} />
+                <ProductCarouselCard product={product} />
               </div>
             );
           })
         ) : (
           <div
-            className="col-span-3 text-center py-12"
+            className="col-span-5 text-center py-12"
             style={{ color: '#8A8A8A', fontSize: '15px' }}
           >
             No products found. Try adjusting your filters.

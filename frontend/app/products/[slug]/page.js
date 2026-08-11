@@ -11,7 +11,6 @@ const BestsellerRow = dynamic(() => import('@/components/home/BestsellerRow'), {
   loading: () => <div className="skeleton h-64 rounded-xl" />,
 });
 const ProductTabs = dynamic(() => import('@/components/product/ProductDetailClient').then(m => m.ProductTabs));
-const ProductVariants = dynamic(() => import('@/components/product/ProductDetailClient').then(m => m.ProductVariants));
 const ProductActions = dynamic(() => import('@/components/product/ProductActions'), {
   loading: () => <div className="skeleton h-12 w-full rounded-xl" />,
 });
@@ -70,9 +69,6 @@ export default async function ProductDetailPage({ params }) {
       </div>
     );
   }
-
-  const discount = product.discount_percent || (product.mrp > product.price ? Math.round(((product.mrp - product.price) / product.mrp) * 100) : 0);
-  const savings = product.mrp - product.price;
 
   const productJsonLd = {
     '@context': 'https://schema.org',
@@ -144,34 +140,19 @@ export default async function ProductDetailPage({ params }) {
             <span className="text-sm text-konkan-success">{product.total_sold || 0} sold</span>
           </div>
 
-          {/* Price */}
-          <div className="flex items-baseline gap-3 p-4 bg-konkan-cream/50 rounded-xl">
-            <span className="text-3xl font-bold text-konkan-saffron">₹{product.price}</span>
-            {product.mrp > product.price && (
-              <>
-                <span className="text-lg text-konkan-text-secondary line-through">₹{product.mrp}</span>
-                <span className="px-2 py-0.5 bg-konkan-saffron/10 text-konkan-saffron text-sm font-semibold rounded">
-                  Save ₹{savings} ({discount}% OFF)
-                </span>
-              </>
-            )}
-          </div>
-
           {/* Short Description */}
           {product.short_description && (
             <p className="text-konkan-text-secondary leading-relaxed">{product.short_description}</p>
           )}
 
-          {/* Variants */}
-          {product.variants?.length > 0 && (
-            <Suspense fallback={<div className="skeleton h-10 w-full rounded-lg" />}>
-              <ProductVariants variants={product.variants} />
-            </Suspense>
-          )}
-
-          {/* Add to Cart (includes quantity selector) */}
-          <Suspense fallback={<div className="skeleton h-36 w-full rounded-xl" />}>
-            <ProductActions product={product} stockQuantity={product.stock_quantity} />
+          {/* Buy box: dynamic price (incl. selected variant) + variant selector +
+              quantity + Add to Cart / Buy Now — one connected component */}
+          <Suspense fallback={<div className="skeleton h-40 w-full rounded-xl" />}>
+            <ProductActions
+              product={product}
+              stockQuantity={product.stock_quantity}
+              variants={product.variants || []}
+            />
           </Suspense>
 
           {/* Delivery Info */}
@@ -184,7 +165,7 @@ export default async function ProductDetailPage({ params }) {
                 <svg className="w-4 h-4 text-konkan-green-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                Free delivery above ₹499
+                {product.free_delivery ? 'Free delivery' : 'Delivery charges apply'}
               </div>
               <div className="flex items-center gap-2 text-konkan-text-secondary">
                 <svg className="w-4 h-4 text-konkan-green-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -202,7 +183,10 @@ export default async function ProductDetailPage({ params }) {
                 <svg className="w-4 h-4 text-konkan-green-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                Est. delivery: 3-5 days
+                Est. delivery:{' '}
+                {product.delivery_estimate === 'today' ? 'Today'
+                  : product.delivery_estimate === 'tomorrow' ? 'Tomorrow'
+                  : product.delivery_estimate || '3-5 days'}
               </div>
             </div>
           </div>

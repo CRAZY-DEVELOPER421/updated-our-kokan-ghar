@@ -3,14 +3,13 @@
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
-import ProductCard from '@/components/product/ProductCard';
-import { ProductCardSkeleton } from '@/components/ui/Skeleton';
+import ProductCarouselCard, { ProductCarouselCardSkeleton } from '@/components/product/ProductCarouselCard';
 
 export default function DealsUnder999Desktop() {
   const { data: products, isLoading } = useQuery({
     queryKey: ['deals-under-999', 'desktop'],
     queryFn: async () => {
-      const res = await api.get('/products/deals?limit=8');
+      const res = await api.get('/products/deals?limit=10');
       return res.data.data?.products || [];
     },
     staleTime: 120000,
@@ -30,17 +29,17 @@ export default function DealsUnder999Desktop() {
         </div>
       </div>
 
-      {/* ── Static Grid: 4 columns x 2 rows ── */}
-      <div className="grid grid-cols-4 gap-5">
+      {/* ── 5 cards per row — same height/width as Flash Sale cards ── */}
+      <div className="grid grid-cols-5 gap-4">
         {isLoading ? (
-          Array.from({ length: 8 }).map((_, i) => (
+          Array.from({ length: 5 }).map((_, i) => (
             <div key={i}>
-              <ProductCardSkeleton />
+              <ProductCarouselCardSkeleton />
             </div>
           ))
         ) : (
-          (products || []).slice(0, 8).map((product) => (
-            <ProductCard key={product.id} product={product} />
+          (products || []).slice(0, 10).map((product) => (
+            <ProductCarouselCard key={product.id} product={product} />
           ))
         )}
       </div>

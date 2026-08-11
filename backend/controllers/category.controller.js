@@ -5,7 +5,9 @@ const asyncHandler = require('../utils/asyncHandler');
 const getCategories = asyncHandler(async (req, res) => {
   const [categories] = await pool.query(
     `SELECT c.*, 
-      (SELECT COUNT(*) FROM products WHERE category_id = c.id AND is_active = 1) as product_count,
+      (SELECT COUNT(*) FROM products p
+        JOIN categories ch ON p.category_id = ch.id
+        WHERE (ch.id = c.id OR ch.parent_id = c.id) AND p.is_active = 1) as product_count,
       (SELECT name FROM categories WHERE id = c.parent_id) as parent_name
      FROM categories c 
      WHERE c.is_active = 1 

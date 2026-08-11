@@ -54,6 +54,17 @@ const ensureBundleTables = async (conn) => {
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
 };
 
+// Self-heal: add per-product delivery fields (free_delivery + delivery_estimate)
+// if the products table predates them. Mirrors the ensureBundleTables pattern.
+const ensureDeliveryColumns = async (conn) => {
+  if (!(await columnExists(conn, 'products', 'free_delivery'))) {
+    await conn.query("ALTER TABLE products ADD COLUMN free_delivery TINYINT(1) NOT NULL DEFAULT 1 AFTER unit");
+  }
+  if (!(await columnExists(conn, 'products', 'delivery_estimate'))) {
+    await conn.query("ALTER TABLE products ADD COLUMN delivery_estimate VARCHAR(50) NOT NULL DEFAULT '3-5 days' AFTER free_delivery");
+  }
+};
+
 // Saves bundle members (bundle_products) for a bundle, replacing any existing ones
 const syncBundleProducts = async (conn, bundleId, items) => {
   await conn.query('DELETE FROM bundle_products WHERE bundle_id = ?', [bundleId]);
@@ -160,7 +171,7 @@ const getProducts = asyncHandler(async (req, res) => {
 });
 
 const createProduct = asyncHandler(async (req, res) => {
-  const { name, description, short_description, price, mrp, stock_quantity, sku, category_id, brand, weight_grams, unit, is_featured, is_bestseller, is_seasonal, is_organic, region_origin, shelf_life_days, ingredients, nutritional_info, storage_instructions, is_active, product_type, bundle_products, bundle_valid_from, bundle_valid_until } = req.body;
+  const { name, description, short_description, price, mrp, stock_quantity, sku, category_id, brand, weight_grams, unit, is_featured, is_bestseller, is_seasonal, is_organic, region_origin, shelf_life_days, ingredients, nutritional_info, storage_instructions, is_active, free_delivery, delivery_estimate, product_type, bundle_products, bundle_valid_from, bundle_valid_until } = req.body;
 
   const slug = await generateUniqueSlug(name, 'products', pool);
 
@@ -168,10 +179,12 @@ const createProduct = asyncHandler(async (req, res) => {
   try {
     await conn.beginTransaction();
 
+    await ensureDeliveryColumns(conn);
+
     const [result] = await conn.query(
-      `INSERT INTO products (name, slug, description, short_description, price, mrp, stock_quantity, sku, category_id, brand, weight_grams, unit, is_featured, is_bestseller, is_seasonal, is_organic, region_origin, shelf_life_days, ingredients, nutritional_info, storage_instructions, is_active)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [name, slug, description, short_description, price, mrp, stock_quantity, sku, category_id, brand, weight_grams, unit, is_featured || 0, is_bestseller || 0, is_seasonal || 0, is_organic || 0, region_origin, shelf_life_days, ingredients, nutritional_info ? JSON.stringify(nutritional_info) : null, storage_instructions, is_active !== undefined ? is_active : 1]
+      `INSERT INTO products (name, slug, description, short_description, price, mrp, stock_quantity, sku, category_id, brand, weight_grams, unit, is_featured, is_bestseller, is_seasonal, is_organic, region_origin, shelf_life_days, ingredients, nutritional_info, storage_instructions, is_active, free_delivery, delivery_estimate)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [name, slug, description, short_description, price, mrp, stock_quantity, sku, category_id, brand, weight_grams, unit, is_featured || 0, is_bestseller || 0, is_seasonal || 0, is_organic || 0, region_origin, shelf_life_days, ingredients, nutritional_info ? JSON.stringify(nutritional_info) : null, storage_instructions, is_active !== undefined ? is_active : 1, free_delivery !== undefined ? free_delivery : 1, delivery_estimate || '3-5 days']
     );
 
     // Combo/bundle: create a linked bundle record + member mapping
@@ -224,6 +237,8 @@ const updateProduct = asyncHandler(async (req, res) => {
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
+
+    await ensureDeliveryColumns(conn);
 
     if (fields.length > 0) {
       await conn.query(

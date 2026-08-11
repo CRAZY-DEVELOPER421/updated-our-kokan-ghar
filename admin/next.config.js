@@ -28,6 +28,21 @@ const nextConfig = {
   },
   poweredByHeader: false,
   reactStrictMode: true,
+  async redirects() {
+    return [
+      {
+        // Friendly root redirect: localhost:3001/ → /admin/
+        // The app only serves under basePath '/admin', so without this anyone
+        // who forgets the prefix gets a 404 on the root. basePath: false keeps
+        // these patterns relative to the raw URL (not auto-prefixed with
+        // '/admin', which would create a redirect loop).
+        source: '/',
+        destination: '/admin',
+        basePath: false,
+        permanent: false,
+      },
+    ];
+  },
   turbopack: {
     root: __dirname,
   },

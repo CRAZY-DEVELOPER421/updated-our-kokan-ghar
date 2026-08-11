@@ -3,8 +3,7 @@
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
-import ProductCard from '@/components/product/ProductCard';
-import { ProductCardSkeleton } from '@/components/ui/Skeleton';
+import ProductCarouselCard, { ProductCarouselCardSkeleton } from '@/components/product/ProductCarouselCard';
 
 export default function BestsellerRow({ title = 'Bestsellers', subtitle = 'Most loved Konkan products by our customers' }) {
   const { data: products, isLoading } = useQuery({
@@ -37,14 +36,14 @@ export default function BestsellerRow({ title = 'Bestsellers', subtitle = 'Most 
       <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide -mx-4 px-4">
         {isLoading ? (
           Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="w-[220px] md:w-[240px] shrink-0">
-              <ProductCardSkeleton />
+            <div key={i} className="w-[220px] md:w-[260px] shrink-0">
+              <ProductCarouselCardSkeleton />
             </div>
           ))
         ) : (
           (products || []).slice(0, 10).map((product) => (
             <div key={product.id} className="w-[220px] md:w-[260px] shrink-0">
-              <ProductCard product={product} />
+              <ProductCarouselCard product={product} />
             </div>
           ))
         )}

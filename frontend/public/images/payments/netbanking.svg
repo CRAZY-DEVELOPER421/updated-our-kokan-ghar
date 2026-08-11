@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="132" height="30" viewBox="0 0 132 30">
+  <g fill="none" stroke="#0A2540" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" transform="translate(1 6)">
+    <path d="M2 10l10-7 10 7"/>
+    <path d="M4 11v8"/>
+    <path d="M11 11v8"/>
+    <path d="M18 11v8"/>
+    <path d="M1 21h22"/>
+    <path d="M6 21v-2"/>
+    <path d="M16 21v-2"/>
+  </g>
+  <text x="32" y="21" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="bold" fill="#0A2540">Net Banking</text>
+</svg>

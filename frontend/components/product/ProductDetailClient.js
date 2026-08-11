@@ -3,46 +3,6 @@
 import { useState, useEffect } from 'react';
 import StarRating from '@/components/ui/StarRating';
 
-// ===== Product Variants =====
-export function ProductVariants({ variants = [] }) {
-  const [selected, setSelected] = useState(variants[0]?.variant_value || '');
-  return (
-    <div>
-      <span className="text-sm font-medium text-konkan-text-primary">{variants[0]?.variant_name || 'Variant'}:</span>
-      <div className="flex flex-wrap gap-2 mt-1">
-        {variants.map((v) => (
-          <button
-            key={v.id}
-            onClick={() => setSelected(v.variant_value)}
-            className={`px-3 py-1.5 text-sm rounded-lg border transition-all ${
-              selected === v.variant_value
-                ? 'border-konkan-green-primary bg-konkan-green-primary/5 text-konkan-green-primary font-medium'
-                : 'border-konkan-sand text-konkan-text-secondary hover:border-konkan-green-primary'
-            }`}
-          >
-            {v.variant_value}
-            {v.price_modifier !== 0 && (
-              <span className="ml-1 text-xs">{v.price_modifier > 0 ? '+' : ''}₹{v.price_modifier}</span>
-            )}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ===== Quantity Stepper =====
-export function QuantityStepper({ stock = 0 }) {
-  const [qty, setQty] = useState(1);
-  return (
-    <div className="flex items-center border border-konkan-sand rounded-lg">
-      <button onClick={() => setQty(Math.max(1, qty - 1))} className="px-3 py-1.5 text-konkan-text-secondary hover:text-konkan-text-primary hover:bg-konkan-cream transition-colors">−</button>
-      <span className="px-4 py-1.5 text-sm font-medium border-x border-konkan-sand min-w-[40px] text-center">{qty}</span>
-      <button onClick={() => setQty(Math.min(stock || 99, qty + 1))} className="px-3 py-1.5 text-konkan-text-secondary hover:text-konkan-text-primary hover:bg-konkan-cream transition-colors">+</button>
-    </div>
-  );
-}
-
 // ===== Pincode Checker =====
 export function PincodeChecker() {
   const [pincode, setPincode] = useState('');
