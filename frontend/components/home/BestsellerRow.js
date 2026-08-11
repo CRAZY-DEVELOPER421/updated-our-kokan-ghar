@@ -5,11 +5,17 @@ import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import ProductCarouselCard, { ProductCarouselCardSkeleton } from '@/components/product/ProductCarouselCard';
 
-export default function BestsellerRow({ title = 'Bestsellers', subtitle = 'Most loved Konkan products by our customers' }) {
+export default function BestsellerRow({
+  title = 'Bestsellers',
+  subtitle = 'Most loved Konkan products by our customers',
+  apiEndpoint = '/products/bestsellers',
+  queryKey = ['bestsellers'],
+  viewAllHref = '/products?sort=bestseller',
+}) {
   const { data: products, isLoading } = useQuery({
-    queryKey: ['bestsellers'],
+    queryKey,
     queryFn: async () => {
-      const res = await api.get('/products/bestsellers');
+      const res = await api.get(apiEndpoint);
       return res.data.data.products || [];
     },
     staleTime: 120000,
@@ -23,7 +29,7 @@ export default function BestsellerRow({ title = 'Bestsellers', subtitle = 'Most 
           <p className="section-subtitle">{subtitle}</p>
         </div>
         <Link
-          href="/products?sort=bestseller"
+          href={viewAllHref}
           className="hidden md:flex items-center gap-1 text-sm font-medium text-konkan-green-primary hover:text-konkan-green-dark transition-colors"
         >
           View All
@@ -51,7 +57,7 @@ export default function BestsellerRow({ title = 'Bestsellers', subtitle = 'Most 
 
       <div className="text-center mt-4 md:hidden">
         <Link
-          href="/products?sort=bestseller"
+          href={viewAllHref}
           className="inline-flex items-center gap-1 text-sm font-medium text-konkan-green-primary"
         >
           View All Bestsellers

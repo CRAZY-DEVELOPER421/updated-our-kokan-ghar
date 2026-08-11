@@ -208,12 +208,15 @@ export default function HomePage() {
         </Suspense>
       </section>
 
-      {/* New Arrivals — desktop only */}
+      {/* New Arrivals — desktop only (real new-arrivals data + correct View All) */}
       <section className="hidden lg:block max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
         <Suspense fallback={<div className="skeleton h-64 rounded-2xl" />}>
           <BestsellerRow
             title="New Arrivals"
             subtitle="Freshly stocked — the latest from Konkan"
+            apiEndpoint="/products/new-arrivals"
+            queryKey={['new-arrivals', 'desktop']}
+            viewAllHref="/products?sort=newest"
           />
         </Suspense>
       </section>
