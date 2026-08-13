@@ -104,7 +104,7 @@ export default function HomePage() {
         <MobileFlashSale />
       </div>
 
-      {/* 🆕 Section 6: Deals Under ₹999 (mobile) */}
+      {/* Section 6: Deals Under ₹999 (mobile) */}
       <div className="lg:hidden">
         <DealsUnder999 />
       </div>
@@ -119,7 +119,7 @@ export default function HomePage() {
         />
       </div>
 
-      {/* 🆕 All Under ₹499 (mobile) */}
+      {/* All Under ₹499 (mobile) */}
       <div className="lg:hidden">
         <AllUnder499 />
       </div>
@@ -139,7 +139,7 @@ export default function HomePage() {
         />
       </div>
 
-      {/* 🆕 Discover Products For You (mobile) */}
+      {/* Discover Products For You (mobile) */}
       <div className="lg:hidden">
         <DiscoverForYou />
       </div>
@@ -180,7 +180,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 🆕 Deals Under ₹999 — desktop only */}
+      {/* Deals Under ₹999 — desktop only */}
       <section className="hidden lg:block max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
         <Suspense fallback={<div className="skeleton h-64 rounded-2xl" />}>
           <DealsUnder999Desktop />
@@ -194,7 +194,7 @@ export default function HomePage() {
         </Suspense>
       </section>
 
-      {/* 🆕 All Under ₹499 — desktop only */}
+      {/* All Under ₹499 — desktop only */}
       <section className="hidden lg:block max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
         <Suspense fallback={<div className="skeleton h-80 rounded-2xl" />}>
           <AllUnder499Desktop />
@@ -221,7 +221,7 @@ export default function HomePage() {
         </Suspense>
       </section>
 
-      {/* 🆕 Discover Products For You + Testimonials — desktop only, full-bleed, no gap between */}
+      {/* Discover Products For You + Testimonials — desktop only, full-bleed, no gap between */}
       <div className="hidden lg:block">
         <section className="w-full" style={{ backgroundColor: '#FFF0F3' }}>
           <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

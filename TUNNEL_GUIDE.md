@@ -1,11 +1,11 @@
-# 🌴 Konkan Bazaar — Tunnel Chalaane Ka Pura Guide
+# Konkan Bazaar — Tunnel Chalaane Ka Pura Guide
 
 > Ye guide batata hai ki **kal / kabhi bhi** tunnel kaise chalaana hai,
 > naya URL kahan se milega, aur link dusre ko kaise dena hai.
 
 ---
 
-## 🔑 Sabse Pehle — Ye Sab Yaad Rakho
+## Sabse Pehle — Ye Sab Yaad Rakho
 
 | Cheez | Value |
 |---|---|
@@ -15,7 +15,7 @@
 
 ---
 
-## 🚀 Step 1 — Kal Run Karne Ka Sahi Tarika
+## Step 1 — Kal Run Karne Ka Sahi Tarika
 
 **1. PC on karo** (MySQL service khud start ho jaati hai — kuch nahi karna).
 
@@ -26,7 +26,7 @@ D:\our-konkan-bazar-main
 
 **3. `start-tunnel.bat` pe DOUBLE-CLICK karo** (ya terminal se chalao).
 
-> 💡 **PowerShell me ho to** script ke aage `./` lagao (dot slash):
+> **PowerShell me ho to** script ke aage `./` lagao (dot slash):
 > ```
 > ./start-tunnel.bat
 > ./run-tunnel.bat
@@ -44,13 +44,13 @@ Ye 5 windows kholega (20-30 second me sab ready):
 
 **4. Check karo:** har window me koi red error nahi hona chahiye.
 
-> ⚠️ Agar koi window error de `EADDRINUSE` ya "port already in use"
+> Agar koi window error de `EADDRINUSE` ya "port already in use"
 > → matlab purana instance abhi bhi chal raha hai. Pehle `stop-tunnel.bat`
 > chalao, phir `start-tunnel.bat`.
 
 ---
 
-## 🔗 Step 2 — Naya URL Kaise Milega
+## Step 2 — Naya URL Kaise Milega
 
 Har baar restart pe URL **badal sakta hai** (free plan). Naya URL 3 tarike se milega:
 
@@ -69,7 +69,7 @@ curl http://127.0.0.1:4040/api/tunnels
 
 ---
 
-## 📤 Step 3 — Dusre Ko Link Kaise Dena Hai
+## Step 3 — Dusre Ko Link Kaise Dena Hai
 
 Jab tak **tumhara PC on hai** aur 5 windows chal rahi hain, tab tak link live hai.
 
@@ -88,18 +88,18 @@ Login: kokan / <GATEWAY_PASS from .env>
 **Kisi bhi phone/PC ke browser se** kholega → username/password prompt aayega
 → `kokan` / `.env` ka `GATEWAY_PASS` → site khul jayegi.
 
-> ⚠️ PC band kiya / windows band kiye = link band. Wapas chalane ke liye Step 1 dobara.
+> PC band kiya / windows band kiye = link band. Wapas chalane ke liye Step 1 dobara.
 
 ---
 
-## 🛑 Step 4 — Band Karna
+## Step 4 — Band Karna
 
 - **`stop-tunnel.bat`** double-click karo (5 windows band ho jayengi).
 - Ya har window me `Ctrl+C` dabao.
 
 ---
 
-## 🔑 Token Rotate / Naya Token Kaise Lagayein
+## Token Rotate / Naya Token Kaise Lagayein
 
 1. Naya token `.env` me `NGROK_AUTHTOKEN=` me daalo (space mat lagana)
 2. Command prompt me:
@@ -110,7 +110,7 @@ Login: kokan / <GATEWAY_PASS from .env>
 
 ---
 
-## 🛠️ Extra — Agar Code Change Kiya Ho
+## Extra — Agar Code Change Kiya Ho
 
 Code badla hai to rebuild karna zaroori hai (API base ab runtime me khud resolve hota hai — koyi env override nahi chahiye):
 ```
@@ -122,13 +122,13 @@ npm run build
 ```
 Phir `start-tunnel.bat` chalao.
 
-> ⚠️ **Git Bash se `NEXT_PUBLIC_API_URL=/api` ke saath build mat karna** — Git Bash
+> **Git Bash se `NEXT_PUBLIC_API_URL=/api` ke saath build mat karna** — Git Bash
 > `/api` ko `C:/Program Files/Git/api` me badal deta hai (MSYS path mangling) aur
 > phir browser me products nahi aate. Ab ye env override **chahiye bhi nahi**.
 
 ---
 
-## ❓ Problem Aayi To?
+## Problem Aayi To?
 
 | Problem | Fix |
 |---|---|

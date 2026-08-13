@@ -3,7 +3,7 @@
 import Link from 'next/link';
 
 export default function AdminError({ error, reset }) {
-  console.error('⚠️ Admin Error:', error?.message);
+  console.error('Admin Error:', error?.message);
 
   return (
     <div className="min-h-screen bg-konkan-earth flex items-center justify-center px-4">

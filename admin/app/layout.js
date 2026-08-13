@@ -109,7 +109,7 @@ function AdminLayout({ children }) {
 
     const token = localStorage.getItem('accessToken');
     if (!token) {
-      console.warn('⚠️ Old session without JWT token - re-login required');
+      console.warn('Old session without JWT token - re-login required');
       adminLogout();
       router.push('/login');
     }

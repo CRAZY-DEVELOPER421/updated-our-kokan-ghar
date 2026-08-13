@@ -124,7 +124,7 @@ function CouponUsageBar({ coupon }) {
       {/* Total usage + limit */}
       <div className="flex items-center justify-between text-[10px] text-konkan-text-secondary mb-1">
         <span className="font-semibold">{isUnlimited ? `${used} redeemed` : `${used} / ${limit} used`}</span>
-        <span>{isUnlimited ? '♾ Unlimited usage' : `${pct}% claimed`}</span>
+        <span>{isUnlimited ? 'Unlimited usage' : `${pct}% claimed`}</span>
       </div>
 
       {/* Usage progress bar (hidden when unlimited) */}

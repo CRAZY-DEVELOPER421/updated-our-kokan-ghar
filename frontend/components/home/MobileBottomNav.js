@@ -2,6 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import useAuthStore from '@/lib/store/authStore';
+import SuspensionTimer from '@/components/ui/SuspensionTimer';
 
 const items = [
   {
@@ -53,11 +55,15 @@ const items = [
 
 export default function MobileBottomNav() {
   const pathname = usePathname();
+  const { suspended, suspension, clearSuspended, fetchProfile } = useAuthStore();
 
   const isActive = (href) => {
     if (href === '/') return pathname === '/';
     return pathname.startsWith(href);
   };
+
+  // Suspended users only get Home — the rest are blocked by the gate popup.
+  const visibleItems = suspended ? items.filter((i) => i.href === '/') : items;
 
   return (
     <nav
@@ -76,7 +82,7 @@ export default function MobileBottomNav() {
         paddingBottom: 'env(safe-area-inset-bottom, 0px)',
       }}
     >
-      {items.map((item) => {
+      {visibleItems.map((item) => {
         const active = isActive(item.href);
         return (
           <Link
@@ -92,6 +98,25 @@ export default function MobileBottomNav() {
           </Link>
         );
       })}
+      {suspended && (
+        <div
+          className="flex flex-col items-center justify-center gap-1 px-2 min-h-[44px]"
+          style={{ color: '#DC2626' }}
+          title={suspension?.message || 'Account suspended'}
+        >
+          <svg className="w-[22px] h-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <span className="text-[10px] font-semibold leading-none">Suspended</span>
+          {suspension?.suspendUntil && (
+            <SuspensionTimer
+              until={suspension.suspendUntil}
+              compact
+              onExpire={() => { clearSuspended(); fetchProfile(); }}
+            />
+          )}
+        </div>
+      )}
     </nav>
   );
 }

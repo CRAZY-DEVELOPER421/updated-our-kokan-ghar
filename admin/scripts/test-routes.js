@@ -50,9 +50,8 @@ class RouteTestReporter {
     let passed = 0, failed = 0;
 
     for (const r of this.results) {
-      const icon = r.ok ? '✅' : '❌';
       const statusStr = String(r.status).padEnd(4);
-      console.log(`  ${icon}  ${r.route.label.padEnd(28)} ${statusStr} ${r.ok ? 'OK' : 'FAIL'}`);
+      console.log(`  ${r.route.label.padEnd(28)} ${statusStr} ${r.ok ? 'OK' : 'FAIL'}`);
       if (r.ok) passed++;
       else failed++;
     }
@@ -63,9 +62,9 @@ class RouteTestReporter {
     console.log('');
 
     if (failed === 0) {
-      console.log('  ✅ All routes responded successfully!');
+      console.log('  All routes responded successfully!');
     } else {
-      console.log(`  ⚠️  ${failed} route(s) had issues. Review above.`);
+      console.log(`  ${failed} route(s) had issues. Review above.`);
     }
     console.log('');
 
@@ -105,7 +104,7 @@ async function checkRoute(url, reporter, routeInfo) {
     if (err.name === 'AbortError') {
       reporter.addResult(routeInfo, 'TIMEOUT', false);
     } else if (err.code === 'ECONNREFUSED') {
-      console.error(`\n  ❌  Cannot connect to ${BASE_URL}. Is the admin dev server running?`);
+      console.error(`\n  Cannot connect to ${BASE_URL}. Is the admin dev server running?`);
       console.error('     Start it with: npm run dev   (from the admin directory)\n');
       process.exit(1);
     } else {
@@ -115,8 +114,8 @@ async function checkRoute(url, reporter, routeInfo) {
 }
 
 async function run() {
-  console.log(`\n  🔍  Testing admin routes at ${BASE_URL}...`);
-  console.log(`  ⏱   Timeout: 10s per route\n`);
+  console.log(`\n  Testing admin routes at ${BASE_URL}...`);
+  console.log(`  Timeout: 10s per route\n`);
 
   const reporter = new RouteTestReporter();
   const checks = [];

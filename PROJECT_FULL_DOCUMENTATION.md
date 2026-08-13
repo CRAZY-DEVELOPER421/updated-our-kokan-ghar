@@ -1,4 +1,4 @@
-# 🌴 KONKAN BAZAAR — COMPLETE PROJECT DOCUMENTATION
+# KONKAN BAZAAR — COMPLETE PROJECT DOCUMENTATION
 ### (Jo kuch bhi is project me implement hua hai — sab ek file me)
 
 **Project ka naam:** Konkan Bazaar (Storefront pe "Kokan Ghar")
@@ -7,7 +7,7 @@
 
 ---
 
-## 🏗️ 1. ARCHITECTURE (Project ka Structure)
+## 1. ARCHITECTURE (Project ka Structure)
 
 Ye ek **monorepo** hai — matlab teen alag apps ek hi folder me, sab ek hi `.env` file share karte hain:
 
@@ -27,7 +27,7 @@ konkan-bazaar/
 
 ---
 
-## 🛠️ 2. TECH STACK (Kya use hua hai)
+## 2. TECH STACK (Kya use hua hai)
 
 | Layer | Technology |
 |---|---|
@@ -47,7 +47,7 @@ konkan-bazaar/
 
 ---
 
-## 🖥️ 3. FRONTEND (Storefront) — POORA DETAIL
+## 3. FRONTEND (Storefront) — POORA DETAIL
 
 ### 3.1 Homepage (14+ sections)
 1. **Hero Slider** — banner slideshow (desktop, Swiper)
@@ -66,7 +66,7 @@ konkan-bazaar/
 14. **Newsletter** — email subscribe
 15. **Help/Contact** — contact + mobile bottom nav
 
-> 💡 **Mobile-first design:** Har section ka alag mobile component hai (MobileHero, MobileFlashSale, etc.) — website poori tarah responsive hai.
+> **Mobile-first design:** Har section ka alag mobile component hai (MobileHero, MobileFlashSale, etc.) — website poori tarah responsive hai.
 
 ### 3.2 Product Pages
 - **/products** — Product listing with filters (category, price range, rating), sorting (price, rating, newest), pagination
@@ -129,7 +129,7 @@ konkan-bazaar/
 
 ---
 
-## ⚙️ 4. BACKEND (REST API) — POORA DETAIL
+## 4. BACKEND (REST API) — POORA DETAIL
 
 **23 controllers + 22 route groups.** Sab queries parameterized (SQL injection safe), no ORM.
 
@@ -255,7 +255,7 @@ konkan-bazaar/
 ### 4.23 Uploads (`/api/upload`)
 - Multer file upload (images)
 
-### 🔐 Security Features
+### Security Features
 - Helmet (security headers)
 - CORS whitelist (sirf allowed origins)
 - Rate limiting (auth 5/15min, general API 1000 req)
@@ -267,7 +267,7 @@ konkan-bazaar/
 
 ---
 
-## 🗄️ 5. DATABASE — POORA DETAIL (26+ TABLES)
+## 5. DATABASE — POORA DETAIL (26+ TABLES)
 
 | # | Table | Kaam |
 |---|---|---|
@@ -310,11 +310,11 @@ konkan-bazaar/
 
 ---
 
-## 🛡️ 6. ADMIN PANEL — POORA DETAIL (Kya-kya kar sakte hain)
+## 6. ADMIN PANEL — POORA DETAIL (Kya-kya kar sakte hain)
 
 Admin panel ka login: `ADMIN_PANEL_PASSWORD` env file me (backend verify karta hai).
 
-### 6.1 📊 Analytics Dashboard
+### 6.1 Analytics Dashboard
 - Live stats: total users, naye users, products, orders, pending orders
 - Total revenue + aaj ki revenue
 - Orders by status chart
@@ -322,53 +322,53 @@ Admin panel ka login: `ADMIN_PANEL_PASSWORD` env file me (backend verify karta h
 - Recent orders list
 - Low stock alerts (stock < 10)
 
-### 6.2 🛍️ Products
+### 6.2 Products
 - List with search, filter by category, status (active/inactive), **image status** (uploaded/pending)
 - Create product — price, MRP, stock, SKU, brand, weight, ingredients, nutritional info, SEO fields
 - **Combo/Bundle creation** — multiple products select karke combo pack banao (discount price ke saath)
 - Edit — images, variants, tags, flash sale link
 - Delete (combo products ka linked bundle bhi clean hota hai)
 
-### 6.3 📁 Categories
+### 6.3 Categories
 - Create/Edit/Delete categories, parent category (tree), image, SEO meta, sort order
 
-### 6.4 📦 Orders
+### 6.4 Orders
 - All orders list, filter by status
 - Order detail — items, address, payment info, tracking timeline
 - **Status update** → user ko automatic notification jaati hai (confirmed/shipped/out for delivery/delivered)
 
-### 6.5 👥 Users
+### 6.5 Users
 - All customers list, activate/suspend, delete
 
-### 6.6 🎟️ Coupons
+### 6.6 Coupons
 - Create coupons — percentage/flat/free shipping/BOGO
 - Min order, max discount, usage limit, validity dates
 
-### 6.7 🧺 Bundles / Combo
+### 6.7 Bundles / Combo
 - Create/edit combo deals — bundle price, original price, member products, validity
 - Savings % auto-calculated
 
-### 6.8 ⚡ Flash Sales
+### 6.8 Flash Sales
 - Product select karo, sale price, quantity limit, start/end time
 
-### 6.9 🏦 Bank Offers
+### 6.9 Bank Offers
 - Bank name, logo, offer title/description, discount type (card/UPI/EMI), min order, max discount
 
-### 6.10 📝 Blogs
+### 6.10 Blogs
 - Write/edit/delete blogs — content, excerpt, hero image, category, tags, featured, SEO (meta title, OG image, canonical)
 - Blog categories manage
 
-### 6.11 🎬 Videos
+### 6.11 Videos
 - Add videos — URL, thumbnail, category, duration, featured, publish/schedule
 
-### 6.12 👨‍👩‍👧 Team
+### 6.12 Team
 - Team members — designation, bio, social links, skills, experience, achievements
 - **Reorder** (display order)
 
-### 6.13 📄 Customer Service Pages
+### 6.13 Customer Service Pages
 - Terms, Shipping, Privacy, FAQ, Return Policy — **sab content admin se edit hota hai** (bina code change kiye)
 
-### 6.14 ⚙️ Settings
+### 6.14 Settings
 - Site name, contact email/phone, social links
 - Free shipping minimum amount, delivery charge, tax rate
 - Loyalty points per rupee, redeem rate, referral reward
@@ -376,42 +376,42 @@ Admin panel ka login: `ADMIN_PANEL_PASSWORD` env file me (backend verify karta h
 
 ---
 
-## 🔗 7. INTEGRATIONS (Bahari Services)
+## 7. INTEGRATIONS (Bahari Services)
 
 | Service | Kya ke liye | Status |
 |---|---|---|
-| **Razorpay** | Payment gateway (UPI/cards/netbanking) — order create + signature verify | ✅ Integrated |
-| **Google OAuth** | Google se login | ✅ Integrated |
-| **Facebook OAuth** | Facebook se login | ✅ Integrated |
-| **Nodemailer (SMTP)** | OTP emails, welcome, verify emails | ✅ Integrated |
-| **Swagger UI** | API documentation (`/api-docs`) | ✅ Integrated |
-| **MySQL** | Database | ✅ Integrated |
+| **Razorpay** | Payment gateway (UPI/cards/netbanking) — order create + signature verify | Integrated |
+| **Google OAuth** | Google se login | Integrated |
+| **Facebook OAuth** | Facebook se login | Integrated |
+| **Nodemailer (SMTP)** | OTP emails, welcome, verify emails | Integrated |
+| **Swagger UI** | API documentation (`/api-docs`) | Integrated |
+| **MySQL** | Database | Integrated |
 
 ---
 
-## ✅ 8. JO IMPLEMENT HO CHUKA HAI — QUICK SUMMARY
+## 8. JO IMPLEMENT HO CHUKA HAI — QUICK SUMMARY
 
-✅ Full e-commerce storefront (Next.js 16, mobile-first, 5 languages)
-✅ Admin panel with analytics + full management
-✅ REST API (23 modules) with Swagger docs
-✅ JWT auth + Google/Facebook login + email verification + OTP password reset
-✅ Razorpay payments (secure verify) + COD
-✅ Cart, wishlist, coupons (4 types), combo bundles, flash sales, bank offers
-✅ Order tracking timeline + notifications
-✅ Reviews with helpful votes + verified purchase
-✅ Loyalty points + 4 tiers + referrals
-✅ Full-text search + autocomplete + trending + infinite scroll
-✅ CMS — blogs, videos, team, media library
-✅ Customer service pages (terms/FAQ/etc.) — admin editable
-✅ Site settings — admin editable
-✅ Analytics dashboard (revenue, orders, categories, search terms)
-✅ 200+ products seeded, 26+ database tables
-✅ Security: helmet, rate limiting, validation, parameterized queries
-✅ SEO — sitemap, robots, Open Graph
+Full e-commerce storefront (Next.js 16, mobile-first, 5 languages)
+Admin panel with analytics + full management
+REST API (23 modules) with Swagger docs
+JWT auth + Google/Facebook login + email verification + OTP password reset
+Razorpay payments (secure verify) + COD
+Cart, wishlist, coupons (4 types), combo bundles, flash sales, bank offers
+Order tracking timeline + notifications
+Reviews with helpful votes + verified purchase
+Loyalty points + 4 tiers + referrals
+Full-text search + autocomplete + trending + infinite scroll
+CMS — blogs, videos, team, media library
+Customer service pages (terms/FAQ/etc.) — admin editable
+Site settings — admin editable
+Analytics dashboard (revenue, orders, categories, search terms)
+200+ products seeded, 26+ database tables
+Security: helmet, rate limiting, validation, parameterized queries
+SEO — sitemap, robots, Open Graph
 
 ---
 
-## 🔜 9. FUTURE SCOPE (Aage kya kiya ja sakta hai)
+## 9. FUTURE SCOPE (Aage kya kiya ja sakta hai)
 
 - Order tracking me live courier API (Shiprocket/Delhivery) integration
 - WhatsApp/email order notifications

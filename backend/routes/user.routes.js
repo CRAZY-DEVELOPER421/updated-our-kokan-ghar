@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/user.controller');
 const { verifyToken } = require('../middleware/auth');
-const { addressValidation, changePasswordValidation } = require('../middleware/validate');
+const { addressValidation, changePasswordValidation, setPasswordValidation } = require('../middleware/validate');
 
 /**
  * @swagger
@@ -39,6 +39,10 @@ router.get('/profile', verifyToken, userController.getProfile);
  *             properties:
  *               name:
  *                 type: string
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Stored exactly as typed (lowercased only; dots preserved)
  *               phone:
  *                 type: string
  *                 pattern: '^[0-9]{10}$'
@@ -47,6 +51,10 @@ router.get('/profile', verifyToken, userController.getProfile);
  *     responses:
  *       200:
  *         description: Profile updated successfully.
+ *       400:
+ *         description: Invalid email format.
+ *       409:
+ *         description: Email already registered.
  *       401:
  *         description: Unauthorized.
  */
@@ -82,6 +90,40 @@ router.put('/profile', verifyToken, userController.updateProfile);
  *         description: Unauthorized.
  */
 router.put('/change-password', verifyToken, changePasswordValidation, userController.changePassword);
+
+/**
+ * @swagger
+ * /users/set-password:
+ *   put:
+ *     summary: Set a password for an account created via Google/Facebook
+ *     description: >
+ *       OAuth-created accounts have no password (password_hash is NULL). This
+ *       is the only way to add one — after that, email/password login works on
+ *       the same account. Rejected with 400 if a password already exists.
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [password]
+ *             properties:
+ *               password:
+ *                 type: string
+ *                 minLength: 6
+ *                 maxLength: 128
+ *     responses:
+ *       200:
+ *         description: Password set successfully.
+ *       400:
+ *         description: Already has a password / validation failed.
+ *       401:
+ *         description: Unauthorized.
+ */
+router.put('/set-password', verifyToken, setPasswordValidation, userController.setPassword);
 
 /**
  * @swagger

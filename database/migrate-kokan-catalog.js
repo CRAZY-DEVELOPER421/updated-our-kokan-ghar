@@ -420,7 +420,7 @@ async function upsertCategory(pool, { name, slug, description, imageUrl, parentI
   const [rows] = await pool.query('SELECT id, name FROM categories WHERE slug = ?', [slug]);
   if (rows.length > 0) {
     if (rows[0].name !== name) {
-      console.log(`   ⚠ slug "${slug}" already exists as "${rows[0].name}" — updating it to match the catalog (safe mode merges same-slug rows; use --reset-all for a clean catalog).`);
+      console.log(`   slug "${slug}" already exists as "${rows[0].name}" — updating it to match the catalog (safe mode merges same-slug rows; use --reset-all for a clean catalog).`);
     }
     await pool.query(
       `UPDATE categories SET name = ?, description = ?, image_url = ?, parent_id = ?, is_active = 1, sort_order = ?, meta_title = ?, meta_description = ? WHERE id = ?`,
@@ -503,7 +503,7 @@ async function dedupeProducts(pool) {
   // different categories — e.g. "Wooden Spoon" under two categories, "Mango Pickle"
   // under both Mango Products and Pickles. Keeps the first occurrence (lowest id).
   // Safe to run any time: it is a no-op when no duplicates exist.
-  console.log('\n🧹 Removing duplicate products (same name across categories, keeping the first)...');
+  console.log('\nRemoving duplicate products (same name across categories, keeping the first)...');
   const [res] = await pool.query(
     `DELETE p FROM products p
      JOIN (
@@ -516,15 +516,15 @@ async function dedupeProducts(pool) {
       AND p.id <> d.keep_id`
   );
   if (res.affectedRows > 0) {
-    console.log(`   ✔ Removed ${res.affectedRows} duplicate product(s).`);
+    console.log(`   Removed ${res.affectedRows} duplicate product(s).`);
   } else {
-    console.log('   ✔ No duplicate products found.');
+    console.log('   No duplicate products found.');
   }
   return res.affectedRows;
 }
 
 async function resetCatalog(pool, resetAll) {
-  console.log('\n🧹 Resetting existing catalog data...');
+  console.log('\nResetting existing catalog data...');
 
   // When --reset-all is used, dependent/transactional data is cleared first so the
   // catalog tables can be fully wiped. Otherwise only catalog tables are attempted
@@ -554,9 +554,9 @@ async function resetCatalog(pool, resetAll) {
   for (const [label, sql] of steps) {
     try {
       const [res] = await pool.query(sql);
-      console.log(`   ✔ ${label}: ${res.affectedRows} rows deleted`);
+      console.log(`   ${label}: ${res.affectedRows} rows deleted`);
     } catch (err) {
-      console.log(`   ⚠ ${label}: could not clear (${err.message}). Keeping existing rows — they may be referenced by orders.`);
+      console.log(`   ${label}: could not clear (${err.message}). Keeping existing rows — they may be referenced by orders.`);
     }
   }
 }
@@ -595,7 +595,7 @@ Data source: database/kokan-catalog-data.js (53 categories, 630+ subcategories)
   console.log(` Mode         : ${RESET_ALL ? 'FULL RESET (all data) + insert fresh' : RESET ? 'RESET catalog + insert fresh' : 'safe upsert'}${DRY_RUN ? ' (dry-run)' : ''}`);
 
   if (DRY_RUN) {
-    console.log('\n✅ Dry run complete — nothing was written to the database.');
+    console.log('\nDry run complete — nothing was written to the database.');
     return;
   }
 
@@ -638,7 +638,7 @@ Data source: database/kokan-catalog-data.js (53 categories, 630+ subcategories)
            (SELECT COUNT(*) FROM categories) AS categories`
       );
       const c = counts[0];
-      console.log('\n⚠️  --reset-all will PERMANENTLY DELETE the following:');
+      console.log('\n--reset-all will PERMANENTLY DELETE the following:');
       console.log(`     orders=${c.orders}  reviews=${c.reviews}  cart_items=${c.cart_items}  bundles=${c.bundles}`);
       console.log(`     products=${c.products}  categories=${c.categories}  (+ product_images, product_tags)`);
       const readline = require('readline');
@@ -737,7 +737,7 @@ Data source: database/kokan-catalog-data.js (53 categories, 630+ subcategories)
     const [finalImg] = await pool.query('SELECT COUNT(*) AS total FROM product_images');
     const [finalTags] = await pool.query('SELECT COUNT(*) AS total FROM product_tags');
 
-    console.log('\n✅ Migration complete!');
+    console.log('\nMigration complete!');
     console.log('──────────────────────────────────────────────');
     console.log(` Categories created/updated : ${stats.categoriesCreated}/${stats.categoriesUpdated}`);
     console.log(` Subcategories created/upd  : ${stats.subcategoriesCreated}/${stats.subcategoriesUpdated}`);
@@ -746,14 +746,14 @@ Data source: database/kokan-catalog-data.js (53 categories, 630+ subcategories)
     console.log(` Product images added       : ${stats.imagesAdded}`);
     console.log(` Product tags written       : ${stats.tagsAdded}`);
     console.log('──────────────────────────────────────────────');
-    console.log(` 📦 Total categories in DB    : ${finalCat[0].total} (${finalCat[0].top} top-level)`);
-    console.log(` 🛒 Total products in DB      : ${finalProd[0].total}`);
-    console.log(` 🖼  Total product images      : ${finalImg[0].total}`);
-    console.log(` 🏷  Total product tags        : ${finalTags[0].total}`);
+    console.log(`Total categories in DB    : ${finalCat[0].total} (${finalCat[0].top} top-level)`);
+    console.log(`Total products in DB      : ${finalProd[0].total}`);
+    console.log(`Total product images      : ${finalImg[0].total}`);
+    console.log(`Total product tags        : ${finalTags[0].total}`);
     console.log('\n Done. All catalog data now lives in the database.');
   console.log(' (Duplicates are removed automatically on every run — re-running is safe.)');
   } catch (err) {
-    console.error('\n❌ Migration failed:', err.message);
+    console.error('\nMigration failed:', err.message);
     process.exitCode = 1;
   } finally {
     await pool.end();

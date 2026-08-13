@@ -166,7 +166,7 @@
     "item": "वस्तु",
     "items": "वस्तुएँ",
     "free": "मुफ़्त",
-    "free_shipping_eligible": "🎉 आप मुफ़्त शिपिंग के लिए पात्र हैं!",
+    "free_shipping_eligible": "आप मुफ़्त शिपिंग के लिए पात्र हैं!",
     "free_shipping_more": "मुफ़्त शिपिंग के लिए ₹{amount} और जोड़ें",
     "calculated_at_checkout": "चेकआउट पर गणना की जाएगी",
     "savings": "आप इस ऑर्डर पर ₹{amount} बचा रहे हैं!"
@@ -238,7 +238,7 @@
     "subscribe": "सब्सक्राइब करें",
     "phone": "+91 98765 43210",
     "email": "hello@kokanghar.in",
-    "made_with": "गोवा में ❤️ से बनाया गया"
+    "made_with": "गोवा में प्रेम से बनाया गया"
   },
   "common": {
     "loading": "लोड हो रहा है...",

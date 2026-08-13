@@ -95,7 +95,7 @@ export default function ProductQuickViewModal({ product, isOpen, onClose }) {
       const result = await wStore.getState().toggleWishlist(product.id);
       if (result?.success) {
         setIsWishlisted(result.inWishlist);
-        toast.success(result.inWishlist ? 'Saved to wishlist ❤️' : 'Removed from wishlist');
+        toast.success(result.inWishlist ? 'Saved to wishlist' : 'Removed from wishlist');
       }
     } catch (err) {}
     setWishlistLoading(false);

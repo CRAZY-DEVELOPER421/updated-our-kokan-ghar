@@ -21,7 +21,7 @@ const submitContact = asyncHandler(async (req, res) => {
   `;
 
   await sendEmail({
-    to: process.env.SMTP_FROM || 'hello@konkanbazaar.in',
+    to: process.env.SMTP_FROM || 'hello@kokanghar.in',
     subject: `Contact Form: ${subject}`,
     html: adminHtml,
   });

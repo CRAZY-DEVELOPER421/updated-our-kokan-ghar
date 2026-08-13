@@ -334,7 +334,7 @@ function FlashSaleBanner({ flashSales, products }) {
 
         {!flashEndsAt && (
           <p className="text-[11px] font-medium mt-2" style={{ color: '#166534' }}>
-            ⚡ Limited stock — grab your favourites before they&apos;re gone
+            Limited stock — grab your favourites before they&apos;re gone
           </p>
         )}
 
@@ -394,7 +394,11 @@ function BundleCard({ bundle, onAddToCart }) {
           // eslint-disable-next-line @next/next/no-img-element
           <img src={getImageUrl(cover.primary_image)} alt={bundle.name} className="w-full h-full object-cover" loading="lazy" />
         ) : (
-          <div className="w-full h-full flex items-center justify-center text-3xl">🛍️</div>
+          <div className="w-full h-full flex items-center justify-center">
+            <svg className="w-8 h-8 text-konkan-sand" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+            </svg>
+          </div>
         )}
         {savingsPct > 0 && (
           <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[10px] font-bold text-white shadow-sm" style={{ backgroundColor: '#E87722' }}>

@@ -54,7 +54,7 @@ export default function CartDrawer({ isOpen, onClose }) {
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-xs font-medium text-konkan-text-primary">
                   {freeShippingPercent >= 100
-                    ? '🎉 You qualify for FREE shipping!'
+                    ? 'You qualify for FREE shipping!'
                     : `Add ₹${Math.ceil(freeShippingRemaining)} more for FREE shipping`}
                 </span>
               </div>

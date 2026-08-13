@@ -86,7 +86,7 @@ export default function PaymentMethodsPage() {
       </div>
 
       <div className="bg-konkan-cream rounded-2xl p-5 text-sm text-konkan-text-secondary">
-        💡 Tip: You can select your preferred payment method at checkout. Orders below ₹499 include a ₹49 delivery charge.
+        Tip: You can select your preferred payment method at checkout. Orders below ₹499 include a ₹49 delivery charge.
       </div>
 
       <div className="flex justify-center">

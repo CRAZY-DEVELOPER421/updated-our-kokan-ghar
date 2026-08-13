@@ -113,7 +113,7 @@ export default function AccountDashboard() {
             {avatarChar}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-bold text-konkan-text-primary truncate">Hi {firstName}! 👋</p>
+            <p className="font-bold text-konkan-text-primary truncate">Hi {firstName}!</p>
             <p className="text-xs text-konkan-text-secondary mt-0.5">Welcome back to Konkan Ghar</p>
             <Link href="/account/profile" className="text-xs text-konkan-green-primary font-medium hover:underline mt-1 inline-block">
               View &amp; Edit Profile &gt;

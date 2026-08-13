@@ -23,6 +23,8 @@ CREATE TABLE users (
   avatar_url VARCHAR(500),
   is_verified TINYINT(1) NOT NULL DEFAULT 0,
   is_active TINYINT(1) NOT NULL DEFAULT 1,
+  -- NULL + is_active=0 => permanent suspension; future date => timed suspension
+  suspend_until DATETIME DEFAULT NULL,
   last_login DATETIME,
   reset_otp VARCHAR(10) DEFAULT NULL,
   reset_otp_expiry DATETIME DEFAULT NULL,

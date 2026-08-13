@@ -567,7 +567,7 @@ export default function AdminProductEditPage({ params }) {
         </div>
         {productType === 'combo' && (
           <p className="text-[11px] text-purple-700 bg-purple-50 px-2.5 py-1.5 rounded-lg mt-3 leading-relaxed">
-            💡 Combo packs appear in the <strong>Bundle Deals</strong> section on the Offers page. Pricing fields below act as the combo deal price (Selling Price) and the combined MRP.
+            Combo packs appear in the <strong>Bundle Deals</strong> section on the Offers page. Pricing fields below act as the combo deal price (Selling Price) and the combined MRP.
           </p>
         )}
       </Section>
@@ -960,7 +960,7 @@ export default function AdminProductEditPage({ params }) {
                 <input className={`${inputClass} text-xs`} type="number" value={newVariant.stock_quantity} onChange={e => setNewVariant({...newVariant, stock_quantity: parseInt(e.target.value) || 0})} placeholder="Variant stock" />
               </div>
               <Button size="sm" className="w-full mt-1" onClick={handleAddVariant}>Add Variant</Button>
-              {isNew && <p className="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-1.5 rounded-lg">💡 Variants added here are saved automatically after the product is created.</p>}
+              {isNew && <p className="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-1.5 rounded-lg">Variants added here are saved automatically after the product is created.</p>}
             </div>
           </Section>
         </div>

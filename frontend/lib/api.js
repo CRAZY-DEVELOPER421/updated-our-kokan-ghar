@@ -35,12 +35,50 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+// Fired whenever ANY API call reveals the signed-in account is suspended.
+// The SuspensionGate component listens for this and shows the friendly popup
+// (+ route-guards the user back to the home page).
+const dispatchSuspensionBlocked = (data) => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(
+      new CustomEvent('suspension:blocked', {
+        detail: {
+          message: data?.message || 'Your account has been suspended. Please contact support.',
+          suspendUntil: data?.suspendUntil || null,
+          permanent: !!data?.permanent,
+        },
+      })
+    );
+  }
+};
+
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // A suspended account is blocked on EVERY protected endpoint. Surface it
+    // immediately via a global event (the gate shows the popup) so the user
+    // gets a friendly explanation instead of random silent failures. The
+    // LOGIN call is excluded — the login page shows its own suspension popup
+    // and marks the store, so dispatching here would stack two modals. Silent
+    // requests (background profile re-syncs) also skip the popup.
+    if (
+      error.response?.status === 403 &&
+      error.response?.data?.code === 'ACCOUNT_SUSPENDED' &&
+      !(originalRequest.url || '').includes('/auth/login') &&
+      !originalRequest.headers?.['X-Silent-Suspension']
+    ) {
+      dispatchSuspensionBlocked(error.response.data);
+      return Promise.reject(error);
+    }
+
+    // Don't retry-refresh when the LOGIN call itself fails with 401 (wrong
+    // password / OAuth-only account): there is no session to refresh yet, and
+    // retrying would surface "Invalid refresh token." instead of the real
+    // login error message.
+    const isLoginCall = (originalRequest.url || '').includes('/auth/login');
+    if (error.response?.status === 401 && !originalRequest._retry && !isLoginCall) {
       originalRequest._retry = true;
 
       try {
@@ -58,6 +96,18 @@ api.interceptors.response.use(
         }
       } catch (refreshError) {
         if (typeof window !== 'undefined') {
+          // Refresh itself can be blocked by a suspension — show the friendly
+          // popup instead of force-logging the user out / redirecting to login.
+          // Honor the silent flag (background profile re-sync on page load
+          // should not fire the popup even when its token refresh is blocked).
+          if (
+            refreshError.response?.status === 403 &&
+            refreshError.response?.data?.code === 'ACCOUNT_SUSPENDED' &&
+            !originalRequest.headers?.['X-Silent-Suspension']
+          ) {
+            dispatchSuspensionBlocked(refreshError.response.data);
+            return Promise.reject(refreshError);
+          }
           localStorage.removeItem('accessToken');
           localStorage.removeItem('konkan-admin-auth');
           window.dispatchEvent(new Event('auth:logout'));

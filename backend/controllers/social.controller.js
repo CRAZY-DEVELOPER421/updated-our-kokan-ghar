@@ -24,6 +24,8 @@ const { OAuth2Client } = require('google-auth-library');
 const pool = require('../config/db');
 const asyncHandler = require('../utils/asyncHandler');
 const { generateRefreshToken } = require('./auth.controller');
+const { sendEmail, sendWelcomeEmail, sendLoginEmail } = require('../services/email.service');
+const { resolveUserStatus } = require('../services/suspension.service');
 
 // ===== Configuration (env only) =====
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
@@ -115,6 +117,16 @@ function issueSession(res, user) {
   });
 }
 
+/** Fire the same auth emails as email/password auth: welcome for new users,
+ *  welcome-back for returning users. Fire-and-forget — never blocks OAuth. */
+function sendAuthEmails(user) {
+  sendEmail({
+    to: user.email,
+    subject: user.isNew ? 'Welcome to Kokan Ghar!' : 'Welcome back to Kokan Ghar!',
+    html: (user.isNew ? sendWelcomeEmail(user.email, user.name) : sendLoginEmail(user.name)).html,
+  });
+}
+
 /**
  * Link an existing user (account linking by email). Only last_login and
  * avatar_url are updated — the password_hash is untouched, so a user who
@@ -123,16 +135,19 @@ function issueSession(res, user) {
  */
 async function linkExistingUser({ cleanEmail, cleanAvatar }) {
   const [existing] = await pool.query(
-    'SELECT id, name, email, role, is_active, avatar_url FROM users WHERE email = ?',
+    'SELECT id, name, email, role, is_active, suspend_until, avatar_url FROM users WHERE email = ?',
     [cleanEmail]
   );
 
   if (existing.length === 0) return null;
 
   const user = existing[0];
-  if (!user.is_active) {
-    const err = new Error('Account has been deactivated. Contact support.');
-    err.statusCode = 403;
+  const status = await resolveUserStatus(user);
+  if (!status.ok) {
+    const err = new Error(status.message);
+    err.statusCode = status.statusCode;
+    err.suspendUntil = status.suspendUntil || '';
+    err.permanent = !!status.permanent;
     throw err;
   }
   // Keep the previous avatar if the provider didn't supply one.
@@ -268,6 +283,7 @@ const googleCallback = asyncHandler(async (req, res) => {
       avatarUrl: payload.picture || null,
     });
 
+    sendAuthEmails(user);
     issueSession(res, user);
     return redirectToFrontend(res, {
       provider: 'google',
@@ -276,12 +292,20 @@ const googleCallback = asyncHandler(async (req, res) => {
       redirect,
     });
   } catch (err) {
-    const errorCode = err.statusCode === 403 ? 'account_deactivated' : 'google_failed';
-    return redirectToFrontend(res, { error: errorCode, redirect });
+    if (err.statusCode === 403) {
+      // Pass the suspension detail through so the frontend can show exactly
+      // why the account is blocked (e.g. "suspended until 14 August").
+      const params = new URLSearchParams({ error: 'account_suspended', redirect });
+      if (err.message) params.set('message', err.message);
+      if (err.suspendUntil) params.set('suspendUntil', err.suspendUntil);
+      params.set('permanent', err.permanent ? '1' : '0');
+      return res.redirect(`${FRONTEND_URL}/social-callback?${params.toString()}`);
+    }
+    return redirectToFrontend(res, { error: 'google_failed', redirect });
   }
 });
 
-// ===== Facebook =====
+// ===== Facebook ===
 
 /** Step 1 — send the user to Facebook's login dialog (state for CSRF). */
 const facebookLogin = asyncHandler(async (req, res) => {
@@ -356,6 +380,7 @@ const facebookCallback = asyncHandler(async (req, res) => {
       avatarUrl: profile.picture?.data?.url || null,
     });
 
+    sendAuthEmails(user);
     issueSession(res, user);
     return redirectToFrontend(res, {
       provider: 'facebook',
@@ -364,8 +389,14 @@ const facebookCallback = asyncHandler(async (req, res) => {
       redirect,
     });
   } catch (err) {
-    const errorCode = err.statusCode === 403 ? 'account_deactivated' : 'facebook_failed';
-    return redirectToFrontend(res, { error: errorCode, redirect });
+    if (err.statusCode === 403) {
+      const params = new URLSearchParams({ error: 'account_suspended', redirect });
+      if (err.message) params.set('message', err.message);
+      if (err.suspendUntil) params.set('suspendUntil', err.suspendUntil);
+      params.set('permanent', err.permanent ? '1' : '0');
+      return res.redirect(`${FRONTEND_URL}/social-callback?${params.toString()}`);
+    }
+    return redirectToFrontend(res, { error: 'facebook_failed', redirect });
   }
 });
 

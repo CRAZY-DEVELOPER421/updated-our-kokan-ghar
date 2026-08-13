@@ -207,7 +207,7 @@ export default function ProductCarouselCard({ product, simplified = false }) {
             <div className="flex flex-col gap-0.5 mb-2">
               {totalSold > 0 && (
                 <span className="text-xs text-gray-500">
-                  🔥 {totalSold > 50 ? `${totalSold}+ bought` : `${totalSold} bought`}
+                  {totalSold > 50 ? `${totalSold}+ bought` : `${totalSold} bought`}
                 </span>
               )}
               <span className="text-xs text-gray-500 flex items-center gap-1">

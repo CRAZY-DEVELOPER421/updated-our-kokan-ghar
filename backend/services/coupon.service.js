@@ -64,7 +64,7 @@ const validateCoupon = async (code, userId, cartTotal, cartItems) => {
 
     return { valid: true, coupon };
   } catch (error) {
-    console.error('❌ Coupon validation error:', error.message);
+    console.error('Coupon validation error:', error.message);
     return { valid: false, message: 'Error validating coupon.' };
   }
 };
@@ -137,7 +137,7 @@ const getApplicableCoupons = async (cartTotal, categoryIds) => {
 
     return applicable;
   } catch (error) {
-    console.error('❌ Get applicable coupons error:', error.message);
+    console.error('Get applicable coupons error:', error.message);
     return [];
   }
 };

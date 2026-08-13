@@ -1,4 +1,4 @@
-# 🌴 Konkan Bazaar — Authentic Konkan Products Online
+# Konkan Bazaar — Authentic Konkan Products Online
 
 An e-commerce marketplace exclusively for authentic Konkan region products from the Konkan coast of **Maharashtra, Goa, and Karnataka** — Alphonso mangoes, spices, cashews, seafood, and more.
 
@@ -6,33 +6,40 @@ Monorepo with three apps: a customer-facing **storefront**, an **admin panel**, 
 
 ---
 
-## ✨ Features
+## Features
 
 ### Storefront (`frontend/`)
-- 🥭 570 products across 53 categories & 633 subcategories (mangoes, kokum, cashews, spices, pickles, handicrafts…)
-- 🔍 Full-text search with autocomplete + trending suggestions
-- 🛒 Cart, wishlist, coupons & combo/bundle deals
-- 💳 Checkout with **Razorpay** payments + order tracking timeline
-- ⭐ Product reviews with helpful-vote system
-- 💰 Loyalty points with tier system & referrals
-- 🏷️ Flash sales & bank offers
-- 📦 Order history, buy-again, addresses & account settings
-- 📱 Fully responsive, Konkan-themed design (infinite scroll, skeleton loading)
+- 570 products across 53 categories & 633 subcategories (mangoes, kokum, cashews, spices, pickles, handicrafts…)
+- Full-text search with autocomplete + trending suggestions
+- Cart, wishlist, coupons & combo/bundle deals
+- Checkout with **Razorpay** payments + order tracking timeline
+- Product reviews with helpful-vote system
+- Loyalty points with tier system & referrals
+- Flash sales & bank offers
+- Order history, buy-again, addresses & account settings
+- Fully responsive, Konkan-themed design (infinite scroll, skeleton loading)
 
 ### Admin Panel (`admin/`)
-- 📊 Analytics dashboard
-- 🛍️ Product / category / variant management
-- 📦 Orders, users, coupons, bundles, flash sales, bank offers
-- 📝 CMS — blogs, videos, team
-- ⚙️ Customer service pages (terms, shipping, FAQ…) & site settings
+- Analytics dashboard
+- Product / category / variant management
+- Orders, users, coupons, bundles, flash sales, bank offers
+- CMS — blogs, videos, team
+- Customer service pages (terms, shipping, FAQ…) & site settings
 
 ### Auth
-- 🔐 Email/password login (JWT: access 15 min + refresh 7 days httpOnly cookie)
-- 🐦 Google & Facebook **OAuth login** (reuses the same JWT session)
+- Email/password login (JWT: access 15 min + refresh 7 days httpOnly cookie)
+- Google & Facebook **OAuth login** (reuses the same JWT session)
+
+### Email Notifications (Nodemailer / SMTP)
+- **Signup** — rich welcome email (brand, website link, “Start Searching” CTA, `WELCOME15` code, thank-you note)
+- **Login** — welcome-back email for existing users (sent in the background; never delays login)
+- **Google / Facebook OAuth** — new users get the welcome email, returning users the welcome-back email
+- **New offer broadcast** — when a coupon is **created or edited/activated** in the admin panel, an offer email (e.g. “Kokan Ghar gives 30% OFF on our products!” with min-order details + coupon code) is sent to **every active user** in the database — fire-and-forget, so the admin API responds instantly. (Only broadcast while the coupon is active, so deactivating or editing an inactive draft never spams users)
+- Password reset OTP, order confirmations, shipment updates & back-in-stock emails
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 | Layer | Technology |
 |---|---|
@@ -48,7 +55,7 @@ Monorepo with three apps: a customer-facing **storefront**, an **admin panel**, 
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 konkan-bazaar/
@@ -62,7 +69,7 @@ konkan-bazaar/
 
 ---
 
-## ⚙️ Prerequisites
+## Prerequisites
 
 - **Node.js 20.9+** (Node 24 recommended)
 - **MySQL 8+** running locally
@@ -70,7 +77,7 @@ konkan-bazaar/
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Database
 
@@ -90,7 +97,7 @@ mysql -u root -p konkan_bazaar < database/customer_service_schema.sql
 mysql -u root -p konkan_bazaar < database/settings_schema.sql
 mysql -u root -p konkan_bazaar < database/social_oauth_migration.sql
 
-# 🛒 Load the full Kokan catalog (53 categories, 633 subcategories, 570 products)
+# Load the full Kokan catalog (53 categories, 633 subcategories, 570 products)
 # All catalog data comes from database/kokan-catalog-data.js — nothing is hardcoded in the app.
 # Duplicate products (same item in multiple categories) are removed automatically.
 node database/migrate-kokan-catalog.js --reset-all
@@ -120,13 +127,13 @@ cp .env.example .env
 | `JWT_SECRET` / `JWT_REFRESH_SECRET` | Token signing (use `openssl rand -hex 32`) |
 | `ADMIN_PANEL_PASSWORD` | Admin panel login — **required, no fallback** |
 | `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` | Payment gateway |
-| `SMTP_*` | Transactional emails (OTP, welcome…) |
+| `SMTP_*` | Transactional + promotional emails (OTP, welcome, welcome-back, offer broadcasts…) |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google login |
 | `FACEBOOK_APP_ID` / `FACEBOOK_APP_SECRET` | Facebook login |
 | `FRONTEND_URL` / `BACKEND_URL` | CORS origins + OAuth redirect target |
 | `NEXT_PUBLIC_*` | Inlined into the browser bundle at build time |
 
-> 🔐 **Never commit `.env`.** Only `.env.example` is committed.
+> **Never commit `.env`.** Only `.env.example` is committed.
 
 ### 3. Backend (API)
 
@@ -157,17 +164,17 @@ The password is **verified by the backend** — it is never checked in the brows
 
 ---
 
-## 🔑 Social Login (Google & Facebook)
+## Social Login (Google & Facebook)
 
 Both login methods use a redirect-based OAuth flow with PKCE and reuse the existing JWT session — no NextAuth needed.
 
 Setup involves creating apps in the **Google Cloud Console** and **Facebook Developer Console**, whitelisting exact callback URLs, and setting the env vars above.
 
-👉 **Full setup guide: [`docs/SOCIAL_AUTH.md`](docs/SOCIAL_AUTH.md)**
+**Full setup guide: [`docs/SOCIAL_AUTH.md`](docs/SOCIAL_AUTH.md)**
 
 ---
 
-## 📖 API Docs
+## API Docs
 
 With the backend running:
 
@@ -179,7 +186,7 @@ Main route groups: `auth`, `users`, `products`, `categories`, `cart`, `wishlist`
 
 ---
 
-## 🗄️ Database (26 tables)
+## Database (26 tables)
 
 Users, addresses, categories, products, product_images, product_variants, product_tags, orders/order_items/order_tracking, cart/cart_items, wishlist, coupons/coupon_usage, reviews/review_votes, notifications, banners, flash_sales, loyalty_points/user_loyalty, referrals, search_logs, site_settings, subscribers.
 
@@ -187,7 +194,7 @@ All queries use parameterized statements — no ORM.
 
 ---
 
-## 🧰 Useful Scripts
+## Useful Scripts
 
 ```bash
 # Backend seed scripts (after DB setup)
@@ -199,7 +206,7 @@ node scripts/seed-settings.js         # site settings
 
 ---
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 | Symptom | Fix |
 |---|---|
@@ -208,3 +215,4 @@ node scripts/seed-settings.js         # site settings
 | OAuth redirect mismatch | Follow `docs/SOCIAL_AUTH.md` section 4 — callback URLs must match exactly |
 | Payments don't complete | Real `RAZORPAY_KEY_ID`/`SECRET` needed in `.env` |
 | Emails not sent | Set real `SMTP_*` credentials (Gmail app passwords work) |
+| Offer email not sent to users | SMTP may be failing (check backend logs) — the broadcast is fire-and-forget and emails queue in the background |

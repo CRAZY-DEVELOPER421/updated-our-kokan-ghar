@@ -7,7 +7,7 @@ import { useEffect } from 'react';
 
 export default function GlobalError({ error, reset }) {
   useEffect(() => {
-    console.error('⚠️ Global Error:', error?.message);
+    console.error('Global Error:', error?.message);
   }, [error]);
 
   return (
@@ -25,7 +25,11 @@ export default function GlobalError({ error, reset }) {
           }}
         >
           <div style={{ textAlign: 'center', maxWidth: '400px' }}>
-            <div style={{ fontSize: '48px', marginBottom: '16px' }}>🌊</div>
+            <div style={{ fontSize: '48px', marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>
+              <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#2D6A4F" strokeWidth="1.2" style={{ opacity: 0.45 }}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 12c2 0 2-2 4-2s2 2 4 2 2-2 4-2 2 2 4 2M4 17c2 0 2-2 4-2s2 2 4 2 2-2 4-2 2 2 4 2" />
+              </svg>
+            </div>
             <h1 style={{
               fontSize: '24px',
               fontWeight: 700,

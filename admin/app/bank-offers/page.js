@@ -13,11 +13,11 @@ const defaultBankOffer = {
 };
 
 const DISCOUNT_TYPE_CONFIG = {
-  credit_card: { label: 'Credit Card', color: 'bg-blue-50 text-blue-700 border-blue-200', icon: '💳' },
-  debit_card: { label: 'Debit Card', color: 'bg-indigo-50 text-indigo-700 border-indigo-200', icon: '🏦' },
-  upi: { label: 'UPI', color: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: '📱' },
-  emi: { label: 'EMI', color: 'bg-amber-50 text-amber-700 border-amber-200', icon: '📆' },
-  netbanking: { label: 'Net Banking', color: 'bg-violet-50 text-violet-700 border-violet-200', icon: '🖥️' },
+  credit_card: { label: 'Credit Card', color: 'bg-blue-50 text-blue-700 border-blue-200' },
+  debit_card: { label: 'Debit Card', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+  upi: { label: 'UPI', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  emi: { label: 'EMI', color: 'bg-amber-50 text-amber-700 border-amber-200' },
+  netbanking: { label: 'Net Banking', color: 'bg-violet-50 text-violet-700 border-violet-200' },
 };
 
 function Skeleton({ className = '' }) {
@@ -190,7 +190,7 @@ export default function AdminBankOffersPage() {
 
                   {/* Meta */}
                   <div className="mt-3 flex flex-wrap gap-1.5">
-                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${typeConfig.color}`}>{typeConfig.icon} {typeConfig.label}</span>
+                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${typeConfig.color}`}>{typeConfig.label}</span>
                     {Number(o.min_order_amount) > 0 && <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-slate-50 text-slate-600 border border-slate-100">Min ₹{Number(o.min_order_amount).toLocaleString('en-IN')}</span>}
                     {o.max_discount && <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">Save ₹{Number(o.max_discount).toLocaleString('en-IN')}</span>}
                   </div>

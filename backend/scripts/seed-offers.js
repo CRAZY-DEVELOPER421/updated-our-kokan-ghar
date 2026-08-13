@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS bank_offers (
 
   // 1. Ensure bank_offers table exists
   await c.query(CREATE_BANK_OFFERS);
-  console.log('✅ bank_offers table ready');
+  console.log('bank_offers table ready');
 
   // 2. Coupons — upsert with RELATIVE validity so they stay active
   let couponCount = 0;
@@ -80,7 +80,7 @@ CREATE TABLE IF NOT EXISTS bank_offers (
     );
     couponCount++;
   }
-  console.log(`✅ Coupons upserted: ${couponCount}`);
+  console.log(`Coupons upserted: ${couponCount}`);
 
   // 3. Bank offers — INSERT IGNORE (uk_bo_offer prevents duplicates)
   let bankCount = 0;
@@ -92,7 +92,7 @@ CREATE TABLE IF NOT EXISTS bank_offers (
     );
     bankCount++;
   }
-  console.log(`✅ Bank offers seeded: ${bankCount}`);
+  console.log(`Bank offers seeded: ${bankCount}`);
 
   // Summary
   const [[counts]] = await c.query(
@@ -100,13 +100,13 @@ CREATE TABLE IF NOT EXISTS bank_offers (
        (SELECT COUNT(*) FROM coupons WHERE is_active = 1 AND valid_until >= NOW()) AS active_coupons,
        (SELECT COUNT(*) FROM bank_offers WHERE is_active = 1 AND (valid_until IS NULL OR valid_until >= NOW())) AS active_bank_offers`
   );
-  console.log('\n📊 Active data now in DB:');
+  console.log('\nActive data now in DB:');
   console.log(`   Coupons:      ${counts.active_coupons}`);
   console.log(`   Bank offers:  ${counts.active_bank_offers}`);
 
   await c.end();
   console.log('Done.');
 })().catch((err) => {
-  console.error('❌ Seed failed:', err.message);
+  console.error('Seed failed:', err.message);
   process.exit(1);
 });

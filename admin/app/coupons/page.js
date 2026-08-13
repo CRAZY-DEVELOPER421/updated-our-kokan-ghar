@@ -9,10 +9,10 @@ import Button from '@/components/ui/Button';
 const defaultCoupon = { code: '', type: 'percentage', value: '', min_order_amount: 0, max_discount: '', usage_limit: '', is_active: 1, valid_from: '', valid_until: '', description: '' };
 
 const COUPON_TYPE_CONFIG = {
-  percentage: { label: '% OFF', color: 'bg-violet-50 text-violet-700 border-violet-200', icon: '%' },
-  flat: { label: '₹ OFF', color: 'bg-blue-50 text-blue-700 border-blue-200', icon: '₹' },
-  free_shipping: { label: 'Free Shipping', color: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: '🚚' },
-  bogo: { label: 'BOGO', color: 'bg-amber-50 text-amber-700 border-amber-200', icon: '🎁' },
+  percentage: { label: '% OFF', color: 'bg-violet-50 text-violet-700 border-violet-200' },
+  flat: { label: '₹ OFF', color: 'bg-blue-50 text-blue-700 border-blue-200' },
+  free_shipping: { label: 'Free Shipping', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  bogo: { label: 'BOGO', color: 'bg-amber-50 text-amber-700 border-amber-200' },
 };
 
 function Skeleton({ className = '' }) {
@@ -175,7 +175,7 @@ export default function AdminCouponsPage() {
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <span className="font-mono font-bold text-lg text-emerald-700 tracking-tight">{c.code}</span>
-                      <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${typeConfig.color}`}>{typeConfig.icon} {typeConfig.label}</span>
+                      <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${typeConfig.color}`}>{typeConfig.label}</span>
                     </div>
                     <button onClick={() => handleToggle(c)} className={`relative w-10 h-5 rounded-full transition-colors ${c.is_active ? 'bg-emerald-500' : 'bg-slate-200'}`}>
                       <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${c.is_active ? 'translate-x-5' : ''}`} />

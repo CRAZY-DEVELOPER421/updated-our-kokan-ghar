@@ -11,7 +11,7 @@ try {
     });
   }
 } catch (e) {
-  console.warn('⚠️ Razorpay not configured. Payment features will be unavailable.');
+  console.warn('Razorpay not configured. Payment features will be unavailable.');
 }
 
 const createOrder = async (amount, currency = 'INR', receipt = null) => {
@@ -36,7 +36,7 @@ const createOrder = async (amount, currency = 'INR', receipt = null) => {
       status: order.status
     };
   } catch (error) {
-    console.error('❌ Razorpay create order error:', error.message);
+    console.error('Razorpay create order error:', error.message);
     return { success: false, error: error.message };
   }
 };
@@ -52,7 +52,7 @@ const verifyPayment = (orderId, paymentId, signature) => {
     const isValid = expectedSignature === signature;
     return { success: isValid };
   } catch (error) {
-    console.error('❌ Payment verification error:', error.message);
+    console.error('Payment verification error:', error.message);
     return { success: false, error: error.message };
   }
 };

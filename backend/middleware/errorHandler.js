@@ -1,7 +1,7 @@
 const ApiResponse = require('../utils/apiResponse');
 
 const errorHandler = (err, req, res, next) => {
-  console.error('❌ Error:', err);
+  console.error('Error:', err);
 
   if (err.name === 'ValidationError') {
     return ApiResponse.error(res, err.message, 400);

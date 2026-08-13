@@ -166,7 +166,7 @@
     "item": "item",
     "items": "items",
     "free": "Free",
-    "free_shipping_eligible": "🎉 You qualify for FREE shipping!",
+    "free_shipping_eligible": "You qualify for FREE shipping!",
     "free_shipping_more": "Add ₹{amount} more for FREE shipping",
     "calculated_at_checkout": "Calculated at checkout",
     "savings": "You're saving ₹{amount} on this order!"
@@ -238,7 +238,7 @@
     "subscribe": "Subscribe",
     "phone": "+91 98765 43210",
     "email": "hello@kokanghar.in",
-    "made_with": "Made with ❤️ in Goa"
+    "made_with": "Made with love in Goa"
   },
   "common": {
     "loading": "Loading...",

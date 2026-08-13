@@ -65,7 +65,7 @@ const addPoints = async (userId, amount, description = '') => {
 
     return { success: true, points };
   } catch (error) {
-    console.error('❌ Add points error:', error.message);
+    console.error('Add points error:', error.message);
     return { success: false, error: error.message };
   }
 };
@@ -96,7 +96,7 @@ const redeemPoints = async (userId, pointsToRedeem) => {
 
     return { success: true, discountAmount, pointsUsed: actualPointsToRedeem };
   } catch (error) {
-    console.error('❌ Redeem points error:', error.message);
+    console.error('Redeem points error:', error.message);
     return { success: false, error: error.message };
   }
 };
@@ -133,7 +133,7 @@ const getLoyaltyInfo = async (userId) => {
 
     return loyalty;
   } catch (error) {
-    console.error('❌ Get loyalty info error:', error.message);
+    console.error('Get loyalty info error:', error.message);
     return null;
   }
 };

@@ -8,6 +8,7 @@ import MobileHeader from '@/components/layout/MobileHeader';
 import MobileBottomNav from '@/components/home/MobileBottomNav';
 import MobileFooter from '@/components/layout/MobileFooter';
 import ToastProvider from '@/components/ui/Toast';
+import SuspensionGate from '@/components/layout/SuspensionGate';
 
 // Dynamically import below-the-fold components to reduce initial JS payload
 const PageTransition = dynamicLib(() => import('@/components/layout/PageTransition'));
@@ -119,6 +120,8 @@ export default function RootLayout({ children }) {
         <QueryProviders>
           <I18nProvider>
             <ToastProvider />
+            {/* Global suspension popup + route guard (suspended users stay home) */}
+            <SuspensionGate />
             <div className="hidden lg:block sticky top-0 z-50"><Navbar /></div>
             <div className="lg:hidden sticky top-0 z-50"><MobileHeader /></div>
             {/* ── Delivery Address Bar (scrolls away smoothly) ── */}

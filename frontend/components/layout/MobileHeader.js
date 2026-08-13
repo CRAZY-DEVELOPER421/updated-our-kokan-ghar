@@ -8,12 +8,13 @@ import useAuthStore from '@/lib/store/authStore';
 import api from '@/lib/api';
 import { useSiteSettings } from '@/lib/hooks/useSiteSettings';
 import { getImageUrl } from '@/lib/utils';
+import SuspensionTimer from '@/components/ui/SuspensionTimer';
 
 export default function MobileHeader() {
   const [mounted, setMounted] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const cartCount = useCartStore((s) => s.itemCount);
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, suspended, suspension, clearSuspended, fetchProfile, logout } = useAuthStore();
   const { data: settingsData } = useSiteSettings();
   const customLogo = getImageUrl(settingsData?.settings?.site_logo);
 
@@ -114,6 +115,27 @@ export default function MobileHeader() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </Link>
+
+            {/* Suspended chip — compact, replaces the bell icon area visually */}
+            {mounted && suspended && (
+              <span
+                className="flex items-center gap-1 px-2 py-1 rounded-full border"
+                style={{ color: '#DC2626', borderColor: '#FECACA', backgroundColor: '#FEF2F2', fontSize: '10px', fontWeight: 700 }}
+                title={suspension?.message || 'Account suspended'}
+              >
+                <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                Suspended
+                {suspension?.suspendUntil && (
+                  <SuspensionTimer
+                    until={suspension.suspendUntil}
+                    compact
+                    onExpire={() => { clearSuspended(); fetchProfile(); }}
+                  />
+                )}
+              </span>
+            )}
 
             {/* Notifications */}
             <Link
@@ -243,24 +265,59 @@ export default function MobileHeader() {
               ))}
               <hr className="my-3 border-gray-100" />
               <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#8A8A8A' }}>Account</p>
-              {[
-                { label: 'My Account', href: '/account' },
-                { label: 'Orders', href: '/account/orders' },
-                { label: 'Wishlist', href: '/wishlist' },
-              ].map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="flex items-center justify-between px-3 py-2.5 text-sm rounded-xl hover:bg-[#E8F0EC] transition-colors"
-                  style={{ color: '#1A1A1A' }}
-                  onClick={() => setMenuOpen(false)}
-                >
-                  <span>{item.label}</span>
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} style={{ color: '#8A8A8A' }}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                  </svg>
-                </Link>
-              ))}
+              {suspended ? (
+                <>
+                  <div
+                    className="px-3 py-3 rounded-xl border"
+                    style={{ color: '#DC2626', borderColor: '#FECACA', backgroundColor: '#FEF2F2' }}
+                  >
+                    <div className="flex items-center gap-1.5 text-sm font-bold">
+                      <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      Suspended
+                    </div>
+                    {suspension?.suspendUntil && (
+                      <div className="mt-1.5">
+                        <SuspensionTimer
+                          until={suspension.suspendUntil}
+                          compact
+                          onExpire={() => { clearSuspended(); fetchProfile(); }}
+                        />
+                      </div>
+                    )}
+                    <p className="text-xs mt-1.5 leading-relaxed" style={{ color: '#991B1B' }}>
+                      {suspension?.message || 'Your account is suspended. You can only browse the home page.'}
+                    </p>
+                    <button
+                      onClick={() => { logout(); setMenuOpen(false); }}
+                      className="w-full mt-3 py-2 rounded-lg text-sm font-semibold border transition-colors"
+                      style={{ color: '#DC2626', borderColor: '#FECACA', backgroundColor: '#FFFFFF' }}
+                    >
+                      Sign Out
+                    </button>
+                  </div>
+                </>
+              ) : (
+                [
+                  { label: 'My Account', href: '/account' },
+                  { label: 'Orders', href: '/account/orders' },
+                  { label: 'Wishlist', href: '/wishlist' },
+                ].map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="flex items-center justify-between px-3 py-2.5 text-sm rounded-xl hover:bg-[#E8F0EC] transition-colors"
+                    style={{ color: '#1A1A1A' }}
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    <span>{item.label}</span>
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} style={{ color: '#8A8A8A' }}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </Link>
+                ))
+              )}
             </nav>
           </div>
         </div>

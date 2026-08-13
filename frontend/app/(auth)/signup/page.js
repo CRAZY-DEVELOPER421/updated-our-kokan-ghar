@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import useAuthStore from '@/lib/store/authStore';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import Modal from '@/components/ui/Modal';
 
 // Runtime-resolved API base — works on localhost dev AND behind the tunnel/gateway.
 function resolveApiBase() {
@@ -57,10 +58,19 @@ export default function SignupPage() {
     password: '',
     confirmPassword: '',
   });
+
+  // Prefill email when the user comes from the login "account not found" popup
+  // (/login?email=... -> /signup?email=...). Done in an effect (not in the
+  // useState initializer) so server render and client hydration always match.
+  useEffect(() => {
+    const prefilled = new URLSearchParams(window.location.search).get('email');
+    if (prefilled) setForm((prev) => ({ ...prev, email: prefilled }));
+  }, []);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [showEmailExists, setShowEmailExists] = useState(false);
 
   const passwordStrength = useMemo(() => {
     const passed = PASSWORD_REQUIREMENTS.filter((req) => req.test(form.password)).length;
@@ -100,9 +110,25 @@ export default function SignupPage() {
     if (result.success) {
       toast.success('Welcome to Kokan Ghar! Use code WELCOME15 for 15% off.');
       router.push(getRedirectTarget());
+    } else if (result.status === 409) {
+      // Email is already registered — show a warm "please sign in" popup
+      // instead of a scary red error toast.
+      setShowEmailExists(true);
     } else {
       toast.error(result.message || 'Registration failed. Please try again.');
     }
+  };
+
+  const goToLogin = () => {
+    setShowEmailExists(false);
+    // Keep the original post-login target (?redirect=...) alive through the
+    // popup -> login hop, and carry the email over so it's pre-filled.
+    const params = new URLSearchParams();
+    if (form.email.trim()) params.set('email', form.email.trim());
+    const redirect = getRedirectTarget();
+    if (redirect !== '/') params.set('redirect', redirect);
+    const qs = params.toString();
+    router.push(`/login${qs ? `?${qs}` : ''}`);
   };
 
   return (
@@ -271,6 +297,36 @@ export default function SignupPage() {
           </Link>
         </p>
       </div>
+
+      {/* Friendly popup when the email is already registered — not an error toast */}
+      <Modal isOpen={showEmailExists} onClose={() => setShowEmailExists(false)} size="sm" title="">
+        <div className="text-center pt-2">
+          <div className="mx-auto w-16 h-16 rounded-full bg-konkan-cream border border-konkan-sand flex items-center justify-center mb-5">
+            <svg className="w-8 h-8 text-konkan-green-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+            </svg>
+          </div>
+          <h3 className="font-display text-xl font-bold text-konkan-text-primary">
+            Welcome back! 👋
+          </h3>
+          <p className="text-konkan-text-secondary text-sm leading-relaxed mt-2">
+            An account with <span className="font-medium text-konkan-text-primary">{form.email.trim()}</span> already exists.
+            Please sign in to continue shopping.
+          </p>
+          <div className="mt-6 space-y-2.5">
+            <Button size="lg" className="w-full" onClick={goToLogin}>
+              Sign In
+            </Button>
+            <button
+              type="button"
+              onClick={() => setShowEmailExists(false)}
+              className="w-full text-sm text-konkan-text-secondary hover:text-konkan-green-primary transition-colors py-1"
+            >
+              Use another email
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

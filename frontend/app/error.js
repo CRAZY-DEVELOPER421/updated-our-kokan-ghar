@@ -4,12 +4,16 @@ import Link from 'next/link';
 
 export default function Error({ error, reset }) {
   // Log error to console in dev, could send to monitoring service in prod
-  console.error('⚠️ Page Error:', error?.message);
+  console.error('Page Error:', error?.message);
 
   return (
     <div className="min-h-[60vh] flex items-center justify-center px-4">
       <div className="text-center max-w-md">
-        <div className="text-6xl mb-4">🌊</div>
+        <div className="text-6xl mb-4 flex items-center justify-center text-konkan-green-primary/40">
+          <svg className="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 12c2 0 2-2 4-2s2 2 4 2 2-2 4-2 2 2 4 2M4 17c2 0 2-2 4-2s2 2 4 2 2-2 4-2 2 2 4 2" />
+          </svg>
+        </div>
         <h1 className="font-display text-2xl md:text-3xl font-bold text-konkan-text-primary mb-3">
           Something went wrong!
         </h1>

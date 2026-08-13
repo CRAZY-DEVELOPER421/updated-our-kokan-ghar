@@ -1,11 +1,11 @@
-# 🗄️ Konkan Bazaar — Database
+# Konkan Bazaar — Database
 
 MySQL schema, seed data, and helper scripts for the Konkan Bazaar e-commerce platform.
 Full project setup: see the **[main README](../README.md)**.
 
 ---
 
-## 🚀 Setup
+## Setup
 
 ```bash
 # 1. Create the database
@@ -22,18 +22,18 @@ mysql -u root -p konkan_bazaar -e "SELECT COUNT(*) AS total_products FROM produc
 
 ---
 
-## 📄 Schema Files
+## Schema Files
 
 | File | Purpose | Always needed? |
 |---|---|---|
-| `schema.sql` | Core schema — **26 tables** (users, products, orders, cart, reviews…) | ✅ Yes |
-| `seed.sql` | Seed data — 200 products, categories, etc. | ✅ Yes |
-| `bundles_schema.sql` | Combo / bundle product tables | 🟡 For bundles feature |
-| `bank_offers_schema.sql` | Bank offer / discount tables | 🟡 For bank offers |
-| `cms_schema.sql` | CMS — blogs, videos, team | 🟡 For CMS |
-| `customer_service_schema.sql` | Terms, returns, shipping, FAQ, privacy pages | 🟡 For policy pages |
-| `settings_schema.sql` | `site_settings` — contact info, social links | 🟡 For settings |
-| `social_oauth_migration.sql` | OAuth: makes `password_hash` nullable | 🟡 For Google/Facebook login |
+| `schema.sql` | Core schema — **26 tables** (users, products, orders, cart, reviews…) | Yes |
+| `seed.sql` | Seed data — 200 products, categories, etc. | Yes |
+| `bundles_schema.sql` | Combo / bundle product tables | For bundles feature |
+| `bank_offers_schema.sql` | Bank offer / discount tables | For bank offers |
+| `cms_schema.sql` | CMS — blogs, videos, team | For CMS |
+| `customer_service_schema.sql` | Terms, returns, shipping, FAQ, privacy pages | For policy pages |
+| `settings_schema.sql` | `site_settings` — contact info, social links | For settings |
+| `social_oauth_migration.sql` | OAuth: makes `password_hash` nullable | For Google/Facebook login |
 
 Run the optional files only for the features you use — they're idempotent and safe to
 re-run. **Do not skip `social_oauth_migration.sql` if you enable social login** — see
@@ -41,7 +41,7 @@ re-run. **Do not skip `social_oauth_migration.sql` if you enable social login** 
 
 ---
 
-## 🗂️ Tables (26 in core schema)
+## Tables (26 in core schema)
 
 - `users` — Customers, admins, sellers (`role` ENUM: `customer` / `admin` / `seller`)
 - `addresses` — User delivery addresses
@@ -70,7 +70,7 @@ re-run. **Do not skip `social_oauth_migration.sql` if you enable social login** 
 
 ---
 
-## 🔧 Helper Scripts
+## Helper Scripts
 
 ### Seed scripts (feature content)
 
@@ -86,7 +86,7 @@ mysql -u root -p konkan_bazaar < video_cms_seed.sql  # Video CMS categories + de
 
 ---
 
-## 🛒 Kokan Catalog Migration (categories → subcategories → products)
+## Kokan Catalog Migration (categories → subcategories → products)
 
 The full store catalog — **53 categories, 633 subcategories, 570 products** — lives in
 the database. Duplicate products (the same item listed under more than one category,
@@ -150,7 +150,7 @@ mysql -u root -p konkan_bazaar -e "SELECT COUNT(*) AS categories FROM categories
 
 ---
 
-## 🔒 Conventions
+## Conventions
 
 - **utf8mb4** charset throughout (full emoji + Devanagari support).
 - All application queries use **parameterized statements** — no ORM, no string interpolation.

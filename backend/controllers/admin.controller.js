@@ -4,6 +4,8 @@ const ApiResponse = require('../utils/apiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const { generateUniqueSlug } = require('../utils/generateSlug');
 const { createNotification } = require('../services/notification.service');
+const { sendEmail, sendOfferEmail, sendSuspensionEmail } = require('../services/email.service');
+const { statusOf, reactivateExpiredSuspensions } = require('../services/suspension.service');
 
 // ===== PRODUCT MANAGEMENT =====
 
@@ -52,6 +54,15 @@ const ensureBundleTables = async (conn) => {
     FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
     INDEX idx_bp_product (product_id)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+};
+
+// Self-heal: add timed-suspension support to the users table if it predates
+// the feature (mirrors ensureDeliveryColumns). suspend_until NULL + is_active=0
+// means a PERMANENT suspension; a future DATETIME means a timed suspension.
+const ensureUserSuspendColumn = async (conn) => {
+  if (!(await columnExists(conn, 'users', 'suspend_until'))) {
+    await conn.query('ALTER TABLE users ADD COLUMN suspend_until DATETIME NULL AFTER is_active, ADD INDEX idx_users_suspend (is_active, suspend_until)');
+  }
 };
 
 // Self-heal: add per-product delivery fields (free_delivery + delivery_estimate)
@@ -499,7 +510,7 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
       await createNotification(
         user_id,
         'order_delivered',
-        `Order #${order_number} delivered! 🎉`,
+        `Order #${order_number} delivered!`,
         'Your order has been delivered. Enjoy your Konkan products! Please leave a review.',
         { order_id: id, order_number }
       );
@@ -553,6 +564,31 @@ const getOrders = asyncHandler(async (req, res) => {
 });
 
 // ===== COUPON MANAGEMENT =====
+
+// Fire-and-forget: email every active user about a published or edited offer.
+// The API responds immediately — emails go out in the background.
+const notifyAllUsersOfOffer = (offer) => {
+  pool
+    .query('SELECT name, email FROM users WHERE is_active = 1 AND email IS NOT NULL AND email <> ?', [''])
+    .then(([users]) => {
+      if (!users.length) return;
+      const { subject, html } = sendOfferEmail(offer);
+      // Send in chunks (max 25 in flight) so a large user base never hammers
+      // the SMTP server with thousands of simultaneous connections.
+      const CHUNK = 25;
+      let index = 0;
+      const sendChunk = () => {
+        const batch = users.slice(index, index + CHUNK);
+        index += CHUNK;
+        if (batch.length === 0) return;
+        Promise.allSettled(batch.map((u) => sendEmail({ to: u.email, subject, html }))).then(sendChunk);
+      };
+      sendChunk();
+      console.log(`[Offers] Promotional email queued for ${users.length} user(s).`);
+    })
+    .catch((err) => console.error('[Offers] Broadcast failed:', err.message));
+};
+
 const getCoupons = asyncHandler(async (req, res) => {
   const [coupons] = await pool.query(
     'SELECT * FROM coupons ORDER BY created_at DESC'
@@ -564,10 +600,25 @@ const getCoupons = asyncHandler(async (req, res) => {
 const createCoupon = asyncHandler(async (req, res) => {
   const { code, type, value, min_order_amount, max_discount, usage_limit, is_active, valid_from, valid_until, description } = req.body;
 
+  const active = is_active !== undefined ? is_active : 1;
+
   const [result] = await pool.query(
     'INSERT INTO coupons (code, type, value, min_order_amount, max_discount, usage_limit, is_active, valid_from, valid_until, description) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    [code.toUpperCase(), type, value, min_order_amount || 0, max_discount, usage_limit || 0, is_active !== undefined ? is_active : 1, valid_from, valid_until, description]
+    [code.toUpperCase(), type, value, min_order_amount || 0, max_discount, usage_limit || 0, active, valid_from, valid_until, description]
   );
+
+  // New published offer → email it to every active user (fire-and-forget).
+  if (Number(active) !== 0) {
+    notifyAllUsersOfOffer({
+      code: code.toUpperCase(),
+      type,
+      value,
+      min_order_amount,
+      max_discount,
+      valid_until,
+      description
+    });
+  }
 
   return ApiResponse.created(res, { id: result.insertId, code: code.toUpperCase() }, 'Coupon created.');
 });
@@ -591,6 +642,23 @@ const updateCoupon = asyncHandler(async (req, res) => {
 
   values.push(id);
   await pool.query(`UPDATE coupons SET ${fields.join(', ')} WHERE id = ?`, values);
+
+  // Edited / re-activated offer → email it to every active user (fire-and-forget).
+  // Only broadcast when the coupon ends up active, so deactivating an offer or
+  // tweaking an inactive draft never spams the user base.
+  const [rows] = await pool.query('SELECT * FROM coupons WHERE id = ?', [id]);
+  const coupon = rows[0];
+  if (coupon && Number(coupon.is_active) !== 0) {
+    notifyAllUsersOfOffer({
+      code: coupon.code,
+      type: coupon.type,
+      value: coupon.value,
+      min_order_amount: coupon.min_order_amount,
+      max_discount: coupon.max_discount,
+      valid_until: coupon.valid_until,
+      description: coupon.description
+    });
+  }
 
   return ApiResponse.success(res, {}, 'Coupon updated.');
 });
@@ -935,12 +1003,101 @@ const deleteBundle = asyncHandler(async (req, res) => {
 });
 
 // ===== USER MANAGEMENT =====
+
+/**
+ * Suspend / activate a user.
+ *
+ * Body (JSON):
+ *   { action: 'activate' }                        -> is_active = 1, clear timer
+ *   { action: 'suspend' }                         -> PERMANENT suspension
+ *   { action: 'suspend', duration_days: 3 }       -> timed: is_active = 0, suspend_until = now + 3 days
+ *
+ * Backwards compatible with the old { is_active: 0|1 } payload too.
+ * A suspended user gets an email + in-app notification automatically.
+ */
 const updateUserStatus = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { is_active } = req.body;
+  const { action, duration_days, is_active } = req.body;
 
-  await pool.query('UPDATE users SET is_active = ? WHERE id = ?', [is_active ? 1 : 0, id]);
-  return ApiResponse.success(res, {}, `User ${is_active ? 'activated' : 'suspended'}.`);
+  await ensureUserSuspendColumn(pool);
+
+  const [users] = await pool.query(
+    'SELECT id, name, email, role, is_active, suspend_until FROM users WHERE id = ?',
+    [id]
+  );
+  if (users.length === 0) {
+    return ApiResponse.error(res, 'User not found.', 404);
+  }
+  const user = users[0];
+
+  // Never allow suspending your own account (an admin would lock themselves
+  // out and could never undo it) or another admin account. Mirrors deleteUser.
+  const activating = action === 'activate' || Number(is_active) === 1;
+  const suspending = action === 'suspend' || Number(is_active) === 0;
+  if (suspending) {
+    if (parseInt(id, 10) === req.user.id) {
+      return ApiResponse.error(res, 'Cannot suspend your own account.', 400);
+    }
+    if (user.role === 'admin') {
+      return ApiResponse.error(res, 'Admin accounts cannot be suspended.', 400);
+    }
+  }
+
+  if (activating) {
+    await pool.query(
+      'UPDATE users SET is_active = 1, suspend_until = NULL WHERE id = ?',
+      [id]
+    );
+    return ApiResponse.success(res, { user: { ...user, is_active: 1, suspend_until: null } }, 'User activated.');
+  }
+
+  if (suspending) {
+    // duration_days > 0 -> timed suspension; otherwise permanent.
+    const days = parseInt(duration_days, 10);
+    const suspend_until = days > 0
+      ? new Date(Date.now() + days * 24 * 60 * 60 * 1000)
+      : null;
+
+    await pool.query(
+      'UPDATE users SET is_active = 0, suspend_until = ? WHERE id = ?',
+      [suspend_until, id]
+    );
+
+    // In-app notification + email — both fire-and-forget so a slow SMTP or a
+    // notification hiccup never blocks the admin action or makes it look like
+    // it failed after the DB row was already updated.
+    const notify = async () => {
+      try {
+        await createNotification(
+          id,
+          'account_suspended',
+          suspend_until ? 'Account temporarily suspended' : 'Account permanently suspended',
+          suspend_until
+            ? `Your account has been suspended until ${suspend_until.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}.`
+            : 'Your account has been permanently suspended. Please contact support if you believe this is a mistake.',
+          { suspend_until }
+        );
+      } catch (err) {
+        console.error('[Suspend] Notification failed:', err.message);
+      }
+      if (user.email) {
+        const mail = sendSuspensionEmail(user.email, user.name, {
+          permanent: !suspend_until,
+          until: suspend_until,
+        });
+        sendEmail({ to: user.email, subject: mail.subject, html: mail.html });
+      }
+    };
+    notify();
+
+    return ApiResponse.success(res, {
+      user: { ...user, is_active: 0, suspend_until: suspend_until ? suspend_until.toISOString() : null }
+    }, suspend_until
+      ? `User suspended for ${days} day${days === 1 ? '' : 's'}.`
+      : 'User permanently suspended.');
+  }
+
+  return ApiResponse.error(res, 'Invalid action. Use "suspend", "activate" or legacy is_active.', 400);
 });
 
 const deleteUser = asyncHandler(async (req, res) => {
@@ -999,18 +1156,34 @@ const getUsers = asyncHandler(async (req, res) => {
   const limit = parseInt(req.query.limit) || 20;
   const offset = (page - 1) * limit;
 
+  await ensureUserSuspendColumn(pool);
+
+  // Self-heal: any timed suspension that already expired is flipped back to
+  // active IN THE DATABASE right here, so the admin list/stats always agree
+  // with reality (no waiting for the user to log in). Same rule as the
+  // server-side background sweep and resolveUserStatus.
+  await reactivateExpiredSuspensions();
+
   const [countResult] = await pool.query('SELECT COUNT(*) as total FROM users');
   const [users] = await pool.query(
-    'SELECT id, name, email, phone, role, is_verified, is_active, last_login, created_at FROM users ORDER BY created_at DESC LIMIT ? OFFSET ?',
+    `SELECT id, name, email, phone, role, is_verified, is_active, suspend_until, last_login, created_at
+     FROM users ORDER BY created_at DESC LIMIT ? OFFSET ?`,
     [limit, offset]
   );
+
+  const usersWithStatus = users.map((u) => ({
+    ...u,
+    suspend_until: u.suspend_until ? new Date(u.suspend_until).toISOString() : null,
+    status: statusOf(u),
+  }));
 
   // Live user stats for the admin Users page (last_login is updated on every login)
   const [statsRows] = await pool.query(
     `SELECT
        COUNT(*) AS total,
-       SUM(is_active = 1) AS active,
-       SUM(is_active = 0) AS suspended,
+       SUM(is_active = 1 OR (is_active = 0 AND suspend_until <= NOW())) AS active,
+       SUM(is_active = 0 AND suspend_until IS NULL) AS permanent_suspended,
+       SUM(is_active = 0 AND suspend_until IS NOT NULL AND suspend_until > NOW()) AS timed_suspended,
        SUM(role = 'admin') AS admins,
        SUM(role = 'seller') AS sellers,
        SUM(role = 'customer') AS customers,
@@ -1022,7 +1195,9 @@ const getUsers = asyncHandler(async (req, res) => {
   const stats = {
     total: Number(s.total) || 0,
     active: Number(s.active) || 0,
-    suspended: Number(s.suspended) || 0,
+    suspended: (Number(s.permanent_suspended) || 0) + (Number(s.timed_suspended) || 0),
+    permanent_suspended: Number(s.permanent_suspended) || 0,
+    timed_suspended: Number(s.timed_suspended) || 0,
     admins: Number(s.admins) || 0,
     sellers: Number(s.sellers) || 0,
     customers: Number(s.customers) || 0,
@@ -1030,7 +1205,7 @@ const getUsers = asyncHandler(async (req, res) => {
     logged_in_7d: Number(s.logged_in_7d) || 0,
   };
 
-  return ApiResponse.paginated(res, { users, stats }, {
+  return ApiResponse.paginated(res, { users: usersWithStatus, stats }, {
     page, limit,
     total: countResult[0].total,
     pages: Math.ceil(countResult[0].total / limit)

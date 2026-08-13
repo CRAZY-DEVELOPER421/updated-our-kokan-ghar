@@ -18,11 +18,38 @@ const getProfile = asyncHandler(async (req, res) => {
 });
 
 const updateProfile = asyncHandler(async (req, res) => {
-  const { name, phone, avatar_url } = req.body;
+  const { name, phone, avatar_url, email } = req.body;
+
+  // Email is editable from the profile page. It is stored EXACTLY as the user
+  // typed it (lowercased only — dots, +tags, %, # etc. are all preserved, so
+  // sawant.sakshi016@gmail.com never becomes sawantsakshi016@gmail.com).
+  let cleanEmail = null;
+  if (email !== undefined && email !== null && String(email).trim() !== '') {
+    cleanEmail = String(email).trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      return ApiResponse.error(res, 'Invalid email format.', 400);
+    }
+    // Skip the duplicate check when the email didn't actually change.
+    const [me] = await pool.query('SELECT email FROM users WHERE id = ?', [req.user.id]);
+    if (!me.length || me[0].email !== cleanEmail) {
+      const [dup] = await pool.query(
+        'SELECT id FROM users WHERE email = ? AND id != ?',
+        [cleanEmail, req.user.id]
+      );
+      if (dup.length > 0) {
+        return ApiResponse.error(res, 'This email is already registered.', 409);
+      }
+    }
+  }
 
   await pool.query(
-    'UPDATE users SET name = COALESCE(?, name), phone = COALESCE(?, phone), avatar_url = COALESCE(?, avatar_url) WHERE id = ?',
-    [name, phone, avatar_url, req.user.id]
+    `UPDATE users SET
+      name = COALESCE(?, name),
+      phone = COALESCE(?, phone),
+      avatar_url = COALESCE(?, avatar_url),
+      email = COALESCE(?, email)
+     WHERE id = ?`,
+    [name, phone, avatar_url, cleanEmail, req.user.id]
   );
 
   const [users] = await pool.query(
@@ -41,7 +68,12 @@ const changePassword = asyncHandler(async (req, res) => {
     [req.user.id]
   );
 
-  const isMatch = await bcrypt.compare(current_password, users[0].password_hash);
+  // OAuth-created accounts (password_hash NULL) have no current password —
+  // they must use /users/set-password first. bcrypt.compare would throw on a
+  // null hash, so short-circuit to a clean 400 instead of a 500.
+  const isMatch = users[0].password_hash
+    ? await bcrypt.compare(current_password, users[0].password_hash)
+    : false;
   if (!isMatch) {
     return ApiResponse.error(res, 'Current password is incorrect.', 400);
   }
@@ -52,6 +84,48 @@ const changePassword = asyncHandler(async (req, res) => {
   await pool.query('UPDATE users SET password_hash = ? WHERE id = ?', [password_hash, req.user.id]);
 
   return ApiResponse.success(res, {}, 'Password changed successfully.');
+});
+
+/**
+ * Set a password on an account created via Google/Facebook.
+ *
+ * Those accounts are inserted with password_hash = NULL, so this endpoint is
+ * the ONLY way they can gain an email/password credential. Once set, BOTH
+ * the social login AND the email/password login reach the same account.
+ * A user who already has a password (regular signup / already set) is
+ * rejected — they should use change-password instead.
+ */
+const setPassword = asyncHandler(async (req, res) => {
+  const { password } = req.body;
+
+  const [users] = await pool.query(
+    'SELECT password_hash FROM users WHERE id = ?',
+    [req.user.id]
+  );
+
+  if (users.length === 0) {
+    return ApiResponse.error(res, 'User not found.', 404);
+  }
+
+  if (users[0].password_hash) {
+    return ApiResponse.error(res, 'You already have a password set. Use Change Password to update it.', 400);
+  }
+
+  const salt = await bcrypt.genSalt(12);
+  const password_hash = await bcrypt.hash(password, salt);
+
+  // Conditional UPDATE — atomically guarded by password_hash IS NULL so two
+  // concurrent requests can never both claim the "no password yet" slot.
+  const [result] = await pool.query(
+    'UPDATE users SET password_hash = ? WHERE id = ? AND password_hash IS NULL',
+    [password_hash, req.user.id]
+  );
+
+  if (result.affectedRows === 0) {
+    return ApiResponse.error(res, 'You already have a password set. Use Change Password to update it.', 400);
+  }
+
+  return ApiResponse.success(res, {}, 'Password set successfully. You can now sign in with email & password too.');
 });
 
 const getAddresses = asyncHandler(async (req, res) => {
@@ -183,6 +257,7 @@ module.exports = {
   getProfile,
   updateProfile,
   changePassword,
+  setPassword,
   getAddresses,
   createAddress,
   updateAddress,

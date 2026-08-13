@@ -196,7 +196,9 @@ export default function ProductCard({ product, view = 'grid' }) {
       const quantity = selectedWeight;
       const result = await addToCart(product.id, null, quantity);
       if (!result || result.success === false) {
-        toast.error(result?.message || 'Failed to add to cart');
+        // Suspended → the global gate popup already explains it; no error toast.
+        // Read live store state — the suspension is detected during the request.
+        if (!useAuthStore.getState().suspended) toast.error(result?.message || 'Failed to add to cart');
         return;
       }
       setAdded(true);
@@ -242,7 +244,9 @@ export default function ProductCard({ product, view = 'grid' }) {
       try {
         const result = await addToCart(product.id, null, 1);
         if (!result || result.success === false) {
-          toast.error(result?.message || 'Failed to add to cart');
+          // Suspended → the global gate popup already explains it; no error toast.
+          // Read live store state — the suspension is detected during the request.
+          if (!useAuthStore.getState().suspended) toast.error(result?.message || 'Failed to add to cart');
           setIsAdding(false);
           return;
         }

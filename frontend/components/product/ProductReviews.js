@@ -166,7 +166,11 @@ export default function ProductReviews({ productId, ratingStats }) {
           ))
         ) : reviews.length === 0 ? (
           <div className="text-center py-8">
-            <div className="text-4xl mb-2">💬</div>
+            <div className="flex justify-center mb-2">
+              <svg className="w-12 h-12 text-konkan-sand" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+            </div>
             <p className="text-konkan-text-secondary">No reviews yet. Be the first to review this product!</p>
           </div>
         ) : (
@@ -204,7 +208,7 @@ export default function ProductReviews({ productId, ratingStats }) {
                   onClick={() => voteMutation.mutate({ reviewId: review.id, isHelpful: true })}
                   className="text-xs text-konkan-text-secondary hover:text-konkan-green-primary transition-colors"
                 >
-                  👍 Yes ({review.helpful_count || 0})
+                  Yes ({review.helpful_count || 0})
                 </button>
               </div>
             </div>

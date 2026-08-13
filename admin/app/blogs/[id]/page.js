@@ -13,11 +13,11 @@ const nextId = () => ++sectionIdCounter;
 const SECTION_TYPES = [
   { type: 'heading', label: 'Heading', icon: 'H' },
   { type: 'text', label: 'Text', icon: 'T' },
-  { type: 'image', label: 'Image', icon: '🖼' },
-  { type: 'video', label: 'Video', icon: '▶' },
+  { type: 'image', label: 'Image', icon: '▣' },
+  { type: 'video', label: 'Video', icon: '▷' },
   { type: 'quote', label: 'Quote', icon: '"' },
-  { type: 'gallery', label: 'Gallery', icon: '📷' },
-  { type: 'button', label: 'Button', icon: '🔗' },
+  { type: 'gallery', label: 'Gallery', icon: '▧' },
+  { type: 'button', label: 'Button', icon: '▢' },
   { type: 'list', label: 'List', icon: '•' },
   { type: 'table', label: 'Table', icon: '⊞' },
 ];

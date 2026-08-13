@@ -27,7 +27,6 @@ export default function ProductActions({ product, stockQuantity = 0, variants = 
     if (variants.length === 0 && selectedVariant) {
       setSelectedVariant(null);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [variants]);
 
   // Effective price / stock come from the selected variant when one exists
@@ -99,7 +98,10 @@ export default function ProductActions({ product, stockQuantity = 0, variants = 
     setIsAdding(false);
     if (res.success) {
       toast.success(`${qty} × ${selectedVariant?.variant_value || product.name} added to cart`);
-    } else {
+    } else if (!useAuthStore.getState().suspended) {
+      // Suspended → the global gate popup already explains it; no error toast.
+      // Read live store state (not the closure) — the suspension is detected
+      // DURING the request, so the render-time value would be stale.
       toast.error(res.message || 'Failed to add to cart');
     }
   }, [isAuthenticated, productId, selectedVariant, qty, addToCart, router, product.name]);
@@ -116,7 +118,8 @@ export default function ProductActions({ product, stockQuantity = 0, variants = 
     setIsAdding(false);
     if (res.success) {
       router.push('/checkout');
-    } else {
+    } else if (!useAuthStore.getState().suspended) {
+      // Suspended → the global gate popup already explains it; no error toast.
       toast.error(res.message || 'Failed to add to cart');
     }
   }, [isAuthenticated, productId, selectedVariant, qty, addToCart, router]);
@@ -134,7 +137,8 @@ export default function ProductActions({ product, stockQuantity = 0, variants = 
     setWishlistToggling(false);
     if (res.success) {
       toast.success(res.inWishlist ? 'Added to wishlist' : 'Removed from wishlist');
-    } else {
+    } else if (!useAuthStore.getState().suspended) {
+      // Suspended → the global gate popup already explains it; no error toast.
       toast.error(res.message || 'Failed to update wishlist');
     }
   }, [isAuthenticated, productId, toggleWishlist, router]);

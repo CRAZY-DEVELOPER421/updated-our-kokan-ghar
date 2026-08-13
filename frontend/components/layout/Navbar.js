@@ -13,6 +13,8 @@ import { useCategories } from '@/lib/hooks/useProducts';
 import SearchBar from '@/components/ui/SearchBar';
 import { useTranslation } from '@/lib/i18n/I18nProvider';
 import LanguageSwitcher from '@/components/ui/LanguageSwitcher';
+import DeliveryLocation from '@/components/layout/DeliveryLocation';
+import SuspensionTimer from '@/components/ui/SuspensionTimer';
 import { useSiteSettings } from '@/lib/hooks/useSiteSettings';
 import { getImageUrl } from '@/lib/utils';
 
@@ -39,7 +41,7 @@ export default function Navbar() {
   const closeCategoryMenu = () => { setIsCategoryOpen(false); setActiveCat(null); };
   const pathname = usePathname();
   const router = useRouter();
-  const { user, isAuthenticated, logout } = useAuthStore();
+  const { user, isAuthenticated, suspended, suspension, clearSuspended, fetchProfile, logout } = useAuthStore();
   const { itemCount: cartCount } = useCartStore();
   const { count: wishlistCount } = useWishlistStore();
   const { data: categoriesData } = useCategories();
@@ -122,10 +124,8 @@ export default function Navbar() {
 
           {/* Right Icons */}
           <div className="flex items-center gap-1.5 lg:gap-3">
-            {/* Language Switcher - Desktop */}
-            <div className="hidden lg:block">
-              <LanguageSwitcher variant="navbar" />
-            </div>
+            {/* Delivery Location - Desktop only */}
+            <DeliveryLocation />
 
             {/* Wishlist */}
             <Link
@@ -164,10 +164,42 @@ export default function Navbar() {
               )}
             </Link>
 
-            {/* Account / Profile — at the right end */}
+            {/* Account / Profile — at the right end. Suspended accounts get a
+                red "Suspended + countdown" chip instead of the profile. */}
             {mounted && (
               <>
-                {isAuthenticated ? (
+                {suspended ? (
+                  <div className="hidden lg:flex items-center gap-1.5">
+                    <span
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-50 border border-red-200 text-red-600"
+                      title={suspension?.message || 'Account suspended'}
+                    >
+                      <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      <span className="text-xs font-bold uppercase tracking-wide">Suspended</span>
+                      {suspension?.suspendUntil && (
+                        <SuspensionTimer
+                          until={suspension.suspendUntil}
+                          compact
+                          onExpire={() => { clearSuspended(); fetchProfile(); }}
+                        />
+                      )}
+                    </span>
+                    {/* Logout — the suspended user can still sign out and switch accounts */}
+                    <button
+                      onClick={logout}
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-white border border-slate-200 text-slate-600 hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-colors"
+                      aria-label="Sign out"
+                      title="Sign out"
+                    >
+                      <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                      </svg>
+                      <span className="text-xs font-semibold">{t('nav.sign_out')}</span>
+                    </button>
+                  </div>
+                ) : isAuthenticated ? (
                   <div className="relative group hidden lg:block">
                     <button className="flex items-center gap-1.5 text-konkan-text-secondary hover:text-konkan-green-primary transition-colors min-w-[44px] min-h-[44px]" aria-label={`Account: ${user?.name?.split(' ')[0] || 'Profile'}`}>
                       <User className="w-5 h-5" />
@@ -176,6 +208,7 @@ export default function Navbar() {
                     </button>
                     <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-2xl shadow-modal border border-konkan-sand opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 py-2 z-50">
                       <Link href="/account/profile" className="block px-4 py-2.5 text-sm text-konkan-text-primary hover:bg-konkan-cream">{t('account.my_profile')}</Link>
+                      <Link href="/account/settings" className="block px-4 py-2.5 text-sm text-konkan-text-primary hover:bg-konkan-cream">Settings</Link>
                       <Link href="/account/orders" className="block px-4 py-2.5 text-sm text-konkan-text-primary hover:bg-konkan-cream">{t('account.orders')}</Link>
                       <Link href="/account/wishlist" className="block px-4 py-2.5 text-sm text-konkan-text-primary hover:bg-konkan-cream">{t('nav.wishlist')}</Link>
                       <Link href="/account/loyalty" className="block px-4 py-2.5 text-sm text-konkan-text-primary hover:bg-konkan-cream">{t('account.loyalty_points')}</Link>
@@ -415,6 +448,10 @@ export default function Navbar() {
                     </Link>
                     <Link href="/account/loyalty" className="flex items-center justify-between px-3 py-2.5 text-sm rounded-xl hover:bg-konkan-cream transition-colors text-konkan-text-primary" onClick={() => setIsMobileOpen(false)}>
                       <span>{t('account.loyalty_points')}</span>
+                      <ChevronRight className="w-3.5 h-3.5 text-konkan-text-secondary" />
+                    </Link>
+                    <Link href="/account/settings" className="flex items-center justify-between px-3 py-2.5 text-sm rounded-xl hover:bg-konkan-cream transition-colors text-konkan-text-primary" onClick={() => setIsMobileOpen(false)}>
+                      <span>Settings</span>
                       <ChevronRight className="w-3.5 h-3.5 text-konkan-text-secondary" />
                     </Link>
                     <hr className="my-2 border-konkan-sand" />

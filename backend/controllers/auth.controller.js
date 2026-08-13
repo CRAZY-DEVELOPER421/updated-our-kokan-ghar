@@ -4,7 +4,8 @@ const crypto = require('crypto');
 const pool = require('../config/db');
 const ApiResponse = require('../utils/apiResponse');
 const asyncHandler = require('../utils/asyncHandler');
-const { sendEmail, sendOTPEmail, sendWelcomeEmail } = require('../services/email.service');
+const { sendEmail, sendOTPEmail, sendWelcomeEmail, sendLoginEmail } = require('../services/email.service');
+const { resolveUserStatus } = require('../services/suspension.service');
 
 const generateAccessToken = (user) => {
   return jwt.sign(
@@ -35,7 +36,9 @@ const register = asyncHandler(async (req, res) => {
 
   const [existing] = await pool.query('SELECT id FROM users WHERE email = ?', [email]);
   if (existing.length > 0) {
-    return ApiResponse.error(res, 'Email already registered.', 409);
+    // Friendly message for the "already have an account" popup — the frontend
+    // guides the user to sign in instead of showing a scary red error toast.
+    return ApiResponse.error(res, 'This email is already registered. Please sign in to continue.', 409);
   }
 
   const salt = await bcrypt.genSalt(12);
@@ -56,11 +59,12 @@ const register = asyncHandler(async (req, res) => {
     maxAge: 7 * 24 * 60 * 60 * 1000
   });
 
-  const welcomeEmail = sendWelcomeEmail(email, name);
-  await sendEmail({
+  // Welcome email — fire-and-forget so a slow SMTP never delays signup.
+  // sendEmail catches its own errors, so no unhandled rejection can occur.
+  sendEmail({
     to: email,
-    subject: 'Welcome to Konkan Bazaar!',
-    html: welcomeEmail.html
+    subject: 'Welcome to Kokan Ghar!',
+    html: sendWelcomeEmail(email, name).html
   });
 
   return ApiResponse.created(res, {
@@ -73,18 +77,41 @@ const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
   const [users] = await pool.query(
-    'SELECT id, name, email, password_hash, role, is_verified, is_active FROM users WHERE email = ?',
+    'SELECT id, name, email, password_hash, role, is_verified, is_active, suspend_until FROM users WHERE email = ?',
     [email]
   );
 
   if (users.length === 0) {
-    return ApiResponse.error(res, 'Invalid email or password.', 401);
+    // Friendly, distinct message when the account does not exist at all — the
+    // frontend shows this as a warm "please sign up" popup instead of a scary
+    // red error toast.
+    return ApiResponse.error(res, 'This account is not available. Please sign up to continue.', 404);
   }
 
   const user = users[0];
 
-  if (!user.is_active) {
-    return ApiResponse.error(res, 'Account has been deactivated. Contact support.', 403);
+  const status = await resolveUserStatus(user);
+  if (!status.ok) {
+    return ApiResponse.error(res, status.message, status.statusCode, null, {
+      code: status.code,
+      suspendUntil: status.suspendUntil,
+      permanent: status.permanent,
+    });
+  }
+
+  if (!user.password_hash) {
+    // Account was created via Google/Facebook — no password is stored, so an
+    // email/password attempt can never match. Explain WHY instead of the
+    // generic "Invalid email or password" so the user isn't left guessing.
+    // The `code` lets the frontend show a friendly popup with a
+    // "Continue with Google" / "Forgot Password" choice.
+    return ApiResponse.error(
+      res,
+      'This account was created with Google/Facebook. Please sign in with your social account, or use Forgot Password to set a new password.',
+      401,
+      null,
+      { code: 'OAUTH_ONLY_ACCOUNT' }
+    );
   }
 
   const isMatch = await bcrypt.compare(password, user.password_hash);
@@ -93,6 +120,14 @@ const login = asyncHandler(async (req, res) => {
   }
 
   await pool.query('UPDATE users SET last_login = NOW() WHERE id = ?', [user.id]);
+
+  // Welcome-back email for existing users — fire-and-forget so it never delays login.
+  // sendEmail catches its own errors, so no unhandled rejection can occur.
+  sendEmail({
+    to: user.email,
+    subject: 'Welcome back to Kokan Ghar!',
+    html: sendLoginEmail(user.name).html
+  });
 
   const accessToken = generateAccessToken(user);
   const refreshToken = generateRefreshToken(user);
@@ -130,7 +165,7 @@ const refreshTokenHandler = asyncHandler(async (req, res) => {
     );
 
     const [users] = await pool.query(
-      'SELECT id, email, role, is_active FROM users WHERE id = ? AND is_active = 1',
+      'SELECT id, email, role, is_active, suspend_until FROM users WHERE id = ?',
       [decoded.id]
     );
 
@@ -138,6 +173,14 @@ const refreshTokenHandler = asyncHandler(async (req, res) => {
       return ApiResponse.error(res, 'User not found.', 404);
     }
 
+    const status = await resolveUserStatus(users[0]);
+    if (!status.ok) {
+      return ApiResponse.error(res, status.message, status.statusCode, null, {
+        code: status.code,
+        suspendUntil: status.suspendUntil,
+        permanent: status.permanent,
+      });
+    }
     const user = users[0];
     const newAccessToken = generateAccessToken(user);
     const newRefreshToken = generateRefreshToken(user);

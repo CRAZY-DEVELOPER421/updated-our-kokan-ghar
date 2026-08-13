@@ -3,7 +3,7 @@
 import Link from 'next/link';
 
 export default function ProductError({ error, reset }) {
-  console.error('⚠️ Product Page Error:', error?.message);
+  console.error('Product Page Error:', error?.message);
 
   return (
     <div className="container-custom py-16 text-center">

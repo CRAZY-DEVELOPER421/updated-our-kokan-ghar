@@ -9,11 +9,70 @@ function Skeleton({ className = '' }) {
   return <div className={`animate-pulse bg-slate-200 rounded ${className}`} />;
 }
 
+// Small live countdown for timed suspensions — ticks every second. When the
+// countdown reaches zero the suspension has EXPIRED: the backend auto-
+// reactivates the user, so we fire `onExpire` and the parent re-fetches the
+// row — the badge flips from "Suspended" to "Active" live, no refresh needed.
+function SuspendTimer({ until, onExpire }) {
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  if (!until) return null; // defensive — parent always passes a valid date
+  const target = new Date(until).getTime();
+  const expired = !Number.isNaN(target) && target <= now;
+  const diff = Math.max(0, target - now);
+  const days = Math.floor(diff / 86400000);
+  const hours = Math.floor((diff % 86400000) / 3600000);
+  const minutes = Math.floor((diff % 3600000) / 60000);
+  const seconds = Math.floor((diff % 60000) / 1000);
+
+  const pad = (n) => String(n).padStart(2, '0');
+
+  // Fire once when the timer hits zero, then let the parent re-fetch (the
+  // backend flips is_active=1 + clears suspend_until, so the row turns Active).
+  useEffect(() => {
+    if (expired) onExpire?.();
+  }, [expired]);
+
+  if (expired) {
+    return (
+      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/60">
+        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        Expired — reactivating…
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200/60">
+      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      {days > 0 ? `${days}d ` : ''}{pad(hours)}:{pad(minutes)}:{pad(seconds)} left
+    </span>
+  );
+}
+
+const SUSPEND_OPTIONS = [
+  { days: 1, label: '1 Day' },
+  { days: 3, label: '3 Days' },
+  { days: 5, label: '5 Days' },
+];
+
 export default function AdminUsersPage() {
   const [page, setPage] = useState(1);
   const [searchInput, setSearchInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [suspendTarget, setSuspendTarget] = useState(null); // { user, durationDays: null | number }
+  const [customDays, setCustomDays] = useState('');
+  const [suspending, setSuspending] = useState(false);
   const queryClient = useQueryClient();
 
   // Debounce search
@@ -36,13 +95,42 @@ export default function AdminUsersPage() {
   const totalUsers = data?.pagination?.total || 0;
   const stats = data?.stats || {};
 
-  const handleToggleActive = async (user) => {
+  const openSuspendModal = (user) => {
+    setSuspendTarget({ user, durationDays: null });
+    setCustomDays('');
+  };
+
+  const handleSuspend = async () => {
+    if (!suspendTarget) return;
+    const { user, durationDays } = suspendTarget;
+    setSuspending(true);
     try {
-      const newStatus = user.is_active ? 0 : 1;
-      await api.put(`/admin/users/${user.id}/status`, { is_active: newStatus });
-      toast.success(`User ${newStatus ? 'activated' : 'suspended'}`);
+      await api.put(`/admin/users/${user.id}/status`, {
+        action: 'suspend',
+        duration_days: durationDays,
+      });
+      toast.success(
+        durationDays
+          ? `User suspended for ${durationDays} day${durationDays === 1 ? '' : 's'}.`
+          : 'User permanently suspended.'
+      );
+      setSuspendTarget(null);
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
-    } catch (err) { toast.error(err.response?.data?.message || 'Failed to update user.'); }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to suspend user.');
+    } finally {
+      setSuspending(false);
+    }
+  };
+
+  const handleActivate = async (user) => {
+    try {
+      await api.put(`/admin/users/${user.id}/status`, { action: 'activate' });
+      toast.success('User activated.');
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to activate user.');
+    }
   };
 
   const handleDelete = async (user) => {
@@ -58,6 +146,29 @@ export default function AdminUsersPage() {
     admin: 'bg-purple-50 text-purple-700 border-purple-200',
     seller: 'bg-blue-50 text-blue-700 border-blue-200',
     customer: 'bg-slate-100 text-slate-600 border-slate-200',
+  };
+
+  // Status badge helper — mirrors backend's computed status
+  const statusOf = (u) => {
+    if (u.status === 'active' || Number(u.is_active) === 1) return 'active';
+    if (u.status === 'permanent_suspend' || (!u.suspend_until && Number(u.is_active) === 0)) return 'permanent_suspend';
+    return 'suspend';
+  };
+
+  const STATUS_STYLES = {
+    active: 'bg-emerald-50 text-emerald-700',
+    suspend: 'bg-amber-50 text-amber-700',
+    permanent_suspend: 'bg-rose-50 text-rose-700',
+  };
+  const STATUS_DOT = {
+    active: 'bg-emerald-500',
+    suspend: 'bg-amber-500',
+    permanent_suspend: 'bg-rose-500',
+  };
+  const STATUS_LABEL = {
+    active: 'Active',
+    suspend: 'Suspended',
+    permanent_suspend: 'Permanent Suspend',
   };
 
   // Loading
@@ -174,6 +285,19 @@ export default function AdminUsersPage() {
         </div>
         <div className="bg-white rounded-xl border border-slate-100 p-4 shadow-sm">
           <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600 shrink-0">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div className="min-w-0">
+              <p className="text-[11px] font-medium text-slate-500">Timed</p>
+              <p className="text-xl font-bold text-slate-900 leading-tight">{stats.timed_suspended ?? 0}</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-xl border border-slate-100 p-4 shadow-sm">
+          <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -182,19 +306,6 @@ export default function AdminUsersPage() {
             <div className="min-w-0">
               <p className="text-[11px] font-medium text-slate-500">Logged in 24h</p>
               <p className="text-xl font-bold text-slate-900 leading-tight">{stats.logged_in_24h ?? 0}</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-xl border border-slate-100 p-4 shadow-sm">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-lg bg-purple-50 flex items-center justify-center text-purple-600 shrink-0">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-            </div>
-            <div className="min-w-0">
-              <p className="text-[11px] font-medium text-slate-500">Admins</p>
-              <p className="text-xl font-bold text-slate-900 leading-tight">{stats.admins ?? 0}</p>
             </div>
           </div>
         </div>
@@ -228,67 +339,88 @@ export default function AdminUsersPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {users.map((u) => (
-                  <tr key={u.id} className="hover:bg-slate-50/80 transition-colors group">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2.5">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-                          u.role === 'admin' ? 'bg-purple-100 text-purple-700' :
-                          u.role === 'seller' ? 'bg-blue-100 text-blue-700' :
-                          'bg-emerald-100 text-emerald-700'
-                        }`}>
-                          {u.name?.charAt(0)?.toUpperCase() || '?'}
+                {users.map((u) => {
+                  const status = statusOf(u);
+                  return (
+                    <tr key={u.id} className="hover:bg-slate-50/80 transition-colors group">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                            u.role === 'admin' ? 'bg-purple-100 text-purple-700' :
+                            u.role === 'seller' ? 'bg-blue-100 text-blue-700' :
+                            'bg-emerald-100 text-emerald-700'
+                          }`}>
+                            {u.name?.charAt(0)?.toUpperCase() || '?'}
+                          </div>
+                          <div className="min-w-0">
+                            <span className="font-medium text-slate-900 text-sm block truncate max-w-[150px]">{u.name}</span>
+                            <span className="text-[10px] text-slate-400 block sm:hidden">{u.email}</span>
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <span className="font-medium text-slate-900 text-sm block truncate max-w-[150px]">{u.name}</span>
-                          <span className="text-[10px] text-slate-400 block sm:hidden">{u.email}</span>
+                      </td>
+                      <td className="px-4 py-3 text-slate-500 text-xs hidden sm:table-cell">
+                        <span className="truncate max-w-[200px] block">{u.email}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-semibold border capitalize ${ROLE_STYLES[u.role] || ROLE_STYLES.customer}`}>
+                          {u.role}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-col items-start gap-1">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold ${STATUS_STYLES[status]}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[status]}`} />
+                            {STATUS_LABEL[status]}
+                          </span>
+                          {status === 'suspend' && u.suspend_until && (
+                            <SuspendTimer
+                              until={u.suspend_until}
+                              onExpire={() => queryClient.invalidateQueries({ queryKey: ['admin-users'] })}
+                            />
+                          )}
+                          {status === 'permanent_suspend' && (
+                            <span className="text-[10px] text-slate-400">No expiry</span>
+                          )}
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-slate-500 text-xs hidden sm:table-cell">
-                      <span className="truncate max-w-[200px] block">{u.email}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-semibold border capitalize ${ROLE_STYLES[u.role] || ROLE_STYLES.customer}`}>
-                        {u.role}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold ${u.is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${u.is_active ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                        {u.is_active ? 'Active' : 'Suspended'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-slate-500 text-xs hidden md:table-cell">
-                      {u.created_at ? new Date(u.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A'}
-                    </td>
-                    <td className="px-4 py-3 text-slate-500 text-xs hidden lg:table-cell">
-                      {u.last_login
-                        ? new Date(u.last_login).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
-                        : 'Never'}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={() => handleToggleActive(u)}
-                          className={`px-2.5 py-1 rounded-md text-[10px] font-medium transition-all ${
-                            u.is_active ? 'text-amber-600 bg-amber-50 hover:bg-amber-100' : 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100'
-                          }`}
-                        >
-                          {u.is_active ? 'Suspend' : 'Activate'}
-                        </button>
-                        {u.role !== 'admin' && (
-                          <button
-                            onClick={() => setConfirmDelete(u)}
-                            className="px-2.5 py-1 rounded-md text-[10px] font-medium text-rose-600 bg-rose-50 hover:bg-rose-100 transition-all"
-                          >
-                            Delete
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="px-4 py-3 text-slate-500 text-xs hidden md:table-cell">
+                        {u.created_at ? new Date(u.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A'}
+                      </td>
+                      <td className="px-4 py-3 text-slate-500 text-xs hidden lg:table-cell">
+                        {u.last_login
+                          ? new Date(u.last_login).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+                          : 'Never'}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1.5">
+                          {status === 'active' ? (
+                            <button
+                              onClick={() => openSuspendModal(u)}
+                              className="px-2.5 py-1 rounded-md text-[10px] font-medium text-amber-600 bg-amber-50 hover:bg-amber-100 transition-all"
+                            >
+                              Suspend
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleActivate(u)}
+                              className="px-2.5 py-1 rounded-md text-[10px] font-medium text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition-all"
+                            >
+                              Activate
+                            </button>
+                          )}
+                          {u.role !== 'admin' && (
+                            <button
+                              onClick={() => setConfirmDelete(u)}
+                              className="px-2.5 py-1 rounded-md text-[10px] font-medium text-rose-600 bg-rose-50 hover:bg-rose-100 transition-all"
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -301,6 +433,100 @@ export default function AdminUsersPage() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Suspend Modal */}
+      {suspendTarget && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setSuspendTarget(null)}>
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center text-amber-600 shrink-0">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900">Suspend User</h3>
+                <p className="text-xs text-slate-500">Choose how long to suspend <strong>{suspendTarget.user.name}</strong>.</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 mb-2">
+              {SUSPEND_OPTIONS.map((opt) => (
+                <button
+                  key={opt.days}
+                  onClick={() => setSuspendTarget({ ...suspendTarget, durationDays: opt.days })}
+                  className={`px-3 py-2.5 rounded-xl border text-xs font-semibold transition-all ${
+                    suspendTarget.durationDays === opt.days
+                      ? 'border-amber-500 bg-amber-50 text-amber-700'
+                      : 'border-slate-200 bg-white text-slate-600 hover:border-amber-300 hover:bg-amber-50/50'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="mb-4">
+              <button
+                onClick={() => setSuspendTarget({ ...suspendTarget, durationDays: null })}
+                className={`w-full px-3 py-2.5 rounded-xl border text-xs font-semibold transition-all ${
+                  suspendTarget.durationDays === null
+                    ? 'border-rose-500 bg-rose-50 text-rose-700'
+                    : 'border-slate-200 bg-white text-slate-600 hover:border-rose-300 hover:bg-rose-50/50'
+                }`}
+              >
+                🚫 Permanent Suspend
+              </button>
+            </div>
+
+            <div className="mb-5">
+              <label className="block text-[11px] font-medium text-slate-500 mb-1.5">Or enter custom days</label>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  min="1"
+                  value={customDays}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setCustomDays(v);
+                    if (v && parseInt(v) > 0) setSuspendTarget({ ...suspendTarget, durationDays: parseInt(v) });
+                  }}
+                  placeholder="e.g. 7"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                />
+                <button
+                  onClick={() => { if (customDays && parseInt(customDays) > 0) setSuspendTarget({ ...suspendTarget, durationDays: parseInt(customDays) }); }}
+                  className={`px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
+                    suspendTarget.durationDays && !SUSPEND_OPTIONS.some(o => o.days === suspendTarget.durationDays)
+                      ? 'bg-amber-500 text-white'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  Set
+                </button>
+              </div>
+              <p className="text-[10px] text-slate-400 mt-1.5">
+                {suspendTarget.durationDays === null
+                  ? 'Permanent — user can only be reactivated manually.'
+                  : `User will be suspended for ${suspendTarget.durationDays} day${suspendTarget.durationDays === 1 ? '' : 's'}.`}
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setSuspendTarget(null)} className="px-4 py-2 rounded-lg text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 transition-all">
+                Cancel
+              </button>
+              <button
+                onClick={handleSuspend}
+                disabled={suspending}
+                className="px-4 py-2 rounded-lg text-xs font-medium text-white bg-amber-500 hover:bg-amber-600 disabled:opacity-50 transition-all"
+              >
+                {suspending ? 'Suspending...' : suspendTarget.durationDays === null ? 'Suspend Permanently' : `Suspend for ${suspendTarget.durationDays} Day${suspendTarget.durationDays === 1 ? '' : 's'}`}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

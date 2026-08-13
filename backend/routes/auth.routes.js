@@ -3,7 +3,9 @@ const router = express.Router();
 const authController = require('../controllers/auth.controller');
 const socialController = require('../controllers/social.controller');
 const { registerValidation, loginValidation, forgotPasswordValidation, resetPasswordValidation } = require('../middleware/validate');
-const { authLimiter } = require('../middleware/rateLimiter');
+// RE-ENABLE AUTH LIMITER: uncomment the import below and restore `authLimiter, `
+// on the 5 routes marked below (register/login/forgot-password/reset-password/resend-verify).
+// const { authLimiter } = require('../middleware/rateLimiter');
 
 // ===== SOCIAL OAUTH (Google / Facebook) =====
 // These GET endpoints drive the browser redirect flow. `redirect` is an
@@ -132,11 +134,11 @@ router.get('/facebook/callback', socialController.facebookCallback);
  *                             role: { type: string, example: 'customer' }
  *                         accessToken: { type: string }
  *       409:
- *         description: Email already registered.
+ *         description: Email already registered. Please sign in instead.
  *       400:
  *         description: Validation failed.
  */
-router.post('/register', authLimiter, registerValidation, authController.register);
+router.post('/register', registerValidation, authController.register); // RE-ENABLE AUTH LIMITER: add `authLimiter, ` as first arg
 
 /**
  * @swagger
@@ -183,10 +185,12 @@ router.post('/register', authLimiter, registerValidation, authController.registe
  *                         accessToken: { type: string }
  *       401:
  *         description: Invalid email or password.
+ *       404:
+ *         description: Account not found. Please sign up first.
  *       403:
  *         description: Account has been deactivated.
  */
-router.post('/login', authLimiter, loginValidation, authController.login);
+router.post('/login', loginValidation, authController.login); // RE-ENABLE AUTH LIMITER: add `authLimiter, ` as first arg
 
 /**
  * @swagger
@@ -256,7 +260,7 @@ router.post('/logout', authController.logout);
  *       200:
  *         description: OTP sent to your email.
  */
-router.post('/forgot-password', authLimiter, forgotPasswordValidation, authController.forgotPassword);
+router.post('/forgot-password', forgotPasswordValidation, authController.forgotPassword); // RE-ENABLE AUTH LIMITER: add `authLimiter, ` as first arg
 
 /**
  * @swagger
@@ -286,7 +290,7 @@ router.post('/forgot-password', authLimiter, forgotPasswordValidation, authContr
  *       400:
  *         description: Invalid or expired OTP.
  */
-router.post('/reset-password', authLimiter, resetPasswordValidation, authController.resetPassword);
+router.post('/reset-password', resetPasswordValidation, authController.resetPassword); // RE-ENABLE AUTH LIMITER: add `authLimiter, ` as first arg
 
 /**
  * @swagger
@@ -330,6 +334,6 @@ router.get('/verify-email/:token', authController.verifyEmail);
  *       200:
  *         description: Verification email sent.
  */
-router.post('/resend-verify', authLimiter, authController.resendVerifyEmail);
+router.post('/resend-verify', authController.resendVerifyEmail); // RE-ENABLE AUTH LIMITER: add `authLimiter, ` as first arg
 
 module.exports = router;

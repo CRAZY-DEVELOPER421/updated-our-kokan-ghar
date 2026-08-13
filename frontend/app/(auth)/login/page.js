@@ -8,6 +8,8 @@ import toast from 'react-hot-toast';
 import useAuthStore from '@/lib/store/authStore';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
+import Modal from '@/components/ui/Modal';
+import SuspensionTimer from '@/components/ui/SuspensionTimer';
 
 // Runtime-resolved API base — works on localhost dev AND behind the tunnel/gateway.
 function resolveApiBase() {
@@ -45,9 +47,20 @@ export default function LoginPage() {
   }, [_hasHydrated, isAuthenticated, router]);
 
   const [form, setForm] = useState({ email: '', password: '' });
+
+  // Prefill email when the user comes from the signup "already registered"
+  // popup (/signup?email=... -> /login?email=...). Done in an effect so server
+  // render and client hydration always match.
+  useEffect(() => {
+    const prefilled = new URLSearchParams(window.location.search).get('email');
+    if (prefilled) setForm((prev) => ({ ...prev, email: prefilled }));
+  }, []);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showAccountMissing, setShowAccountMissing] = useState(false);
+  const [showOAuthOnly, setShowOAuthOnly] = useState(false);
+  const [suspensionInfo, setSuspensionInfo] = useState(null); // { message, suspendUntil, permanent }
 
   const validate = () => {
     const errs = {};
@@ -70,9 +83,39 @@ export default function LoginPage() {
     if (result.success) {
       toast.success('Welcome back to Kokan Ghar!');
       router.push(getRedirectTarget());
+    } else if (result.status === 404) {
+      // Account doesn't exist — show a warm "please sign up" popup instead of a
+      // scary red error toast. The email is carried over so signup is effortless.
+      setShowAccountMissing(true);
+    } else if (result.status === 403) {
+      // Account is suspended — warm explanatory popup with live countdown,
+      // not a red error toast. (result.suspension carries suspendUntil.)
+      setSuspensionInfo(result.suspension || { message: result.message || 'Your account has been suspended.' });
+    } else if (result.status === 401 && result.code === 'OAUTH_ONLY_ACCOUNT') {
+      // Account was created via Google/Facebook and has no password yet —
+      // show a friendly popup (Continue with Google / Forgot Password) instead
+      // of a confusing "Invalid email or password" red toast.
+      setShowOAuthOnly(true);
     } else {
       toast.error(result.message || 'Invalid email or password.');
     }
+  };
+
+  const contactSupport = () => {
+    setSuspensionInfo(null);
+    router.push('/contact');
+  };
+
+  const goToSignup = () => {
+    setShowAccountMissing(false);
+    // Keep the original post-login target (?redirect=/checkout) alive through
+    // the popup -> signup hop, and carry the email over so it's pre-filled.
+    const params = new URLSearchParams();
+    if (form.email.trim()) params.set('email', form.email.trim());
+    const redirect = getRedirectTarget();
+    if (redirect !== '/') params.set('redirect', redirect);
+    const qs = params.toString();
+    router.push(`/signup${qs ? `?${qs}` : ''}`);
   };
 
   return (
@@ -118,6 +161,12 @@ export default function LoginPage() {
                   <input type="checkbox" id="show-password-login" checked={showPassword} onChange={() => setShowPassword(!showPassword)} className="rounded" />
                   Show password
                 </label>
+                <Link
+                  href={`/forgot-password${form.email.trim() ? `?email=${encodeURIComponent(form.email.trim())}` : ''}`}
+                  className="text-xs text-konkan-green-primary font-medium hover:underline"
+                >
+                  Forgot Password?
+                </Link>
               </div>
             </div>
 
@@ -162,6 +211,111 @@ export default function LoginPage() {
           </Link>
         </p>
       </div>
+
+      {/* Friendly popup when the account is suspended — not an error toast */}
+      <Modal isOpen={!!suspensionInfo} onClose={() => setSuspensionInfo(null)} size="sm" title="">
+        <div className="text-center pt-2">
+          <div className="mx-auto w-16 h-16 rounded-full bg-konkan-cream border border-konkan-sand flex items-center justify-center mb-5">
+            <svg className="w-8 h-8 text-konkan-green-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 15v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            </svg>
+          </div>
+          <h3 className="font-display text-xl font-bold text-konkan-text-primary">
+            Account Suspended ⏸️
+          </h3>
+          <p className="text-konkan-text-secondary text-sm leading-relaxed mt-2">
+            {suspensionInfo?.message}
+          </p>
+          {suspensionInfo?.suspendUntil ? (
+            <div className="mt-4 p-3 rounded-xl bg-konkan-cream border border-konkan-sand inline-block">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-konkan-text-secondary mb-1.5">
+                Account unlocks in
+              </p>
+              <SuspensionTimer until={suspensionInfo.suspendUntil} compact={false} />
+            </div>
+          ) : (
+            <p className="text-konkan-text-secondary text-xs leading-relaxed mt-3">
+              We're here to help — reach out and we'll sort it out as soon as possible.
+            </p>
+          )}
+          <div className="mt-6 space-y-2.5">
+            <Button size="lg" className="w-full" onClick={contactSupport}>
+              Contact Support
+            </Button>
+            <button
+              type="button"
+              onClick={() => setSuspensionInfo(null)}
+              className="w-full text-sm text-konkan-text-secondary hover:text-konkan-green-primary transition-colors py-1"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Friendly popup when the account was created via Google/Facebook (no
+          password set yet) — not a confusing red error toast */}
+      <Modal isOpen={showOAuthOnly} onClose={() => setShowOAuthOnly(false)} size="sm" title="">
+        <div className="text-center pt-2">
+          <div className="mx-auto w-16 h-16 rounded-full bg-konkan-cream border border-konkan-sand flex items-center justify-center mb-5">
+            <svg className="w-8 h-8 text-konkan-green-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+            </svg>
+          </div>
+          <h3 className="font-display text-xl font-bold text-konkan-text-primary">
+            Sign in with your social account
+          </h3>
+          <p className="text-konkan-text-secondary text-sm leading-relaxed mt-2">
+            <span className="font-medium text-konkan-text-primary">{form.email.trim()}</span> was created with
+            <span className="font-medium text-konkan-text-primary"> Google/Facebook</span> — this account has no password yet.
+          </p>
+          <div className="mt-6 space-y-2.5">
+            <Button size="lg" className="w-full" onClick={() => startSocialAuth('google', getRedirectTarget())}>
+              Continue with Google
+            </Button>
+            <Button size="lg" variant="outline" className="w-full" onClick={() => startSocialAuth('facebook', getRedirectTarget())}>
+              Continue with Facebook
+            </Button>
+            <button
+              type="button"
+              onClick={() => setShowOAuthOnly(false)}
+              className="w-full text-sm text-konkan-text-secondary hover:text-konkan-green-primary transition-colors py-1"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Friendly popup when the account doesn't exist yet — not an error toast */}
+      <Modal isOpen={showAccountMissing} onClose={() => setShowAccountMissing(false)} size="sm" title="">
+        <div className="text-center pt-2">
+          <div className="mx-auto w-16 h-16 rounded-full bg-konkan-cream border border-konkan-sand flex items-center justify-center mb-5">
+            <svg className="w-8 h-8 text-konkan-green-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-3-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+            </svg>
+          </div>
+          <h3 className="font-display text-xl font-bold text-konkan-text-primary">
+            Welcome! Let's get you started 🎉
+          </h3>
+          <p className="text-konkan-text-secondary text-sm leading-relaxed mt-2">
+            We couldn't find an account with <span className="font-medium text-konkan-text-primary">{form.email.trim()}</span>.
+            Please create a new account to start shopping with us.
+          </p>
+          <div className="mt-6 space-y-2.5">
+            <Button size="lg" className="w-full" onClick={goToSignup}>
+              Create Account
+            </Button>
+            <button
+              type="button"
+              onClick={() => setShowAccountMissing(false)}
+              className="w-full text-sm text-konkan-text-secondary hover:text-konkan-green-primary transition-colors py-1"
+            >
+              Try another email
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

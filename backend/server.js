@@ -160,12 +160,49 @@ app.get('/api/health', (req, res) => {
 app.use(errorHandler);
 
 // ===== START SERVER =====
-app.listen(PORT, '0.0.0.0', () => {
-  const baseUrl = process.env.RAILWAY_STATIC_URL || `http://0.0.0.0:${PORT}`;
-  console.log(`\n🛒 Konkan Bazaar Backend`);
-  console.log(`📡 Server running on ${baseUrl}`);
-  console.log(`🔗 API: ${baseUrl}/api`);
-  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}\n`);
+// Self-heal: make sure the timed-suspension column exists BEFORE the server
+// accepts requests (login/verifyToken SELECT suspend_until, so a fresh DB
+// would 500 without this). Mirrors the admin-controller ensure pattern.
+const pool = require('./config/db');
+const { reactivateExpiredSuspensions } = require('./services/suspension.service');
+const ensureSuspendColumn = async () => {
+  try {
+    const [cols] = await pool.query(
+      "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'suspend_until'"
+    );
+    if (cols.length === 0) {
+      await pool.query('ALTER TABLE users ADD COLUMN suspend_until DATETIME NULL AFTER is_active, ADD INDEX idx_users_suspend (is_active, suspend_until)');
+      console.log('[Startup] users.suspend_until column created.');
+    }
+  } catch (err) {
+    console.error('[Startup] suspend_until self-heal failed:', err.message);
+  }
+};
+
+ensureSuspendColumn().finally(() => {
+  // Auto-reactivate expired timed suspensions in the background (every 60s).
+  // The user is unblocked the moment their suspend_until passes — no login,
+  // no admin visit, no manual action required. The same rule is also applied
+  // lazily on login/verifyToken (resolveUserStatus) and when the admin loads
+  // the users page (getUsers), so every path agrees with reality.
+  setInterval(async () => {
+    try {
+      const affected = await reactivateExpiredSuspensions();
+      if (affected > 0) {
+        console.log(`[Suspension] Auto-reactivated ${affected} expired timed suspension(s).`);
+      }
+    } catch (err) {
+      console.error('[Suspension] Auto-reactivate sweep failed:', err.message);
+    }
+  }, 60 * 1000);
+
+  app.listen(PORT, '0.0.0.0', () => {
+    const baseUrl = process.env.RAILWAY_STATIC_URL || `http://0.0.0.0:${PORT}`;
+    console.log(`\nKonkan Bazaar Backend`);
+    console.log(`Server running on ${baseUrl}`);
+    console.log(`API: ${baseUrl}/api`);
+    console.log(`Environment: ${process.env.NODE_ENV || 'development'}\n`);
+  });
 });
 
 module.exports = app;

@@ -42,7 +42,7 @@ export default function AdminBundlesPage() {
     : allBundles;
 
   const handleDelete = async (bundle) => {
-    const linked = bundle.linked_product_name ? `\n\n⚠️ Linked combo product "${bundle.linked_product_name}" will also be deleted.` : '';
+    const linked = bundle.linked_product_name ? `\n\nLinked combo product "${bundle.linked_product_name}" will also be deleted.` : '';
     if (!confirm(`Delete bundle "${bundle.name}"?${linked}`)) return;
     try {
       await api.delete(`/admin/bundles/${bundle.id}`);

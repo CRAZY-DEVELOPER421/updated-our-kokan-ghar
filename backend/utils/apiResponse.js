@@ -11,13 +11,18 @@ class ApiResponse {
     return res.status(statusCode).json(response);
   }
 
-  static error(res, message = 'Internal Server Error', statusCode = 500, errors = null) {
+  static error(res, message = 'Internal Server Error', statusCode = 500, errors = null, extra = null) {
     const response = {
       success: false,
       message
     };
     if (errors) {
       response.errors = errors;
+    }
+    // Optional structured metadata (e.g. suspension details: code, suspendUntil,
+    // permanent) so the frontend can react precisely instead of parsing text.
+    if (extra && typeof extra === 'object') {
+      Object.assign(response, extra);
     }
     return res.status(statusCode).json(response);
   }

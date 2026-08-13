@@ -13,16 +13,22 @@ const handleValidationErrors = (req, res, next) => {
   next();
 };
 
+// NOTE: We deliberately use .toLowerCase() instead of .normalizeEmail() here.
+// normalizeEmail() strips dots from Gmail addresses (gmail_remove_dots) and
+// drops +subaddresses by default — which corrupts the email the user typed
+// (e.g. sawant.sakshi016@gmail.com became sawantsakshi016@gmail.com). Emails
+// must be stored exactly as entered (dots, +, %, #, etc. all preserved); only
+// case is normalized so login matching stays predictable.
 const registerValidation = [
   body('name').trim().notEmpty().withMessage('Name is required').isLength({ min: 2, max: 100 }).withMessage('Name must be between 2 and 100 characters'),
-  body('email').trim().notEmpty().withMessage('Email is required').isEmail().withMessage('Invalid email format').normalizeEmail(),
+  body('email').trim().notEmpty().withMessage('Email is required').isEmail().withMessage('Invalid email format').toLowerCase(),
   body('password').notEmpty().withMessage('Password is required').isLength({ min: 6, max: 128 }).withMessage('Password must be at least 6 characters'),
   body('phone').optional().matches(/^[0-9]{10}$/).withMessage('Phone must be 10 digits'),
   handleValidationErrors
 ];
 
 const loginValidation = [
-  body('email').trim().notEmpty().withMessage('Email is required').isEmail().withMessage('Invalid email format').normalizeEmail(),
+  body('email').trim().notEmpty().withMessage('Email is required').isEmail().withMessage('Invalid email format').toLowerCase(),
   body('password').notEmpty().withMessage('Password is required'),
   handleValidationErrors
 ];
@@ -86,8 +92,16 @@ const changePasswordValidation = [
   handleValidationErrors
 ];
 
+// Used by the "Set your password" popup that appears right after a NEW
+// Google/Facebook signup — those accounts have password_hash = NULL until the
+// user sets one here.
+const setPasswordValidation = [
+  body('password').notEmpty().withMessage('Password is required').isLength({ min: 6, max: 128 }).withMessage('Password must be at least 6 characters'),
+  handleValidationErrors
+];
+
 const forgotPasswordValidation = [
-  body('email').trim().notEmpty().withMessage('Email is required').isEmail().withMessage('Invalid email format').normalizeEmail(),
+  body('email').trim().notEmpty().withMessage('Email is required').isEmail().withMessage('Invalid email format').toLowerCase(),
   handleValidationErrors
 ];
 
@@ -108,6 +122,7 @@ module.exports = {
   paginationValidation,
   categoryValidation,
   changePasswordValidation,
+  setPasswordValidation,
   forgotPasswordValidation,
   resetPasswordValidation
 };
