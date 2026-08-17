@@ -70,6 +70,7 @@ const nextConfig = {
   compress: true,
   experimental: {
     prerenderEarlyExit: false,
+    staticGenerationRetryCount: 3,
   },
 };
 

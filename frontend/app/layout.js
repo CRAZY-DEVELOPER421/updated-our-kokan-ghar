@@ -109,14 +109,11 @@ const searchActionLd = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className={`${playfair.variable} ${inter.variable} ${poppins.variable}`} suppressHydrationWarning>
-      <head>
-        <link rel="preconnect" href={process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'} />
-        <link rel="dns-prefetch" href={process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'} />
+    <html lang="en" data-scroll-behavior="smooth" className={`${playfair.variable} ${inter.variable} ${poppins.variable}`} suppressHydrationWarning>
+      <body className="min-h-screen flex flex-col" suppressHydrationWarning>
+        {/* Structured data (JSON-LD) — rendered in body; Next.js manages <head> metadata itself */}
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(searchActionLd) }} />
-      </head>
-      <body className="min-h-screen flex flex-col" suppressHydrationWarning>
         <QueryProviders>
           <I18nProvider>
             <ToastProvider />

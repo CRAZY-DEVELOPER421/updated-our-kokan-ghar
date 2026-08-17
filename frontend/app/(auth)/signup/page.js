@@ -57,14 +57,21 @@ export default function SignupPage() {
     phone: '',
     password: '',
     confirmPassword: '',
+    referralCode: '',
   });
 
-  // Prefill email when the user comes from the login "account not found" popup
-  // (/login?email=... -> /signup?email=...). Done in an effect (not in the
-  // useState initializer) so server render and client hydration always match.
+  // Prefill email (from the login "account not found" popup) and referral code
+  // (from a friend's share link /signup?ref=KBXXXXXX). Done in an effect (not
+  // the useState initializer) so server render and client hydration match.
   useEffect(() => {
-    const prefilled = new URLSearchParams(window.location.search).get('email');
-    if (prefilled) setForm((prev) => ({ ...prev, email: prefilled }));
+    const params = new URLSearchParams(window.location.search);
+    const prefilledEmail = params.get('email');
+    const prefilledRef = params.get('ref');
+    setForm((prev) => ({
+      ...prev,
+      email: prefilledEmail || prev.email,
+      referralCode: prefilledRef ? String(prefilledRef).trim().toUpperCase() : prev.referralCode,
+    }));
   }, []);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -88,6 +95,9 @@ export default function SignupPage() {
     if (!form.email.trim()) errs.email = 'Email is required';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errs.email = 'Invalid email format';
 
+    if (!form.phone || form.phone.length !== 10) errs.phone = 'A valid 10-digit phone number is required';
+    else if (!/^[0-9]{10}$/.test(form.phone)) errs.phone = 'Phone must be 10 digits';
+
     if (!form.password) errs.password = 'Password is required';
     else if (form.password.length < 6) errs.password = 'Password must be at least 6 characters';
 
@@ -104,14 +114,18 @@ export default function SignupPage() {
     if (!validate()) return;
 
     setLoading(true);
-    const result = await register(form.name, form.email, form.password, form.phone || undefined);
+    const result = await register(form.name, form.email, form.password, form.phone, form.referralCode.trim() || undefined);
     setLoading(false);
 
     if (result.success) {
-      toast.success('Welcome to Kokan Ghar! Use code WELCOME15 for 15% off.');
+      if (form.referralCode.trim()) {
+        toast.success('Welcome to Kokan Ghar! Referral bonus applied — 50 Konkan Coins credited.');
+      } else {
+        toast.success('Welcome to Kokan Ghar! Use code WELCOME15 for 15% off.');
+      }
       router.push(getRedirectTarget());
     } else if (result.status === 409) {
-      // Email is already registered — show a warm "please sign in" popup
+      // Email or phone is already registered — show a warm "please sign in" popup
       // instead of a scary red error toast.
       setShowEmailExists(true);
     } else {
@@ -169,7 +183,7 @@ export default function SignupPage() {
             />
 
             <Input
-              label="Phone (optional)"
+              label="Phone Number"
               type="tel"
               placeholder="9876543210"
               value={form.phone}
@@ -177,6 +191,22 @@ export default function SignupPage() {
               error={errors.phone}
               maxLength={10}
             />
+
+            {/* Optional referral code — comes from a friend's share link (?ref=) */}
+            <div>
+              <Input
+                label="Referral Code (optional)"
+                placeholder="e.g. KB7X9F2M"
+                value={form.referralCode}
+                onChange={(e) => setForm({ ...form, referralCode: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) })}
+                error={errors.referralCode}
+              />
+              {form.referralCode.trim() && (
+                <p className="text-xs text-konkan-green-primary mt-1.5">
+                  🎉 You and your friend will each get 50 Konkan Coins on signup!
+                </p>
+              )}
+            </div>
 
             <div>
               <Input

@@ -3,19 +3,15 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import useWishlistStore from '@/lib/store/wishlistStore';
-import useAuthStore from '@/lib/store/authStore';
 import useCartStore from '@/lib/store/cartStore';
 import { getImageUrl } from '@/lib/utils';
 
 export default function MobileProductCard({ product }) {
   const [isAdding, setIsAdding] = useState(false);
   const [imageError, setImageError] = useState(false);
-  const router = useRouter();
 
-  const { isAuthenticated } = useAuthStore();
   const toggleWishlist = useWishlistStore((s) => s.toggleWishlist);
   const isInWishlist = useWishlistStore((s) => s.isInWishlist(product?.id));
   const addToCart = useCartStore((s) => s.addToCart);
@@ -42,20 +38,12 @@ export default function MobileProductCard({ product }) {
     e.preventDefault();
     e.stopPropagation();
     if (isAdding) return;
-    if (!isAuthenticated) {
-      toast.error('Please login to add items to cart');
-      setTimeout(() => router.push('/login'), 1000);
-      return;
-    }
     setIsAdding(true);
     try {
       const result = await addToCart(product.id, null, 1);
       if (!result || result.success === false) {
         toast.error(result?.message || 'Failed to add to cart');
-        setIsAdding(false);
-        return;
       }
-      toast.success(`${product.name} added to cart`);
     } catch (err) {
       toast.error('Failed to add to cart');
     }

@@ -37,6 +37,16 @@ Monorepo with three apps: a customer-facing **storefront**, an **admin panel**, 
 - **New offer broadcast** — when a coupon is **created or edited/activated** in the admin panel, an offer email (e.g. “Kokan Ghar gives 30% OFF on our products!” with min-order details + coupon code) is sent to **every active user** in the database — fire-and-forget, so the admin API responds instantly. (Only broadcast while the coupon is active, so deactivating or editing an inactive draft never spams users)
 - Password reset OTP, order confirmations, shipment updates & back-in-stock emails
 
+### SMS Notifications (MSG91 / Fast2SMS)
+- **Order placed** — SMS to the delivery-address phone (COD customers usually have no email)
+- **Confirmed / Shipped / Out-for-delivery / Delivered / Cancelled** — status texts triggered from the admin order-status update (fire-and-forget, never fails the admin action)
+- Set `SMS_PROVIDER=none` (or leave keys empty) to disable — the app skips SMS silently and orders are unaffected
+
+### Post-Delivery Lifecycle Emails (repeat-order engine)
+- **Review request** — ~2-3 days after delivery, an email lists each delivered item with a direct “Rate it ★” link (deep-links to the product page’s `#reviews` section) → feeds reviews into product pages
+- **Reorder nudge** — ~14 days after delivery, a “restock your favourites” email with the same items and one-click product links → repeat orders
+- Runs on a background scheduler (default every 60 min; disable with `LIFECYCLE_EMAILS_ENABLED=false`). Each order is emailed at most once per flow (`review_email_sent_at` / `reorder_email_sent_at`), so restarts never double-send
+
 ---
 
 ## Tech Stack
@@ -52,6 +62,7 @@ Monorepo with three apps: a customer-facing **storefront**, an **admin panel**, 
 | **Payments** | Razorpay |
 | **API Docs** | Swagger UI (`/api-docs`) |
 | **Email** | Nodemailer (SMTP) |
+| **SMS** | MSG91 / Fast2SMS (transactional order updates) |
 
 ---
 

@@ -2,6 +2,7 @@
 
 import { create } from 'zustand';
 import api from '@/lib/api';
+import { clearGuestId } from '@/lib/guest';
 
 const useCartStore = create(
   (set, get) => ({
@@ -43,6 +44,27 @@ const useCartStore = create(
           set({ items: [], coupon: null, summary: null, itemCount: 0 });
         }
       }
+    },
+
+    // Merge the guest cart (device id) into the logged-in user's cart.
+    // Called right after login/signup so nothing is lost at checkout.
+    mergeGuestCart: async () => {
+      try {
+        const res = await api.post('/cart/merge');
+        if (res.data.success) {
+          // Guest cart is now owned by the account — drop the device id so a
+          // future guest session starts fresh.
+          clearGuestId();
+          await get().fetchCart();
+          return { success: true, merged: res.data.data?.merged || 0, message: res.data.message };
+        }
+      } catch (error) {
+        return {
+          success: false,
+          message: error.response?.data?.message || 'Failed to merge cart.',
+        };
+      }
+      return { success: false, message: 'Failed to merge cart.' };
     },
 
     addToCart: async (productId, variantId = null, quantity = 1) => {

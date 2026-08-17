@@ -268,6 +268,7 @@ export default function MobileFooter() {
             height={20}
             className="h-5 w-auto"
             unoptimized
+            style={{ width: 'auto', height: 'auto' }}
           />
         </span>
 
@@ -288,6 +289,7 @@ export default function MobileFooter() {
             height={20}
             className="h-5 w-auto"
             unoptimized
+            style={{ width: 'auto', height: 'auto' }}
           />
         </span>
 

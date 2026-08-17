@@ -16,6 +16,8 @@ import LanguageSwitcher from '@/components/ui/LanguageSwitcher';
 import DeliveryLocation from '@/components/layout/DeliveryLocation';
 import SuspensionTimer from '@/components/ui/SuspensionTimer';
 import { useSiteSettings } from '@/lib/hooks/useSiteSettings';
+import { useQuery } from '@tanstack/react-query';
+import api from '@/lib/api';
 import { getImageUrl } from '@/lib/utils';
 
 const NAV_ITEMS = [
@@ -47,6 +49,19 @@ export default function Navbar() {
   const { data: categoriesData } = useCategories();
   const { data: settingsData } = useSiteSettings();
   const categoryRef = useRef(null);
+
+  // Unread notification count — same real data the mobile header uses
+  // (GET /notifications returns unread_count). Keeps desktop/mobile badges in sync.
+  const { data: unreadCount = 0 } = useQuery({
+    queryKey: ['notif-unread-count-desktop'],
+    queryFn: async () => {
+      const res = await api.get('/notifications?limit=1');
+      return res.data?.data?.unread_count || 0;
+    },
+    enabled: isAuthenticated,
+    staleTime: 30000,
+    refetchOnWindowFocus: false,
+  });
 
   const customLogo = getImageUrl(settingsData?.settings?.site_logo);
 
@@ -141,16 +156,21 @@ export default function Navbar() {
               )}
             </Link>
 
-            {/* Notifications */}
+            {/* Notifications — orange unread badge, same as mobile header */}
             <Link
               href="/account/notifications"
               className="relative text-konkan-text-secondary hover:text-konkan-green-primary transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
-              aria-label="Notifications"
+              aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
             >
               <Bell className="w-5 h-5" />
+              {mounted && isAuthenticated && unreadCount > 0 && (
+                <span className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold text-white" style={{ backgroundColor: '#F5821F' }}>
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
             </Link>
 
-            {/* Cart */}
+            {/* Cart — orange badge, same as mobile header */}
             <Link
               href="/cart"
               className="relative text-konkan-text-secondary hover:text-konkan-green-primary transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
@@ -158,8 +178,8 @@ export default function Navbar() {
             >
               <ShoppingBag className="w-5 h-5" />
               {mounted && cartCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 bg-konkan-green-primary text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
-                  {cartCount}
+                <span className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold text-white" style={{ backgroundColor: '#F5821F' }}>
+                  {cartCount > 9 ? '9+' : cartCount}
                 </span>
               )}
             </Link>
@@ -212,6 +232,7 @@ export default function Navbar() {
                       <Link href="/account/orders" className="block px-4 py-2.5 text-sm text-konkan-text-primary hover:bg-konkan-cream">{t('account.orders')}</Link>
                       <Link href="/account/wishlist" className="block px-4 py-2.5 text-sm text-konkan-text-primary hover:bg-konkan-cream">{t('nav.wishlist')}</Link>
                       <Link href="/account/loyalty" className="block px-4 py-2.5 text-sm text-konkan-text-primary hover:bg-konkan-cream">{t('account.loyalty_points')}</Link>
+                      <Link href="/account/referrals" className="block px-4 py-2.5 text-sm font-medium text-konkan-green-primary hover:bg-konkan-cream">{t('account.refer_earn')}</Link>
                       <hr className="my-2 border-konkan-sand" />
                       <button onClick={logout} className="block w-full text-left px-4 py-2.5 text-sm text-konkan-error hover:bg-konkan-cream">{t('nav.sign_out')}</button>
                     </div>
@@ -448,6 +469,10 @@ export default function Navbar() {
                     </Link>
                     <Link href="/account/loyalty" className="flex items-center justify-between px-3 py-2.5 text-sm rounded-xl hover:bg-konkan-cream transition-colors text-konkan-text-primary" onClick={() => setIsMobileOpen(false)}>
                       <span>{t('account.loyalty_points')}</span>
+                      <ChevronRight className="w-3.5 h-3.5 text-konkan-text-secondary" />
+                    </Link>
+                    <Link href="/account/referrals" className="flex items-center justify-between px-3 py-2.5 text-sm rounded-xl hover:bg-konkan-cream transition-colors text-konkan-green-primary font-medium" onClick={() => setIsMobileOpen(false)}>
+                      <span>{t('account.refer_earn')}</span>
                       <ChevronRight className="w-3.5 h-3.5 text-konkan-text-secondary" />
                     </Link>
                     <Link href="/account/settings" className="flex items-center justify-between px-3 py-2.5 text-sm rounded-xl hover:bg-konkan-cream transition-colors text-konkan-text-primary" onClick={() => setIsMobileOpen(false)}>

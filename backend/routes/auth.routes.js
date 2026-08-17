@@ -3,6 +3,7 @@ const router = express.Router();
 const authController = require('../controllers/auth.controller');
 const socialController = require('../controllers/social.controller');
 const { registerValidation, loginValidation, forgotPasswordValidation, resetPasswordValidation } = require('../middleware/validate');
+const { registerLimiter } = require('../middleware/rateLimiter');
 // RE-ENABLE AUTH LIMITER: uncomment the import below and restore `authLimiter, `
 // on the 5 routes marked below (register/login/forgot-password/reset-password/resend-verify).
 // const { authLimiter } = require('../middleware/rateLimiter');
@@ -138,7 +139,7 @@ router.get('/facebook/callback', socialController.facebookCallback);
  *       400:
  *         description: Validation failed.
  */
-router.post('/register', registerValidation, authController.register); // RE-ENABLE AUTH LIMITER: add `authLimiter, ` as first arg
+router.post('/register', registerLimiter, registerValidation, authController.register);
 
 /**
  * @swagger

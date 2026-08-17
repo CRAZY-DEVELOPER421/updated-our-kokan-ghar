@@ -37,6 +37,12 @@ const ensureUserLoyalty = async (userId) => {
   return loyalty[0];
 };
 
+// 100 points redeem as ₹10 (REDEEM_RATE points per ₹10). These two helpers
+// keep the rounding in ONE place so the service and the order controller
+// always agree on how many points a ₹ discount is worth.
+const pointsToRupees = (points) => Math.floor(points / REDEEM_RATE) * 10;
+const rupeesToPoints = (rupees) => Math.round(rupees * (REDEEM_RATE / 10));
+
 const addPoints = async (userId, amount, description = '') => {
   try {
     const points = Math.floor(amount / POINTS_PER_RUPEE);
@@ -78,8 +84,8 @@ const redeemPoints = async (userId, pointsToRedeem) => {
       return { success: false, message: 'Insufficient loyalty points.' };
     }
 
-    const discountAmount = Math.floor(pointsToRedeem / REDEEM_RATE) * 10;
-    const actualPointsToRedeem = discountAmount * REDEEM_RATE;
+    const discountAmount = pointsToRupees(pointsToRedeem);
+    const actualPointsToRedeem = rupeesToPoints(discountAmount);
 
     await pool.query(
       'INSERT INTO loyalty_points (user_id, points, type, description) VALUES (?, ?, ?, ?)',
@@ -99,6 +105,46 @@ const redeemPoints = async (userId, pointsToRedeem) => {
     console.error('Redeem points error:', error.message);
     return { success: false, error: error.message };
   }
+};
+
+// Credit EXACT points to a user without any ₹-amount conversion (used by
+// refunds, referral rewards, etc.). Lifetime/tier are untouched — a refund or
+// bonus is not "newly earned from orders" points.
+const creditPoints = async (userId, pointsToCredit, description, actionLabel) => {
+  try {
+    if (!pointsToCredit || pointsToCredit <= 0) return { success: true, points: 0 };
+
+    // Make sure the loyalty ledger row exists before crediting.
+    await ensureUserLoyalty(userId);
+
+    await pool.query(
+      'INSERT INTO loyalty_points (user_id, points, type, description) VALUES (?, ?, ?, ?)',
+      [userId, pointsToCredit, 'earned', description || `${actionLabel} points`]
+    );
+
+    await pool.query(
+      `UPDATE user_loyalty
+       SET total_points = total_points + ?,
+           updated_at = NOW()
+       WHERE user_id = ?`,
+      [pointsToCredit, userId]
+    );
+
+    return { success: true, points: pointsToCredit };
+  } catch (error) {
+    console.error(`${actionLabel} points error:`, error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+// Refund EXACT points back to a user (e.g. cancelled order).
+const refundPoints = async (userId, pointsToRefund, description = '') => {
+  return creditPoints(userId, pointsToRefund, description || 'Points refunded', 'Refund');
+};
+
+// Award EXACT bonus points (e.g. referral reward — 50 coins to both sides).
+const awardPoints = async (userId, pointsToAward, description = '') => {
+  return creditPoints(userId, pointsToAward, description || 'Bonus points awarded', 'Award');
 };
 
 const getLoyaltyInfo = async (userId) => {
@@ -141,9 +187,13 @@ const getLoyaltyInfo = async (userId) => {
 module.exports = {
   addPoints,
   redeemPoints,
+  refundPoints,
+  awardPoints,
   getLoyaltyInfo,
   ensureUserLoyalty,
   POINTS_PER_RUPEE,
   REDEEM_RATE,
-  TIER_THRESHOLDS
+  TIER_THRESHOLDS,
+  pointsToRupees,
+  rupeesToPoints
 };

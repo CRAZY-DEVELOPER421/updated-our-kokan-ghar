@@ -5,6 +5,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const { generateUniqueSlug } = require('../utils/generateSlug');
 const { createNotification } = require('../services/notification.service');
 const { sendEmail, sendOfferEmail, sendSuspensionEmail } = require('../services/email.service');
+const { sendOrderSMS } = require('../services/sms.service');
 const { statusOf, reactivateExpiredSuspensions } = require('../services/suspension.service');
 
 // ===== PRODUCT MANAGEMENT =====
@@ -483,12 +484,24 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
 
   // Send notification to the order's user based on status
   const [orderInfo] = await pool.query(
-    'SELECT user_id, order_number FROM orders WHERE id = ?',
+    `SELECT o.user_id, o.order_number, o.total_amount, a.phone
+     FROM orders o
+     JOIN addresses a ON o.address_id = a.id
+     WHERE o.id = ?`,
     [id]
   );
 
   if (orderInfo.length > 0) {
-    const { user_id, order_number } = orderInfo[0];
+    const { user_id, order_number, total_amount, phone } = orderInfo[0];
+
+    // SMS map — which statuses get a text message (COD customers rely on SMS)
+    const smsStatus = {
+      confirmed: ['confirmed', { orderNumber: order_number }],
+      shipped: ['shipped', { orderNumber: order_number, location }],
+      out_for_delivery: ['out_for_delivery', { orderNumber: order_number }],
+      delivered: ['delivered', { orderNumber: order_number }],
+      cancelled: ['cancelled', { orderNumber: order_number }],
+    };
 
     if (status === 'shipped') {
       await createNotification(
@@ -522,6 +535,13 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
         'Your order has been confirmed and is being prepared.',
         { order_id: id, order_number }
       );
+    }
+
+    // Fire-and-forget SMS for key statuses — never fails the admin update
+    if (smsStatus[status] && phone) {
+      const [smsKey, smsVars] = smsStatus[status];
+      sendOrderSMS(phone, smsKey, { ...smsVars, amount: total_amount })
+        .catch(err => console.error(`Failed to send order SMS (order ${order_number}):`, err.message));
     }
   }
 

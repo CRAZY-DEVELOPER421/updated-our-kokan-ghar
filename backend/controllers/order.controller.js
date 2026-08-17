@@ -4,6 +4,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const { v4: uuidv4 } = require('uuid');
 const loyaltyService = require('../services/loyalty.service');
 const { sendEmail, sendOrderConfirmation } = require('../services/email.service');
+const { sendOrderSMS } = require('../services/sms.service');
 const { createNotification } = require('../services/notification.service');
 
 const generateOrderNumber = () => {
@@ -14,7 +15,7 @@ const generateOrderNumber = () => {
 };
 
 const createOrder = asyncHandler(async (req, res) => {
-  const { address_id, payment_method, notes } = req.body;
+  const { address_id, payment_method, notes, points_to_redeem } = req.body;
 
   const [cart] = await pool.query('SELECT * FROM cart WHERE user_id = ?', [req.user.id]);
   if (!cart || cart.length === 0) {
@@ -53,15 +54,52 @@ const createOrder = asyncHandler(async (req, res) => {
   const shippingCharge = subtotal >= 499 ? 0 : 49;
   const taxAmount = Math.round(subtotal * 0.05 * 100) / 100;
   const couponDiscount = cart[0].coupon_discount || 0;
-  const totalAmount = Math.round(Math.max((subtotal - couponDiscount + shippingCharge + taxAmount), 0) * 100) / 100;
+
+  // ── Loyalty points redemption ────────────────────────────────────────────
+  // Optional: customer pays with Konkan Points. Points are deducted from the
+  // balance and the ₹ discount is applied on top of any coupon. The discount
+  // is capped so it never pushes the item total (subtotal − coupon) below ₹0 —
+  // shipping & GST always remain payable. Any excess deducted points are
+  // refunded immediately.
+  let pointsUsed = 0;
+  let pointsDiscount = 0;
+  const pointsToRedeem = parseInt(points_to_redeem, 10);
+  if (pointsToRedeem > 0) {
+    const redeem = await loyaltyService.redeemPoints(req.user.id, pointsToRedeem);
+    if (!redeem.success) {
+      return ApiResponse.error(res, redeem.message || 'Could not redeem points. Please try again.', 400);
+    }
+
+    pointsUsed = redeem.pointsUsed;
+    pointsDiscount = Math.min(redeem.discountAmount, Math.max(subtotal - couponDiscount, 0));
+
+    // Cap hit → give back the points that couldn't be applied.
+    if (pointsDiscount < redeem.discountAmount) {
+      const excessPoints = loyaltyService.rupeesToPoints(redeem.discountAmount - pointsDiscount);
+      if (excessPoints > 0) {
+        await loyaltyService.refundPoints(req.user.id, excessPoints, 'Excess points refunded on order');
+        pointsUsed = Math.max(pointsUsed - excessPoints, 0);
+      }
+    }
+  }
+
+  const totalAmount = Math.round(Math.max((subtotal - couponDiscount - pointsDiscount + shippingCharge + taxAmount), 0) * 100) / 100;
 
   const orderNumber = generateOrderNumber();
 
   const [orderResult] = await pool.query(
-    `INSERT INTO orders (order_number, user_id, address_id, status, subtotal, discount_amount, coupon_code, coupon_discount, shipping_charge, tax_amount, total_amount, payment_method, payment_status, notes, estimated_delivery)
-     VALUES (?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, DATE_ADD(NOW(), INTERVAL 5 DAY))`,
-    [orderNumber, req.user.id, address_id, subtotal, couponDiscount, cart[0].coupon_code, couponDiscount, shippingCharge, taxAmount, totalAmount, payment_method, notes || null]
+    `INSERT INTO orders (order_number, user_id, address_id, status, subtotal, discount_amount, coupon_code, coupon_discount, points_used, points_discount, shipping_charge, tax_amount, total_amount, payment_method, payment_status, notes, estimated_delivery)
+     VALUES (?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, DATE_ADD(NOW(), INTERVAL 5 DAY))`,
+    [orderNumber, req.user.id, address_id, subtotal, couponDiscount + pointsDiscount, cart[0].coupon_code, couponDiscount, pointsUsed, pointsDiscount, shippingCharge, taxAmount, totalAmount, payment_method, notes || null]
   );
+
+  // Order insert failed after points were deducted → give them back.
+  if (!orderResult || !orderResult.insertId) {
+    if (pointsUsed > 0) {
+      await loyaltyService.refundPoints(req.user.id, pointsUsed, 'Points refunded (order could not be created)');
+    }
+    return ApiResponse.error(res, 'Could not create order. Please try again.', 500);
+  }
 
   const orderId = orderResult.insertId;
 
@@ -138,6 +176,18 @@ const createOrder = asyncHandler(async (req, res) => {
     // Email is non-critical — order is already saved
   }
 
+  // Send order confirmation SMS to the delivery address phone (COD customers
+  // often have no email — the phone on the address is where the parcel goes).
+  // Fire-and-forget: SMS failure never fails the order.
+  try {
+    await sendOrderSMS(addresses[0].phone, 'order_placed', {
+      orderNumber,
+      amount: totalAmount,
+    });
+  } catch (smsErr) {
+    console.error('Failed to send order confirmation SMS (order still created):', smsErr.message);
+  }
+
   return ApiResponse.created(res, {
     order_id: orderId,
     order_number: orderNumber,
@@ -203,9 +253,17 @@ const cancelOrder = asyncHandler(async (req, res) => {
     await pool.query('UPDATE products SET stock_quantity = stock_quantity + ? WHERE id = ?', [item.quantity, item.product_id]);
   }
 
-  // Create cancellation notification
-  const [orderData] = await pool.query('SELECT order_number FROM orders WHERE id = ?', [id]);
+  // Refund any loyalty points redeemed on this order
+  const [orderData] = await pool.query('SELECT order_number, points_used FROM orders WHERE id = ?', [id]);
   const orderNumber = orderData[0]?.order_number || 'N/A';
+  const pointsUsed = orderData[0]?.points_used || 0;
+  if (pointsUsed > 0) {
+    await loyaltyService.refundPoints(
+      req.user.id,
+      pointsUsed,
+      `Points refunded for cancelled order #${orderNumber}`
+    );
+  }
   await createNotification(
     req.user.id,
     'order_cancelled',

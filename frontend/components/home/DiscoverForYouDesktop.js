@@ -12,6 +12,17 @@ const PRICE_CHIPS = [
   { label: '₹600+', min: 600, max: null },
 ];
 
+// Popular category shortcuts — one click instead of scrolling the full
+// dropdown. Slugs must exist in the categories table (the backend resolves
+// them and includes child subcategories automatically).
+const SHORTCUT_CATEGORIES = [
+  { label: 'Mangoes', slug: 'mango-aamba-products' },
+  { label: 'Cashews', slug: 'kokan-cashew-kaju' },
+  { label: 'Kokum', slug: 'kokum-aamsul-products' },
+  { label: 'Spices', slug: 'malvani-masala' },
+  { label: 'Pickles', slug: 'lonche-pickles' },
+];
+
 export default function DiscoverForYouDesktop() {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedPrice, setSelectedPrice] = useState(null);
@@ -125,16 +136,17 @@ export default function DiscoverForYouDesktop() {
       </div>
 
       {/* ── Filter Row ── */}
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex flex-wrap items-center gap-3 mb-6">
         {/* Categories dropdown */}
         <div className="relative" ref={catRef}>
           <button
             onClick={() => setCatDropdownOpen(!catDropdownOpen)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all active:scale-95"
             style={{
-              backgroundColor: '#FFFFFF',
-              color: selectedCategory ? '#1B3B2F' : '#1A1A1A',
-              border: '1px solid #E0E0E0',
+              backgroundColor: selectedCategory ? '#1B3B2F' : '#FFFFFF',
+              color: selectedCategory ? '#FFFFFF' : '#1A1A1A',
+              border: selectedCategory ? '1px solid #1B3B2F' : '1px solid #E0E0E0',
+              boxShadow: selectedCategory ? '0 1px 4px rgba(27,59,47,0.25)' : 'none',
             }}
           >
             {selectedCatName}
@@ -169,16 +181,39 @@ export default function DiscoverForYouDesktop() {
           )}
         </div>
 
-        {/* Price range chips */}
+        {/* Category shortcut buttons — one click, no dropdown scrolling */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {SHORTCUT_CATEGORIES.map((cat) => {
+            const isActive = selectedCategory === cat.slug;
+            return (
+              <button
+                key={cat.slug}
+                onClick={() => handleFilterChange('category', isActive ? '' : cat.slug)}
+                className="px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all active:scale-95"
+                style={{
+                  backgroundColor: isActive ? '#2D6A4F' : '#F0F7F3',
+                  color: isActive ? '#FFFFFF' : '#1B3B2F',
+                  border: isActive ? '1px solid #2D6A4F' : '1px solid #D8E8DF',
+                  boxShadow: isActive ? '0 1px 4px rgba(45,106,79,0.3)' : 'none',
+                }}
+              >
+                {cat.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Price range chips — active chip is clearly highlighted (green fill) */}
         {PRICE_CHIPS.map((chip) => (
           <button
             key={chip.label}
             onClick={() => handleFilterChange('price', chip)}
-            className="px-4 py-2.5 rounded-xl text-sm font-medium transition-colors"
+            className="px-4 py-2.5 rounded-xl text-sm font-medium transition-all active:scale-95"
             style={{
-              backgroundColor: '#FFFFFF',
-              color: isPriceActive(chip) ? '#1B3B2F' : '#1A1A1A',
-              border: '1px solid #E0E0E0',
+              backgroundColor: isPriceActive(chip) ? '#1B3B2F' : '#FFFFFF',
+              color: isPriceActive(chip) ? '#FFFFFF' : '#1A1A1A',
+              border: isPriceActive(chip) ? '1px solid #1B3B2F' : '1px solid #E0E0E0',
+              boxShadow: isPriceActive(chip) ? '0 1px 4px rgba(27,59,47,0.25)' : 'none',
             }}
           >
             {chip.label}

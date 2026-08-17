@@ -45,8 +45,8 @@ const useAuthStore = create(
               isAuthenticated: true,
               isLoading: false,
             });
-            // Fetch user-specific data from server (not localStorage)
-            useCartStore.getState().fetchCart();
+            // Merge any guest cart into this account, then fetch user data
+            await useCartStore.getState().mergeGuestCart();
             useWishlistStore.getState().fetchWishlist();
             return { success: true };
           }
@@ -75,10 +75,10 @@ const useAuthStore = create(
         }
       },
 
-      register: async (name, email, password, phone) => {
+      register: async (name, email, password, phone, referralCode) => {
         set({ isLoading: true });
         try {
-          const res = await api.post('/auth/register', { name, email, password, phone });
+          const res = await api.post('/auth/register', { name, email, password, phone, referral_code: referralCode || undefined });
           if (res.data.success) {
             localStorage.setItem('accessToken', res.data.data.accessToken);
             set({
@@ -86,8 +86,8 @@ const useAuthStore = create(
               isAuthenticated: true,
               isLoading: false,
             });
-            // Fetch user-specific data from server (not localStorage)
-            useCartStore.getState().fetchCart();
+            // Merge any guest cart into this account, then fetch user data
+            await useCartStore.getState().mergeGuestCart();
             useWishlistStore.getState().fetchWishlist();
             return { success: true };
           }

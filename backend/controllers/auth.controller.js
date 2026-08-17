@@ -6,6 +6,8 @@ const ApiResponse = require('../utils/apiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const { sendEmail, sendOTPEmail, sendWelcomeEmail, sendLoginEmail } = require('../services/email.service');
 const { resolveUserStatus } = require('../services/suspension.service');
+const loyaltyService = require('../services/loyalty.service');
+const { generateReferralCode } = require('./referral.controller');
 
 const generateAccessToken = (user) => {
   return jwt.sign(
@@ -32,8 +34,17 @@ const generateRefreshToken = (user) => {
 };
 
 const register = asyncHandler(async (req, res) => {
-  const { name, email, password, phone } = req.body;
+  const { name, email, password, phone, referral_code } = req.body;
 
+  // Client IP — the device this signup came from. Used to enforce the
+  // one-referral-per-device rule below. Prefers the proxy header (the app
+  // runs behind ngrok/tunnel in production), falls back to the socket IP.
+  const xff = req.headers['x-forwarded-for'];
+  const clientIp = (typeof xff === 'string' && xff.trim()
+    ? xff.split(',')[0].trim()
+    : (req.ip || req.socket?.remoteAddress || '')).slice(0, 45);
+
+  // ── 1. Email uniqueness ───────────────────────────────────────────────
   const [existing] = await pool.query('SELECT id FROM users WHERE email = ?', [email]);
   if (existing.length > 0) {
     // Friendly message for the "already have an account" popup — the frontend
@@ -41,16 +52,126 @@ const register = asyncHandler(async (req, res) => {
     return ApiResponse.error(res, 'This email is already registered. Please sign in to continue.', 409);
   }
 
+  // ── 2. Phone — required + globally unique (anti-fake-signup core) ─────
+  // The same phone can NEVER create a second account, so swapping emails to
+  // farm referral coins is impossible.
+  const cleanPhone = phone ? String(phone).replace(/\D/g, '').slice(0, 10) : '';
+  if (cleanPhone.length !== 10) {
+    return ApiResponse.error(res, 'A valid 10-digit phone number is required.', 400);
+  }
+  const [phoneUsers] = await pool.query(
+    'SELECT id, referral_code FROM users WHERE phone = ?',
+    [cleanPhone]
+  );
+  if (phoneUsers.length > 0) {
+    return ApiResponse.error(res, 'This phone number is already registered. Please sign in to continue.', 409);
+  }
+
+  // ── 3. Referral code (optional) — validated strictly ──────────────────
+  let referrer = null;
+  let normalizedRefCode = null;
+  if (referral_code && String(referral_code).trim()) {
+    normalizedRefCode = String(referral_code).trim().toUpperCase();
+    const [refUsers] = await pool.query(
+      'SELECT id, phone, is_active, signup_ip FROM users WHERE referral_code = ?',
+      [normalizedRefCode]
+    );
+    if (refUsers.length === 0 || Number(refUsers[0].is_active) !== 1) {
+      return ApiResponse.error(res, 'Invalid referral code. Please check and try again.', 400);
+    }
+    referrer = refUsers[0];
+
+    // Anti-fraud: a user's own code can't be used to farm coins — the same
+    // phone is already blocked above, but this is a second explicit guard.
+    if (referrer.phone && referrer.phone === cleanPhone) {
+      return ApiResponse.error(res, 'You cannot use your own referral code.', 400);
+    }
+
+    // ── Device guard (the "only NEW users" rule) ────────────────────────
+    // A referral code is only honoured when the device has never created an
+    // account before. This stops the same person from repeatedly signing up
+    // with a fresh phone+email from one device to farm coins. (Signing up
+    // WITHOUT a code is always allowed, so shared home WiFi is unaffected.)
+    const [ipUsers] = await pool.query(
+      'SELECT id FROM users WHERE signup_ip = ? LIMIT 1',
+      [clientIp]
+    );
+    if (ipUsers.length > 0) {
+      return ApiResponse.error(
+        res,
+        'Referral codes can only be used by new users. This device already has an account — please sign in to continue.',
+        400
+      );
+    }
+
+    // A friend using a code from the SAME device as the referrer is almost
+    // certainly the same person — reject it explicitly.
+    if (referrer.signup_ip && referrer.signup_ip === clientIp) {
+      return ApiResponse.error(res, 'You cannot use a referral code from the same device as the referrer.', 400);
+    }
+  }
+
+  // ── 4. Personal referral code for the new account ─────────────────────
+  // Collision-safe: the INSERT below retries on ER_DUP_ENTRY (referral-code
+  // collisions) with a fresh code, up to 5 attempts.
+  let newReferralCode = null;
+
   const salt = await bcrypt.genSalt(12);
   const password_hash = await bcrypt.hash(password, salt);
 
-  const [result] = await pool.query(
-    'INSERT INTO users (name, email, password_hash, phone, role) VALUES (?, ?, ?, ?, ?)',
-    [name, email, password_hash, phone || null, 'customer']
-  );
+  let insertId;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const candidate = generateReferralCode();
+    try {
+      const [result] = await pool.query(
+        'INSERT INTO users (name, email, password_hash, phone, referral_code, signup_ip, role) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [name, email, password_hash, cleanPhone, candidate, clientIp, 'customer']
+      );
+      insertId = result.insertId;
+      newReferralCode = candidate;
+      break;
+    } catch (err) {
+      // Duplicate email/phone/referral-code from a race → decide.
+      if (err.code === 'ER_DUP_ENTRY') {
+        const dupEmail = await pool.query('SELECT id FROM users WHERE email = ?', [email]);
+        if (dupEmail[0].length > 0) {
+          return ApiResponse.error(res, 'This email is already registered. Please sign in to continue.', 409);
+        }
+        const dupPhone = await pool.query('SELECT id FROM users WHERE phone = ?', [cleanPhone]);
+        if (dupPhone[0].length > 0) {
+          return ApiResponse.error(res, 'This phone number is already registered. Please sign in to continue.', 409);
+        }
+        // Referral-code collision only → retry with a fresh code.
+        continue;
+      }
+      throw err;
+    }
+  }
+  if (!insertId) {
+    return ApiResponse.error(res, 'Could not create account. Please try again.', 500);
+  }
 
-  const accessToken = generateAccessToken({ id: result.insertId, email, role: 'customer' });
-  const refreshToken = generateRefreshToken({ id: result.insertId });
+  // ── 5. Referral rewards — 50 coins to BOTH sides (only when a valid
+  //       referral code was actually used at signup) ─────────────────────
+  if (referrer) {
+    const [rewardRows] = await pool.query(
+      "SELECT value FROM site_settings WHERE setting_key = 'referral_reward_amount'"
+    );
+    const reward = rewardRows.length > 0 ? Number(rewardRows[0].value) : 50;
+    try {
+      await pool.query(
+        'INSERT INTO referrals (referrer_id, referred_id, referral_code, reward_given) VALUES (?, ?, ?, 1)',
+        [referrer.id, insertId, normalizedRefCode]
+      );
+      await loyaltyService.awardPoints(referrer.id, reward, 'Referral reward — you referred a friend');
+      await loyaltyService.awardPoints(insertId, reward, 'Referral welcome bonus — you joined via a friend');
+    } catch (refErr) {
+      console.error('Referral reward failed (signup still succeeds):', refErr.message);
+    }
+  }
+
+  const accessToken = generateAccessToken({ id: insertId, email, role: 'customer' });
+  const refreshToken = generateRefreshToken({ id: insertId });
 
   res.cookie('refreshToken', refreshToken, {
     httpOnly: true,
@@ -68,7 +189,7 @@ const register = asyncHandler(async (req, res) => {
   });
 
   return ApiResponse.created(res, {
-    user: { id: result.insertId, name, email, role: 'customer' },
+    user: { id: insertId, name, email, phone: cleanPhone, role: 'customer', referral_code: newReferralCode },
     accessToken
   }, 'Registration successful! Welcome to Konkan Bazaar.');
 });

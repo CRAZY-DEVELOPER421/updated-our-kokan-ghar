@@ -3,17 +3,36 @@ const ApiResponse = require('../utils/apiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const couponService = require('../services/coupon.service');
 
-const getOrCreateCart = async (userId) => {
-  let [carts] = await pool.query('SELECT * FROM cart WHERE user_id = ?', [userId]);
+// A cart belongs to either a user (user_id) or a guest device (guest_id).
+const getOrCreateCart = async (userId, guestId) => {
+  if (userId) {
+    let [carts] = await pool.query('SELECT * FROM cart WHERE user_id = ?', [userId]);
+    if (carts.length === 0) {
+      const [result] = await pool.query('INSERT INTO cart (user_id) VALUES (?)', [userId]);
+      carts = [{ id: result.insertId, user_id: userId, guest_id: null, coupon_code: null, coupon_discount: 0 }];
+    }
+    return carts[0];
+  }
+
+  let [carts] = await pool.query('SELECT * FROM cart WHERE guest_id = ?', [guestId]);
   if (carts.length === 0) {
-    const [result] = await pool.query('INSERT INTO cart (user_id) VALUES (?)', [userId]);
-    carts = [{ id: result.insertId, user_id: userId, coupon_code: null, coupon_discount: 0 }];
+    const [result] = await pool.query('INSERT INTO cart (guest_id) VALUES (?)', [guestId]);
+    carts = [{ id: result.insertId, user_id: null, guest_id: guestId, coupon_code: null, coupon_discount: 0 }];
   }
   return carts[0];
 };
 
+// Resolve which cart the request operates on. Logged-in users always win
+// (their cart) even when a stale guest id is also present.
+const resolveCart = async (req) => {
+  if (req.user && req.user.id) {
+    return { cart: await getOrCreateCart(req.user.id, null), owner: { userId: req.user.id } };
+  }
+  return { cart: await getOrCreateCart(null, req.guestId), owner: { guestId: req.guestId } };
+};
+
 const getCart = asyncHandler(async (req, res) => {
-  const cart = await getOrCreateCart(req.user.id);
+  const { cart } = await resolveCart(req);
 
   const [items] = await pool.query(
     `SELECT ci.*, p.name, p.slug, p.price, p.mrp, p.stock_quantity, p.weight_grams, p.unit,
@@ -73,7 +92,7 @@ const addToCart = asyncHandler(async (req, res) => {
     return ApiResponse.error(res, `Only ${products[0].stock_quantity} items in stock.`, 400);
   }
 
-  const cart = await getOrCreateCart(req.user.id);
+  const { cart } = await resolveCart(req);
 
   let [existing] = await pool.query(
     'SELECT id, quantity FROM cart_items WHERE cart_id = ? AND product_id = ? AND (variant_id = ? OR (variant_id IS NULL AND ? IS NULL))',
@@ -100,11 +119,13 @@ const updateCartItem = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { quantity } = req.body;
 
+  const { cart } = await resolveCart(req);
+
   const [items] = await pool.query(
     `SELECT ci.*, p.stock_quantity FROM cart_items ci
      JOIN products p ON ci.product_id = p.id
-     WHERE ci.id = ? AND ci.cart_id IN (SELECT id FROM cart WHERE user_id = ?)`,
-    [id, req.user.id]
+     WHERE ci.id = ? AND ci.cart_id = ?`,
+    [id, cart.id]
   );
 
   if (items.length === 0) {
@@ -128,16 +149,18 @@ const updateCartItem = asyncHandler(async (req, res) => {
 const removeCartItem = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
+  const { cart } = await resolveCart(req);
+
   await pool.query(
-    'DELETE FROM cart_items WHERE id = ? AND cart_id IN (SELECT id FROM cart WHERE user_id = ?)',
-    [id, req.user.id]
+    'DELETE FROM cart_items WHERE id = ? AND cart_id = ?',
+    [id, cart.id]
   );
 
   return ApiResponse.success(res, {}, 'Item removed from cart.');
 });
 
 const clearCart = asyncHandler(async (req, res) => {
-  const cart = await getOrCreateCart(req.user.id);
+  const { cart } = await resolveCart(req);
 
   await pool.query('DELETE FROM cart_items WHERE cart_id = ?', [cart.id]);
   await pool.query('UPDATE cart SET coupon_code = NULL, coupon_discount = 0 WHERE id = ?', [cart.id]);
@@ -147,7 +170,8 @@ const clearCart = asyncHandler(async (req, res) => {
 
 const applyCoupon = asyncHandler(async (req, res) => {
   const { code } = req.body;
-  const cart = await getOrCreateCart(req.user.id);
+  const { cart, owner } = await resolveCart(req);
+  const userId = owner.userId || null;
 
   const [items] = await pool.query(
     `SELECT ci.*, p.price FROM cart_items ci
@@ -163,7 +187,7 @@ const applyCoupon = asyncHandler(async (req, res) => {
   const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const cartItems = items.map(item => ({ product_id: item.product_id, quantity: item.quantity, price: item.price }));
 
-  const result = await couponService.applyCoupon(code, req.user.id, subtotal, cartItems);
+  const result = await couponService.applyCoupon(code, userId, subtotal, cartItems);
 
   if (!result.success) {
     return ApiResponse.error(res, result.message, 400);
@@ -177,8 +201,34 @@ const applyCoupon = asyncHandler(async (req, res) => {
   return ApiResponse.success(res, { coupon_code: result.couponCode, discount: result.discountAmount }, result.message);
 });
 
+const suggestCoupons = asyncHandler(async (req, res) => {
+  const { cart, owner } = await resolveCart(req);
+  const userId = owner.userId || null;
+
+  const [items] = await pool.query(
+    `SELECT ci.*, p.price FROM cart_items ci
+     JOIN products p ON ci.product_id = p.id
+     WHERE ci.cart_id = ?`,
+    [cart.id]
+  );
+
+  if (items.length === 0) {
+    return ApiResponse.success(res, { coupons: [] });
+  }
+
+  const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const cartItems = items.map(item => ({ product_id: item.product_id, quantity: item.quantity, price: item.price }));
+
+  const coupons = await couponService.suggestCoupons(subtotal, cartItems, userId);
+
+  return ApiResponse.success(res, {
+    coupons,
+    subtotal
+  });
+});
+
 const removeCoupon = asyncHandler(async (req, res) => {
-  const cart = await getOrCreateCart(req.user.id);
+  const { cart } = await resolveCart(req);
 
   await pool.query(
     'UPDATE cart SET coupon_code = NULL, coupon_discount = 0 WHERE id = ?',
@@ -188,6 +238,68 @@ const removeCoupon = asyncHandler(async (req, res) => {
   return ApiResponse.success(res, {}, 'Coupon removed.');
 });
 
+/**
+ * Merge the caller's guest cart into their logged-in cart.
+ * Called right after login/signup — items are combined (same product+variant
+ * quantities add up, capped at stock), the coupon is kept if the user cart
+ * has none, and the guest cart row is deleted.
+ * Auth: JWT required (guests cannot merge).
+ */
+const mergeGuestCart = asyncHandler(async (req, res) => {
+  const guestId = req.headers['x-guest-id'];
+  if (!guestId || typeof guestId !== 'string') {
+    return ApiResponse.success(res, { merged: 0 }, 'No guest cart to merge.');
+  }
+
+  const [guestCarts] = await pool.query('SELECT * FROM cart WHERE guest_id = ?', [guestId]);
+  if (guestCarts.length === 0) {
+    return ApiResponse.success(res, { merged: 0 }, 'No guest cart to merge.');
+  }
+
+  const guestCart = guestCarts[0];
+  const userCart = await getOrCreateCart(req.user.id, null);
+
+  const [guestItems] = await pool.query(
+    `SELECT ci.*, p.stock_quantity FROM cart_items ci
+     JOIN products p ON ci.product_id = p.id
+     WHERE ci.cart_id = ?`,
+    [guestCart.id]
+  );
+
+  let merged = 0;
+  for (const item of guestItems) {
+    let [existing] = await pool.query(
+      'SELECT id, quantity FROM cart_items WHERE cart_id = ? AND product_id = ? AND (variant_id = ? OR (variant_id IS NULL AND ? IS NULL))',
+      [userCart.id, item.product_id, item.variant_id || null, item.variant_id || null]
+    );
+
+    if (existing.length > 0) {
+      const stock = item.stock_quantity;
+      const newQty = Math.min(existing[0].quantity + item.quantity, stock);
+      await pool.query('UPDATE cart_items SET quantity = ? WHERE id = ?', [newQty, existing[0].id]);
+    } else {
+      const qty = Math.min(item.quantity, item.stock_quantity);
+      await pool.query(
+        'INSERT INTO cart_items (cart_id, product_id, variant_id, quantity) VALUES (?, ?, ?, ?)',
+        [userCart.id, item.product_id, item.variant_id || null, qty]
+      );
+    }
+    merged++;
+  }
+
+  // Carry the guest coupon over only if the user cart has none applied.
+  if (guestCart.coupon_code && !userCart.coupon_code) {
+    await pool.query(
+      'UPDATE cart SET coupon_code = ?, coupon_discount = ? WHERE id = ?',
+      [guestCart.coupon_code, guestCart.coupon_discount || 0, userCart.id]
+    );
+  }
+
+  await pool.query('DELETE FROM cart WHERE id = ?', [guestCart.id]);
+
+  return ApiResponse.success(res, { merged }, merged > 0 ? `${merged} item(s) moved to your cart.` : 'Nothing to merge.');
+});
+
 module.exports = {
   getCart,
   addToCart,
@@ -195,5 +307,7 @@ module.exports = {
   removeCartItem,
   clearCart,
   applyCoupon,
-  removeCoupon
+  removeCoupon,
+  suggestCoupons,
+  mergeGuestCart
 };

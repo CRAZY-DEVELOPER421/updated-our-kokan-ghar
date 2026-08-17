@@ -35,7 +35,7 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Guest-Id', 'X-Silent-Suspension']
 }));
 
 app.use(express.json({ limit: '10mb' }));
@@ -195,6 +195,28 @@ ensureSuspendColumn().finally(() => {
       console.error('[Suspension] Auto-reactivate sweep failed:', err.message);
     }
   }, 60 * 1000);
+
+  // Post-delivery lifecycle emails — review request (~2-3 days) + reorder
+  // nudge (~14 days) after delivery. Fire-and-forget: a failed run is logged
+  // and never crashes the server; each order is emailed at most once per flow
+  // (guarded by review_email_sent_at / reorder_email_sent_at).
+  if (process.env.LIFECYCLE_EMAILS_ENABLED !== 'false') {
+    const { runLifecycleEmails } = require('./services/lifecycle.service');
+    const LIFECYCLE_INTERVAL_MIN = parseInt(process.env.LIFECYCLE_EMAILS_INTERVAL_MIN, 10) || 60;
+
+    // First run shortly after boot (staggered), then every N minutes.
+    setTimeout(() => {
+      runLifecycleEmails().catch((err) => {
+        console.error('[Lifecycle] Initial run failed:', err.message);
+      });
+    }, 3 * 60 * 1000);
+
+    setInterval(() => {
+      runLifecycleEmails().catch((err) => {
+        console.error('[Lifecycle] Sweep failed:', err.message);
+      });
+    }, LIFECYCLE_INTERVAL_MIN * 60 * 1000);
+  }
 
   app.listen(PORT, '0.0.0.0', () => {
     const baseUrl = process.env.RAILWAY_STATIC_URL || `http://0.0.0.0:${PORT}`;

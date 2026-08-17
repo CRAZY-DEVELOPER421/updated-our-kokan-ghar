@@ -1,5 +1,21 @@
 const pool = require('../config/db');
 
+// applicable_categories / applicable_products are native MySQL JSON columns —
+// the driver already parses them into JS values. Handle both raw-array and
+// stringified forms safely.
+const parseRestriction = (value) => {
+  if (Array.isArray(value)) return value;
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+};
+
 const validateCoupon = async (code, userId, cartTotal, cartItems) => {
   try {
     const [coupons] = await pool.query(
@@ -31,33 +47,29 @@ const validateCoupon = async (code, userId, cartTotal, cartItems) => {
       );
     }
 
-    if (coupon.applicable_products) {
-      const applicableProducts = JSON.parse(coupon.applicable_products);
-      if (applicableProducts.length > 0) {
-        const hasApplicableProduct = cartItems.some(item => 
-          applicableProducts.includes(item.product_id)
-        );
-        if (!hasApplicableProduct) {
-          return { valid: false, message: 'Coupon not applicable to items in cart.' };
-        }
+    const applicableProducts = parseRestriction(coupon.applicable_products);
+    if (applicableProducts.length > 0) {
+      const hasApplicableProduct = cartItems.some(item =>
+        applicableProducts.includes(item.product_id)
+      );
+      if (!hasApplicableProduct) {
+        return { valid: false, message: 'Coupon not applicable to items in cart.' };
       }
     }
 
-    if (coupon.applicable_categories) {
-      const applicableCategories = JSON.parse(coupon.applicable_categories);
-      if (applicableCategories.length > 0) {
-        const productIds = cartItems.map(item => item.product_id);
-        if (productIds.length > 0) {
-          const [products] = await pool.query(
-            `SELECT DISTINCT category_id FROM products WHERE id IN (?)`,
-            [productIds]
-          );
-          const hasApplicableCategory = products.some(p => 
-            applicableCategories.includes(p.category_id)
-          );
-          if (!hasApplicableCategory) {
-            return { valid: false, message: 'Coupon not applicable to items in cart.' };
-          }
+    const applicableCategories = parseRestriction(coupon.applicable_categories);
+    if (applicableCategories.length > 0) {
+      const productIds = cartItems.map(item => item.product_id);
+      if (productIds.length > 0) {
+        const [products] = await pool.query(
+          `SELECT DISTINCT category_id FROM products WHERE id IN (?)`,
+          [productIds]
+        );
+        const hasApplicableCategory = products.some(p =>
+          applicableCategories.includes(p.category_id)
+        );
+        if (!hasApplicableCategory) {
+          return { valid: false, message: 'Coupon not applicable to items in cart.' };
         }
       }
     }
@@ -142,9 +154,79 @@ const getApplicableCoupons = async (cartTotal, categoryIds) => {
   }
 };
 
+const suggestCoupons = async (cartTotal, cartItems, userId) => {
+  try {
+    const [coupons] = await pool.query(
+      `SELECT * FROM coupons
+       WHERE is_active = 1
+       AND (valid_from IS NULL OR valid_from <= NOW())
+       AND valid_until >= NOW()`
+    );
+
+    const productIds = cartItems.map(item => item.product_id);
+    let cartCategoryIds = [];
+    if (productIds.length > 0) {
+      const [products] = await pool.query(
+        `SELECT DISTINCT category_id FROM products WHERE id IN (?)`,
+        [productIds]
+      );
+      cartCategoryIds = products.map(p => p.category_id);
+    }
+
+    const applicable = [];
+    for (const coupon of coupons) {
+      // Basic guards
+      if (coupon.min_order_amount > 0 && cartTotal < coupon.min_order_amount) continue;
+      if (coupon.usage_limit > 0 && coupon.used_count >= coupon.usage_limit) continue;
+
+      // Product-restricted coupons
+      const allowedProducts = parseRestriction(coupon.applicable_products);
+      if (allowedProducts.length > 0 && !productIds.some(id => allowedProducts.includes(id))) continue;
+
+      // Category-restricted coupons
+      const allowedCategories = parseRestriction(coupon.applicable_categories);
+      if (allowedCategories.length > 0 && !cartCategoryIds.some(id => allowedCategories.includes(id))) continue;
+
+      // Per-user usage guard (skip silently — just don't suggest already-used coupons)
+      if (userId) {
+        const [usage] = await pool.query(
+          'SELECT COUNT(*) as count FROM coupon_usage WHERE coupon_id = ? AND user_id = ?',
+          [coupon.id, userId]
+        );
+        if (usage[0].count > 0) continue;
+      }
+
+      let discountAmount = calculateDiscount(coupon, cartTotal);
+      // Free-shipping coupons save the ₹49 shipping charge on sub-₹499 carts
+      if (coupon.type === 'free_shipping' && cartTotal < 499) {
+        discountAmount = 49;
+      }
+      applicable.push({
+        id: coupon.id,
+        code: coupon.code,
+        type: coupon.type,
+        value: coupon.value,
+        max_discount: coupon.max_discount,
+        min_order_amount: coupon.min_order_amount,
+        description: coupon.description,
+        valid_until: coupon.valid_until,
+        discountAmount
+      });
+    }
+
+    // Best offers first — by rupee savings (free_shipping / bogo come last since they save ₹0 in this model)
+    applicable.sort((a, b) => b.discountAmount - a.discountAmount);
+    return applicable.slice(0, 2);
+  } catch (error) {
+    console.error('Suggest coupons error:', error.message);
+    return [];
+  }
+};
+
 module.exports = {
   validateCoupon,
   calculateDiscount,
   applyCoupon,
-  getApplicableCoupons
+  getApplicableCoupons,
+  suggestCoupons
 };

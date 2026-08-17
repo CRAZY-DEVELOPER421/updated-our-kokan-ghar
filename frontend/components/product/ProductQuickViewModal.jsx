@@ -57,12 +57,6 @@ export default function ProductQuickViewModal({ product, isOpen, onClose }) {
   /* ── Handlers ── */
   const handleAddToCart = async () => {
     try {
-      const authStore = getAuthStore();
-      if (!authStore?.getState().isAuthenticated) {
-        toast.error('Please login to add items to cart');
-        setTimeout(() => router.push('/login'), 1000);
-        return;
-      }
       setAdding(true);
       const cartStore = getCartStore();
       if (!cartStore) { toast.error('Something went wrong'); setAdding(false); return; }
@@ -73,7 +67,6 @@ export default function ProductQuickViewModal({ product, isOpen, onClose }) {
         return;
       }
       setAdding(false);
-      toast.success(`${quantity} item${quantity > 1 ? 's' : ''} added to cart ✓`, { duration: 3000 });
       onClose();
     } catch (err) {
       toast.error('Something went wrong. Please try again.');

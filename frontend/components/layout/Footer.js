@@ -122,6 +122,7 @@ export default function Footer() {
                   width={140}
                   height={48}
                   loading="lazy"
+                  style={{ width: 'auto', height: 'auto' }}
                 />
               )}
             </Link>
@@ -251,11 +252,11 @@ export default function Footer() {
             </span>
             {/* Mastercard */}
             <span className="flex items-center justify-center" style={{ height: '28px', padding: '0 10px', backgroundColor: '#FFFFFF', borderRadius: '6px' }}>
-              <Image src="/images/payments/mastercard.svg" alt="Mastercard" width={66} height={20} className="h-5 w-auto" unoptimized />
+              <Image src="/images/payments/mastercard.svg" alt="Mastercard" width={66} height={20} className="h-5 w-auto" unoptimized style={{ width: 'auto', height: 'auto' }} />
             </span>
             {/* RuPay */}
             <span className="flex items-center justify-center" style={{ height: '28px', padding: '0 10px', backgroundColor: '#FFFFFF', borderRadius: '6px' }}>
-              <Image src="/images/payments/rupay.svg" alt="RuPay" width={64} height={20} className="h-5 w-auto" unoptimized />
+              <Image src="/images/payments/rupay.svg" alt="RuPay" width={64} height={20} className="h-5 w-auto" unoptimized style={{ width: 'auto', height: 'auto' }} />
             </span>
             {/* Net Banking */}
             <span className="flex items-center justify-center" style={{ height: '28px', padding: '0 10px', backgroundColor: '#FFFFFF', borderRadius: '6px' }}>

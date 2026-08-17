@@ -537,8 +537,8 @@ const MORE_WAYS = [
   },
   {
     title: 'Refer & Earn',
-    subtext: 'Invite friends & both get ₹100 off',
-    href: '/account/loyalty',
+    subtext: 'Invite friends & both get 50 Konkan Coins',
+    href: '/account/referrals',
     color: '#1A6B8A',
     bg: 'rgba(26,107,138,0.10)',
     icon: (

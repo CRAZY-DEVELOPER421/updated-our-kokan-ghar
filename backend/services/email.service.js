@@ -252,6 +252,77 @@ const sendShipmentUpdate = (email, name, orderNumber, status, message) => {
   return { html };
 };
 
+// ── Post-delivery lifecycle emails ─────────────────────────────────
+// Sent by the background scheduler (backend/services/lifecycle.service.js):
+//   • review request ~2-3 days after delivery → drives ratings on product pages
+//   • reorder nudge ~14 days after delivery → repeat orders
+
+// Review request — one email per delivered order, listing each item with a
+// direct "Rate this product" link (deep-links to the #reviews section).
+const sendReviewRequestEmail = (email, name, orderNumber, items) => {
+  const itemRows = items.map(item => `
+    <tr>
+      <td style="padding: 12px 10px; border-bottom: 1px solid #EDE0CC;">
+        <a href="${FRONTEND_URL}/products/${item.slug}#reviews" style="color: #1C1C1E; text-decoration: none; font-weight: 600;">${escapeHtml(item.product_name)}</a>
+        <div style="color: #6B7280; font-size: 12px;">${item.quantity} × ₹${item.total_price}</div>
+      </td>
+      <td style="padding: 12px 10px; border-bottom: 1px solid #EDE0CC; text-align: right;">
+        <a href="${FRONTEND_URL}/products/${item.slug}#reviews" style="display: inline-block; background: #E87722; color: #fff; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 12px;">Rate it ★</a>
+      </td>
+    </tr>
+  `).join('');
+
+  const html = emailShell({
+    title: 'How did we do? Rate your order',
+    contentHtml: `
+      <p style="color: #1C1C1E; font-size: 16px;">Hello ${escapeHtml(name)},</p>
+      <p style="color: #6B7280; font-size: 14px; line-height: 1.7;">
+        Your order <strong>#${orderNumber}</strong> was delivered a few days ago. We'd love to know what you thought!
+        Your review helps other customers pick the right Konkan products — and takes under a minute.
+      </p>
+      <table width="100%" style="margin: 14px 0;">${itemRows}</table>
+      ${ctaButton(`${FRONTEND_URL}/account/orders/${orderNumber}`, 'View Order', '#2D6A4F')}
+      <p style="color: #6B7280; font-size: 12px; margin-top: 20px; font-style: italic;">
+        Reviews earn you loyalty points too — see our loyalty program on the website.
+      </p>
+    `,
+  });
+  return { subject: `Rate your recent ${BRAND} order — it helps everyone!`, html };
+};
+
+// Reorder nudge — ~14 days after delivery, same items, 1-click back to the
+// product pages (add-to-cart is one click from there).
+const sendReorderEmail = (email, name, items) => {
+  const itemRows = items.map(item => `
+    <tr>
+      <td style="padding: 12px 10px; border-bottom: 1px solid #EDE0CC;">
+        <a href="${FRONTEND_URL}/products/${item.slug}" style="color: #1C1C1E; text-decoration: none; font-weight: 600;">${escapeHtml(item.product_name)}</a>
+        <div style="color: #6B7280; font-size: 12px;">₹${item.total_price}</div>
+      </td>
+      <td style="padding: 12px 10px; border-bottom: 1px solid #EDE0CC; text-align: right;">
+        <a href="${FRONTEND_URL}/products/${item.slug}" style="display: inline-block; background: #2D6A4F; color: #fff; padding: 8px 16px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 12px;">Buy again</a>
+      </td>
+    </tr>
+  `).join('');
+
+  const html = emailShell({
+    title: 'Time to restock your Konkan favourites?',
+    contentHtml: `
+      <p style="color: #1C1C1E; font-size: 16px;">Hello ${escapeHtml(name)},</p>
+      <p style="color: #6B7280; font-size: 14px; line-height: 1.7;">
+        It's been a couple of weeks since your last ${BRAND} order. The products below were in your last delivery —
+        running low already? Reorder in one click!
+      </p>
+      <table width="100%" style="margin: 14px 0;">${itemRows}</table>
+      ${ctaButton(`${FRONTEND_URL}/products`, 'Shop All Products')}
+      <p style="color: #6B7280; font-size: 12px; margin-top: 20px; font-style: italic;">
+        Free delivery on orders above ₹499.
+      </p>
+    `,
+  });
+  return { subject: `Restock your favourites — ${BRAND} items are waiting`, html };
+};
+
 // ── Back-in-stock email ───────────────────────────────────────────
 const sendBackInStockEmail = (email, name, productName, productUrl) => {
   const html = emailShell({
@@ -274,5 +345,7 @@ module.exports = {
   sendOrderConfirmation,
   sendShipmentUpdate,
   sendBackInStockEmail,
-  sendSuspensionEmail
+  sendSuspensionEmail,
+  sendReviewRequestEmail,
+  sendReorderEmail
 };

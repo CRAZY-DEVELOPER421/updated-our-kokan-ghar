@@ -24,7 +24,7 @@ const STEPS = [
 export default function CheckoutPage() {
   const router = useRouter();
   const { isAuthenticated, user } = useAuthStore();
-  const { items, summary, fetchCart } = useCartStore();
+  const { items, summary, coupon, fetchCart } = useCartStore();
 
   const [step, setStep] = useState(0);
   const [addresses, setAddresses] = useState([]);
@@ -38,10 +38,54 @@ export default function CheckoutPage() {
   });
   const [addressErrors, setAddressErrors] = useState({});
 
+  // ── Loyalty points redemption ──
+  const [loyalty, setLoyalty] = useState(null);
+  const [pointsToRedeem, setPointsToRedeem] = useState(0);
+  const [pointsEnabled, setPointsEnabled] = useState(false);
+
+  // ── Best coupon suggestion ──
+  const [suggestedCoupons, setSuggestedCoupons] = useState([]);
+  const [applyingCoupon, setApplyingCoupon] = useState(false);
+
+  useEffect(() => {
+    if (!isAuthenticated || !items?.length) {
+      setSuggestedCoupons([]);
+      return;
+    }
+    let cancelled = false;
+    api
+      .get('/cart/suggest-coupons')
+      .then((res) => {
+        if (!cancelled && res.data.success) setSuggestedCoupons(res.data.data.coupons || []);
+      })
+      .catch(() => {
+        if (!cancelled) setSuggestedCoupons([]);
+      });
+    return () => { cancelled = true; };
+  }, [isAuthenticated, items]);
+
+  const handleApplySuggestedCoupon = async (code) => {
+    setApplyingCoupon(true);
+    try {
+      const res = await api.post('/cart/apply-coupon', { code });
+      if (res.data.success) {
+        toast.success(res.data.message || 'Coupon applied!');
+        await fetchCart();
+      } else {
+        toast.error(res.data.message || 'Could not apply coupon');
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not apply coupon');
+    } finally {
+      setApplyingCoupon(false);
+    }
+  };
+
   useEffect(() => {
     if (!isAuthenticated) { router.push('/login?redirect=/checkout'); return; }
     fetchCart();
     loadAddresses();
+    loadLoyalty();
     // Load Razorpay script
     if (typeof window.Razorpay === 'undefined') {
       const script = document.createElement('script');
@@ -63,6 +107,15 @@ export default function CheckoutPage() {
       }
     } catch {
       // silently ignore — address list is optional until user adds one
+    }
+  };
+
+  const loadLoyalty = async () => {
+    try {
+      const res = await api.get('/users/loyalty');
+      if (res.data.success) setLoyalty(res.data.data.loyalty);
+    } catch {
+      // non-critical — points section just stays hidden
     }
   };
 
@@ -108,6 +161,7 @@ export default function CheckoutPage() {
         address_id: selectedAddress,
         payment_method: paymentMethod,
         notes: '',
+        points_to_redeem: pointsEnabled ? pointsToRedeem : 0,
       });
 
       if (orderRes.data.success) {
@@ -164,9 +218,43 @@ export default function CheckoutPage() {
     }
   };
 
-  if (!isAuthenticated) return null;
+  // ── MANDATORY LOGIN GATE ──────────────────────────────────────────────
+  // Guests can browse & add to cart freely, but checkout (payment) requires
+  // an account. A redirect to /login is issued in the effect above; this
+  // screen renders during that hop so the page is never blank.
+  if (!isAuthenticated) {
+    return (
+      <div className="container-custom py-16 text-center animate-fade-in max-w-lg">
+        <div className="mx-auto w-16 h-16 rounded-full bg-konkan-cream border border-konkan-sand flex items-center justify-center mb-5">
+          <svg className="w-8 h-8 text-konkan-green-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          </svg>
+        </div>
+        <h1 className="font-display text-2xl font-bold text-konkan-text-primary mb-2">Login required to checkout</h1>
+        <p className="text-konkan-text-secondary mb-6">
+          {items.length > 0
+            ? `${items.length} item${items.length > 1 ? 's' : ''} in your cart. Sign in or create an account to place your order — your cart will carry over automatically.`
+            : 'Please sign in to continue to payment.'}
+        </p>
+        <div className="flex items-center justify-center gap-3">
+          <Link href="/login?redirect=/checkout" className="btn-primary inline-flex">Log in</Link>
+          <Link href="/signup?redirect=/checkout" className="btn-secondary inline-flex">Sign up</Link>
+        </div>
+      </div>
+    );
+  }
 
   const totalAmount = summary?.total || 0;
+
+  // ── Loyalty points math (100 pts = ₹10) ─────────────────────────────────
+  const availablePoints = loyalty?.total_points || 0;
+  const pointsValue = Math.floor(availablePoints / 100) * 10; // ₹ value of full balance
+  // Can't redeem more than the item cost (subtotal − coupon) — shipping & GST stay payable.
+  const maxDiscountByOrder = Math.max((summary?.subtotal || 0) - (summary?.coupon_discount || 0), 0);
+  const maxPointsByOrder = Math.floor(maxDiscountByOrder / 10) * 100;
+  const maxRedeemablePoints = Math.max(Math.min(Math.floor(availablePoints / 100) * 100, maxPointsByOrder), 0);
+  const pointsDiscount = Math.floor(pointsToRedeem / 100) * 10; // ₹ saved with selected points
+  const effectiveTotal = Math.max(totalAmount - pointsDiscount, 0);
 
   return (
     <div className="container-custom py-6 md:py-8 animate-fade-in">
@@ -276,6 +364,74 @@ export default function CheckoutPage() {
                 ))}
               </div>
 
+              {/* Konkan Points redemption */}
+              <div className="mt-6 bg-konkan-cream/40 rounded-xl border border-konkan-sand/40 p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-display font-bold text-konkan-text-primary text-sm flex items-center gap-1.5">
+                    <svg className="w-4 h-4 text-konkan-gold" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.363-1.118l-2.8-2.034c-.784-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                    </svg>
+                    Konkan Points
+                  </h3>
+                  {loyalty && availablePoints > 0 && maxRedeemablePoints > 0 && (
+                    <button
+                      onClick={() => {
+                        const next = !pointsEnabled;
+                        setPointsEnabled(next);
+                        if (next) setPointsToRedeem(maxRedeemablePoints);
+                        else setPointsToRedeem(0);
+                      }}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${pointsEnabled ? 'text-konkan-error hover:bg-red-50' : 'bg-konkan-green-primary text-white hover:bg-konkan-green-dark'}`}
+                    >
+                      {pointsEnabled ? '✕ Remove' : 'Use points'}
+                    </button>
+                  )}
+                </div>
+
+                {loyalty && availablePoints > 0 && maxRedeemablePoints > 0 ? (
+                  <>
+                    <p className="text-xs text-konkan-text-secondary mb-3">
+                      You have <span className="font-semibold text-konkan-text-primary">{availablePoints} points</span>
+                      (worth <span className="font-semibold text-konkan-green-primary">₹{pointsValue}</span> off). 100 points = ₹10.
+                    </p>
+                    {pointsEnabled ? (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <input
+                          type="number"
+                          min={0}
+                          step={100}
+                          max={maxRedeemablePoints}
+                          value={pointsToRedeem || ''}
+                          onChange={(e) => {
+                            let val = parseInt(e.target.value, 10) || 0;
+                            if (val > maxRedeemablePoints) val = maxRedeemablePoints;
+                            setPointsToRedeem(Math.floor(val / 100) * 100);
+                          }}
+                          className="w-32 px-3 py-2 text-sm rounded-xl border border-konkan-sand bg-white text-konkan-text-primary focus:ring-2 focus:ring-konkan-green-primary/30 focus:border-konkan-green-primary outline-none transition-all"
+                          placeholder="Points"
+                          aria-label="Points to redeem"
+                        />
+                        <button
+                          onClick={() => setPointsToRedeem(maxRedeemablePoints)}
+                          className="px-3 py-2 text-xs font-semibold text-konkan-green-primary hover:bg-konkan-green-primary/10 rounded-lg transition-colors"
+                        >
+                          Use Max ({maxRedeemablePoints} pts)
+                        </button>
+                        <span className="text-xs font-semibold text-konkan-success">
+                          {pointsDiscount > 0 ? `You save ₹${pointsDiscount} on this order` : 'Enter at least 100 points'}
+                        </span>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-konkan-text-secondary">Tap “Use points” to pay a part of this order with your balance.</p>
+                    )}
+                  </>
+                ) : loyalty ? (
+                  <p className="text-xs text-konkan-text-secondary">
+                    Earn points on every order — redeem them right here next time!
+                  </p>
+                ) : null}
+              </div>
+
               <div className="mt-6 flex items-center justify-between">
                 <button onClick={() => setStep(0)} className="text-sm text-konkan-green-primary hover:underline">← Back to Address</button>
                 <Button onClick={() => setStep(2)} size="lg">Continue → Payment</Button>
@@ -317,7 +473,7 @@ export default function CheckoutPage() {
               <div className="flex items-center justify-between">
                 <button onClick={() => setStep(1)} className="text-sm text-konkan-green-primary hover:underline">← Back to Summary</button>
                 <Button onClick={handlePlaceOrder} size="lg" loading={processing} disabled={!selectedAddress}>
-                  {paymentMethod === 'cod' ? `Place Order • ₹${totalAmount}` : `Pay ₹${totalAmount}`}
+                  {paymentMethod === 'cod' ? `Place Order • ₹${effectiveTotal}` : `Pay ₹${effectiveTotal}`}
                 </Button>
               </div>
             </div>
@@ -326,6 +482,39 @@ export default function CheckoutPage() {
 
         {/* Order Summary Sidebar */}
         <div className="space-y-4">
+          {/* Best offer suggestion — only when no coupon applied yet */}
+          {!coupon && suggestedCoupons.length > 0 && (
+            <div className="bg-gradient-to-r from-konkan-saffron/10 to-amber-50 rounded-xl card p-4 border border-konkan-saffron/20">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-konkan-saffron mb-2">
+                🏷️ Best Offer For You
+              </p>
+              <div className="space-y-2">
+                {suggestedCoupons.slice(0, 2).map((c, idx) => (
+                  <div key={c.code} className={`flex items-center justify-between gap-2 rounded-lg p-2 ${idx === 0 ? 'bg-konkan-saffron/10' : 'bg-white/70'}`}>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono font-bold text-xs text-konkan-green-primary">{c.code}</span>
+                        {idx === 0 && <span className="px-1 py-0.5 bg-konkan-saffron text-white rounded text-[9px] font-bold">BEST</span>}
+                      </div>
+                      <p className="text-[11px] text-konkan-text-secondary truncate mt-0.5">
+                        {c.discountAmount > 0
+                          ? `You save ₹${c.discountAmount} on this order`
+                          : (c.description || c.code)}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => handleApplySuggestedCoupon(c.code)}
+                      disabled={applyingCoupon}
+                      className="shrink-0 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-konkan-green-primary text-white hover:bg-konkan-green-dark disabled:opacity-50 transition-colors"
+                    >
+                      Apply
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="bg-white rounded-xl card p-4">
             <h3 className="font-display font-bold text-konkan-text-primary text-sm mb-3">Order Summary</h3>
             <div className="space-y-2 text-sm">
@@ -334,10 +523,13 @@ export default function CheckoutPage() {
               {summary?.coupon_discount > 0 && (
                 <div className="flex justify-between"><span className="text-konkan-text-secondary">Coupon</span><span className="text-konkan-success">-₹{summary.coupon_discount}</span></div>
               )}
-              <div className="flex justify-between"><span className="text-konkan-text-secondary">Shipping</span><span className={summary?.shipping_charge === 0 ? 'text-konkan-success' : ''}>{summary?.shipping_charge === 0 ? 'FREE' : `₹${summary.shipping_charge}`}</span></div>
+              {pointsDiscount > 0 && (
+                <div className="flex justify-between"><span className="text-konkan-text-secondary">Konkan Points</span><span className="text-konkan-success">-₹{pointsDiscount}</span></div>
+              )}
+              <div className="flex justify-between"><span className="text-konkan-text-secondary">Shipping</span><span className={summary?.shipping_charge === 0 ? 'text-konkan-success' : ''}>{summary?.shipping_charge === 0 ? 'FREE' : `₹${summary?.shipping_charge || 0}`}</span></div>
               <div className="flex justify-between"><span className="text-konkan-text-secondary">GST</span><span>₹{summary?.tax_amount || 0}</span></div>
               <hr className="border-konkan-sand/50" />
-              <div className="flex justify-between font-bold text-base"><span>Total</span><span className="text-konkan-saffron">₹{summary?.total || 0}</span></div>
+              <div className="flex justify-between font-bold text-base"><span>Total</span><span className="text-konkan-saffron">₹{effectiveTotal}</span></div>
             </div>
           </div>
 

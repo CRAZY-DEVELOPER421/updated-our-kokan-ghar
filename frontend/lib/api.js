@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getGuestId } from '@/lib/guest';
 
 // Resolve the API base at RUNTIME so a single build works everywhere:
 //  - storefront dev (:3000) / admin panel (:3001) → talk straight to the backend
@@ -28,6 +29,12 @@ api.interceptors.request.use(
       const token = localStorage.getItem('accessToken');
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
+      }
+      // Device id — lets visitors keep a guest cart before signing up.
+      // The backend ignores it when a JWT is present (logged-in cart wins).
+      const guestId = getGuestId();
+      if (guestId) {
+        config.headers['X-Guest-Id'] = guestId;
       }
     }
     return config;

@@ -8,7 +8,6 @@ import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { getImageUrl } from '@/lib/utils';
 import StarRating from '@/components/ui/StarRating';
-import useAuthStore from '@/lib/store/authStore';
 import useWishlistStore from '@/lib/store/wishlistStore';
 import useCartStore from '@/lib/store/cartStore';
 
@@ -28,7 +27,6 @@ import useCartStore from '@/lib/store/cartStore';
 // and the Add-to-Cart + Share actions row (used by the All Under ₹499 section).
 export default function ProductCarouselCard({ product, simplified = false }) {
   const router = useRouter();
-  const { isAuthenticated } = useAuthStore();
   const toggleWishlist = useWishlistStore((s) => s.toggleWishlist);
   const addToCart = useCartStore((s) => s.addToCart);
   const cartItems = useCartStore((s) => s.items);
@@ -94,17 +92,10 @@ export default function ProductCarouselCard({ product, simplified = false }) {
     e.preventDefault();
     e.stopPropagation();
     if (isAdding) return;
-    if (!isAuthenticated) {
-      toast.error('Please login to add items to cart');
-      setTimeout(() => router.push('/login'), 1000);
-      return;
-    }
     setIsAdding(true);
     const result = await addToCart(id, null, 1);
     if (!result || result.success === false) {
       toast.error(result?.message || 'Failed to add to cart');
-    } else {
-      toast.success(`${name} added to cart`);
     }
     setIsAdding(false);
   };

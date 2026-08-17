@@ -5,11 +5,12 @@ import api from '@/lib/api';
 import Skeleton from '@/components/ui/Skeleton';
 import Badge from '@/components/ui/Badge';
 
+// Must mirror backend/services/loyalty.service.js TIER_THRESHOLDS
 const TIERS = [
   { name: 'Bronze', min: 0, color: 'bg-amber-600', textColor: 'text-amber-600' },
-  { name: 'Silver', min: 500, color: 'bg-gray-400', textColor: 'text-gray-500' },
-  { name: 'Gold', min: 1500, color: 'bg-yellow-500', textColor: 'text-yellow-600' },
-  { name: 'Platinum', min: 5000, color: 'bg-indigo-500', textColor: 'text-indigo-600' },
+  { name: 'Silver', min: 1000, color: 'bg-gray-400', textColor: 'text-gray-500' },
+  { name: 'Gold', min: 5000, color: 'bg-yellow-500', textColor: 'text-yellow-600' },
+  { name: 'Platinum', min: 10000, color: 'bg-indigo-500', textColor: 'text-indigo-600' },
 ];
 
 const BENEFITS = {
@@ -44,12 +45,15 @@ export default function LoyaltyPage() {
     );
   }
 
-  const points = loyalty?.points || 0;
-  const totalEarned = loyalty?.total_earned || 0;
-  const totalRedeemed = loyalty?.total_redeemed || 0;
-  const history = loyalty?.history || [];
+  const points = loyalty?.total_points || 0;
+  const totalEarned = loyalty?.lifetime_earned || 0;
+  const recentActivity = loyalty?.recent_activity || [];
+  const history = recentActivity;
+  const totalRedeemed = recentActivity
+    .filter((e) => e.type === 'redeemed')
+    .reduce((sum, e) => sum + Math.abs(e.points || 0), 0);
 
-  // Calculate current tier and next tier
+  // Tier thresholds must mirror backend/services/loyalty.service.js
   const currentTier = TIERS.reduce((prev, tier) => (points >= tier.min ? tier : prev), TIERS[0]);
   const nextTier = TIERS.find((t) => t.min > points);
   const nextTierMin = nextTier?.min || currentTier.min;

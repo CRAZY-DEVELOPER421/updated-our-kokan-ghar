@@ -19,6 +19,11 @@ CREATE TABLE users (
   -- NULL for social-only (Google/Facebook) accounts; required for password accounts
   password_hash VARCHAR(255) DEFAULT NULL,
   phone VARCHAR(20),
+  -- Personal referral code — unique, shared via /account/referrals (8 chars, e.g. KB7X9F2M)
+  referral_code VARCHAR(20) DEFAULT NULL,
+  -- IP the account was created from — anti-fraud: a referral code is only
+  -- honoured on a device that has never created an account before
+  signup_ip VARCHAR(45) DEFAULT NULL,
   role ENUM('customer','admin','seller') NOT NULL DEFAULT 'customer',
   avatar_url VARCHAR(500),
   is_verified TINYINT(1) NOT NULL DEFAULT 0,
@@ -32,9 +37,13 @@ CREATE TABLE users (
   email_verify_expiry DATETIME DEFAULT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  -- phone is UNIQUE: the same number can never register twice (anti-fake-signup)
+  UNIQUE KEY uk_users_phone (phone),
+  UNIQUE KEY uk_users_referral_code (referral_code),
   INDEX idx_users_email (email),
   INDEX idx_users_role (role),
-  INDEX idx_users_is_active (is_active)
+  INDEX idx_users_is_active (is_active),
+  INDEX idx_users_signup_ip (signup_ip)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
@@ -192,6 +201,8 @@ CREATE TABLE orders (
   discount_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   coupon_code VARCHAR(50),
   coupon_discount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  points_used INT NOT NULL DEFAULT 0,
+  points_discount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   shipping_charge DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   tax_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   total_amount DECIMAL(10,2) NOT NULL,
@@ -202,6 +213,10 @@ CREATE TABLE orders (
   notes TEXT,
   estimated_delivery DATE,
   delivered_at DATETIME,
+  -- Post-delivery lifecycle emails (sent by the background scheduler):
+  -- review request ~2-3 days after delivery, reorder nudge ~14 days after.
+  review_email_sent_at DATETIME,
+  reorder_email_sent_at DATETIME,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT,
@@ -251,11 +266,14 @@ CREATE TABLE order_tracking (
 -- ============================================================
 CREATE TABLE cart (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  user_id INT UNSIGNED NOT NULL UNIQUE,
+  user_id INT UNSIGNED DEFAULT NULL,
+  guest_id VARCHAR(64) DEFAULT NULL,
   coupon_code VARCHAR(50),
   coupon_discount DECIMAL(10,2) DEFAULT 0.00,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY idx_cart_guest (guest_id),
+  UNIQUE KEY idx_cart_user (user_id),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -583,6 +601,5 @@ INSERT INTO site_settings (setting_key, value) VALUES
 ('social_twitter', 'https://twitter.com/konkanbazaar'),
 ('store_hours', 'Mon-Sat: 9:00 AM - 8:00 PM, Sun: 10:00 AM - 6:00 PM'),
 ('address', 'Shop No. 45, Konkan Market, Mapusa, Goa 403507'),
-('spin_wheel_enabled', '1'),
 ('bundle_discount_percent', '10'),
 ('bundle_min_quantity', '3');

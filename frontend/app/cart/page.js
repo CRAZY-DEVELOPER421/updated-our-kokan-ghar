@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
+import api from '@/lib/api';
 import useAuthStore from '@/lib/store/authStore';
 import useCartStore from '@/lib/store/cartStore';
 import Button from '@/components/ui/Button';
@@ -23,10 +24,45 @@ export default function CartPage() {
 
   const [couponInput, setCouponInput] = useState('');
   const [applying, setApplying] = useState(false);
+  const [suggestedCoupons, setSuggestedCoupons] = useState([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
 
+  // Guests can view/manage their cart too — fetchCart works with the
+  // device id; login is only required at checkout (where the cart merges).
   useEffect(() => {
-    if (isAuthenticated) fetchCart();
-  }, [isAuthenticated, fetchCart]);
+    fetchCart();
+  }, [fetchCart]);
+
+  // Fetch best applicable coupons whenever the cart contents change
+  useEffect(() => {
+    if (!items?.length) {
+      setSuggestedCoupons([]);
+      return;
+    }
+    let cancelled = false;
+    setLoadingSuggestions(true);
+    api
+      .get('/cart/suggest-coupons')
+      .then((res) => {
+        if (!cancelled && res.data.success) setSuggestedCoupons(res.data.data.coupons || []);
+      })
+      .catch(() => {
+        if (!cancelled) setSuggestedCoupons([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingSuggestions(false);
+      });
+    return () => { cancelled = true; };
+  }, [isAuthenticated, items, coupon]);
+
+  const handleApplySuggested = async (code) => {
+    if (coupon === code) return;
+    setApplying(true);
+    const res = await applyCoupon(code);
+    setApplying(false);
+    if (res.success) toast.success(res.message);
+    else toast.error(res.message);
+  };
 
   const handleQuantity = async (itemId, newQty) => {
     if (newQty < 1) return;
@@ -83,24 +119,28 @@ export default function CartPage() {
   const slabDiscount = currentSlab.discount > 0 ? Math.round((subtotal * currentSlab.discount) / 100) : 0;
   const nextSlabAmount = nextSlab ? nextSlab.min - subtotal : 0;
 
-  if (!isAuthenticated) {
-    return (
-      <div className="container-custom py-16 text-center animate-fade-in">
-        <div className="mb-4 flex justify-center">
-          <svg className="w-12 h-12 text-konkan-text-secondary/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z" />
-          </svg>
-        </div>
-        <h1 className="font-display text-2xl font-bold text-konkan-text-primary mb-2">Login to View Cart</h1>
-        <p className="text-konkan-text-secondary mb-6">Please sign in to see items in your cart.</p>
-        <Link href="/login" className="btn-primary inline-flex">Sign In</Link>
-      </div>
-    );
-  }
-
   return (
     <div className="container-custom py-6 md:py-8 animate-fade-in">
       <Breadcrumb items={[{ label: 'Cart', href: '/cart' }]} />
+
+      {/* Guest notice — items are saved on this device; login is required at checkout */}
+      {!isAuthenticated && items.length > 0 && (
+        <div className="mb-5 flex items-start gap-3 rounded-xl border border-konkan-saffron/30 bg-konkan-saffron/5 p-4">
+          <svg className="w-5 h-5 text-konkan-saffron shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <div className="text-sm">
+            <p className="font-semibold text-konkan-text-primary">You're shopping as a guest</p>
+            <p className="text-konkan-text-secondary mt-0.5">
+              Your items are saved on this device. Log in or sign up at checkout to place your order — your cart will carry over automatically.
+            </p>
+            <div className="mt-2.5 flex flex-wrap gap-2">
+              <Link href="/login?redirect=/checkout" className="btn-primary text-sm py-1.5 px-4">Log in</Link>
+              <Link href="/signup?redirect=/checkout" className="btn-secondary text-sm py-1.5 px-4">Sign up</Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       <h1 className="font-display text-2xl md:text-3xl font-bold text-konkan-text-primary mb-6">
         Shopping Cart {summary?.item_count > 0 && `(${summary.item_count} items)`}
@@ -239,42 +279,63 @@ export default function CartPage() {
                 <div className="flex items-center justify-between bg-konkan-green-primary/5 rounded-lg p-3">
                   <div>
                     <span className="text-sm font-bold text-konkan-green-primary">{coupon}</span>
-                    <p className="text-xs text-konkan-text-secondary">Discount: -₹{summary?.coupon_discount || 0}</p>
+                    <p className="text-xs text-konkan-text-secondary">You saved -₹{summary?.coupon_discount || 0} on this cart!</p>
                   </div>
                   <button onClick={handleRemoveCoupon} className="text-xs text-konkan-error hover:underline">Remove</button>
                 </div>
               ) : (
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={couponInput}
-                    onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
-                    placeholder="Enter code"
-                    className="flex-1 px-3 py-2 text-sm rounded-lg border border-konkan-sand bg-white focus:ring-2 focus:ring-konkan-green-primary/30 focus:border-konkan-green-primary outline-none uppercase"
-                    maxLength={20}
-                  />
-                  <Button size="sm" onClick={handleApplyCoupon} loading={applying} disabled={!couponInput.trim()}>
-                    Apply
-                  </Button>
+                <>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={couponInput}
+                      onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                      placeholder="Enter code"
+                      className="flex-1 px-3 py-2 text-sm rounded-lg border border-konkan-sand bg-white focus:ring-2 focus:ring-konkan-green-primary/30 focus:border-konkan-green-primary outline-none uppercase"
+                      maxLength={20}
+                    />
+                    <Button size="sm" onClick={handleApplyCoupon} loading={applying} disabled={!couponInput.trim()}>
+                      Apply
+                    </Button>
+                  </div>
+                  <p className="text-[11px] text-konkan-text-secondary mt-2">Tip: try our best offer below 👇</p>
+                </>
+              )}
+
+              {/* Best Offer Suggestion — auto-filtered to coupons that actually work for this cart */}
+              {!coupon && suggestedCoupons.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-konkan-saffron">
+                    🏷️ Best Offers For You
+                  </p>
+                  {suggestedCoupons.map((c, idx) => (
+                    <div key={c.code} className={`flex items-center justify-between rounded-lg p-2.5 ${idx === 0 ? 'bg-konkan-saffron/10 border border-konkan-saffron/30' : 'bg-konkan-cream/60'}`}>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono font-bold text-xs text-konkan-green-primary">{c.code}</span>
+                          {idx === 0 && <span className="px-1 py-0.5 bg-konkan-saffron text-white rounded text-[9px] font-bold">BEST</span>}
+                        </div>
+                        <p className="text-[11px] text-konkan-text-secondary truncate mt-0.5">
+                          {c.discountAmount > 0
+                            ? `You save ₹${c.discountAmount} with ${c.code}`
+                            : (c.description || c.code)}
+                          {c.min_order_amount > 0 ? ` • Min ₹${c.min_order_amount}` : ''}
+                        </p>
+                      </div>
+                      <Button size="sm" onClick={() => handleApplySuggested(c.code)} disabled={applying}>
+                        Apply
+                      </Button>
+                    </div>
+                  ))}
                 </div>
               )}
-              <div className="mt-2 flex flex-wrap gap-1">
-                {['KONKAN100', 'FIRST20', 'FREESHIP', 'WELCOME15'].map((code) => (
-                  <button
-                    key={code}
-                    onClick={async () => {
-                      setApplying(true);
-                      const res = await applyCoupon(code);
-                      setApplying(false);
-                      if (res.success) toast.success(res.message);
-                      else toast.error(res.message);
-                    }}
-                    className="px-2 py-0.5 text-[10px] font-medium bg-konkan-cream rounded text-konkan-text-secondary hover:bg-konkan-sand transition-colors"
-                  >
-                    {code}
-                  </button>
-                ))}
-              </div>
+
+              {!coupon && loadingSuggestions && (
+                <div className="mt-3 space-y-2">
+                  <div className="skeleton h-12 rounded-lg" />
+                  <div className="skeleton h-12 rounded-lg" />
+                </div>
+              )}
             </div>
 
             {/* Buy More Save More */}

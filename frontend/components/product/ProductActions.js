@@ -87,32 +87,25 @@ export default function ProductActions({ product, stockQuantity = 0, variants = 
   };
 
   // ── Add to Cart ─────────────────────────────────────
+  // Guests can add to cart WITHOUT an account (guest cart). They only need
+  // to login/signup at checkout — that's when the guest cart is merged.
   const handleAddToCart = useCallback(async () => {
-    if (!isAuthenticated) {
-      toast.error('Please login to add items to cart');
-      setTimeout(() => router.push('/login'), 1000);
-      return;
-    }
     setIsAdding(true);
     const res = await addToCart(productId, selectedVariant?.id || null, qty);
     setIsAdding(false);
-    if (res.success) {
-      toast.success(`${qty} × ${selectedVariant?.variant_value || product.name} added to cart`);
-    } else if (!useAuthStore.getState().suspended) {
+    if (!res.success && !useAuthStore.getState().suspended) {
       // Suspended → the global gate popup already explains it; no error toast.
       // Read live store state (not the closure) — the suspension is detected
       // DURING the request, so the render-time value would be stale.
       toast.error(res.message || 'Failed to add to cart');
     }
-  }, [isAuthenticated, productId, selectedVariant, qty, addToCart, router, product.name]);
+  }, [productId, selectedVariant, qty, addToCart]);
 
   // ── Buy Now ─────────────────────────────────────────
+  // Adds to the cart first (guest carts included), then heads to checkout.
+  // /checkout itself requires login — guests are asked to sign in/sign up
+  // there, and their guest cart is merged automatically before payment.
   const handleBuyNow = useCallback(async () => {
-    if (!isAuthenticated) {
-      toast.error('Please login to continue');
-      setTimeout(() => router.push('/login'), 1000);
-      return;
-    }
     setIsAdding(true);
     const res = await addToCart(productId, selectedVariant?.id || null, qty);
     setIsAdding(false);
@@ -122,7 +115,7 @@ export default function ProductActions({ product, stockQuantity = 0, variants = 
       // Suspended → the global gate popup already explains it; no error toast.
       toast.error(res.message || 'Failed to add to cart');
     }
-  }, [isAuthenticated, productId, selectedVariant, qty, addToCart, router]);
+  }, [productId, selectedVariant, qty, addToCart, router]);
 
   // ── Wishlist Toggle ─────────────────────────────────
   const handleWishlist = useCallback(async () => {

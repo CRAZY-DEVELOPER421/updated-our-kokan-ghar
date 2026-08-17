@@ -119,8 +119,8 @@ export default function SocialCallbackPage() {
         // 2. Load the user profile into the auth store (persists across reloads).
         await useAuthStore.getState().fetchProfile();
 
-        // 3. Refresh user-specific data (cart, wishlist).
-        useCartStore.getState().fetchCart();
+        // 3. Merge any guest cart into this account, then refresh wishlist.
+        await useCartStore.getState().mergeGuestCart();
         useWishlistStore.getState().fetchWishlist();
 
         if (isNew) {

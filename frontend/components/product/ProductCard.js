@@ -94,10 +94,12 @@ export default function ProductCard({ product, view = 'grid' }) {
     }
   }, []);
 
-  // Fetch fresh data on mount
+  // Fetch fresh data on mount. Cart is fetched for GUESTS too (device-id
+  // guest cart) so the navbar badge + in-cart state stay correct; wishlist
+  // is account-only.
   useEffect(() => {
+    fetchCart();
     if (isAuthenticated) {
-      fetchCart();
       fetchWishlist();
     }
   }, [isAuthenticated]);
@@ -182,11 +184,6 @@ export default function ProductCard({ product, view = 'grid' }) {
     e.preventDefault();
     e.stopPropagation();
     if (isAdding) return;
-    if (!isAuthenticated) {
-      toast.error('Please login to add items to cart');
-      setTimeout(() => router.push('/login'), 1000);
-      return;
-    }
     if (!selectedWeight) {
       toast.error('Please select a weight/quantity first');
       return;
@@ -202,8 +199,6 @@ export default function ProductCard({ product, view = 'grid' }) {
         return;
       }
       setAdded(true);
-      const weightLabel = WEIGHT_OPTIONS.find(w => w.value === quantity)?.label || `${quantity}kg`;
-      toast.success(`${weightLabel} × ${product.name} added to cart`);
       setTimeout(() => setAdded(false), 2500);
     } catch (err) {
       toast.error('Failed to add to cart');
@@ -235,11 +230,6 @@ export default function ProductCard({ product, view = 'grid' }) {
       e.preventDefault();
       e.stopPropagation();
       if (isAdding) return;
-      if (!isAuthenticated) {
-        toast.error('Please login to add items to cart');
-        setTimeout(() => router.push('/login'), 1000);
-        return;
-      }
       setIsAdding(true);
       try {
         const result = await addToCart(product.id, null, 1);
@@ -251,7 +241,6 @@ export default function ProductCard({ product, view = 'grid' }) {
           return;
         }
         setAdded(true);
-        toast.success(`${product.name} added to cart`);
         setTimeout(() => setAdded(false), 2500);
       } catch (err) {
         toast.error('Failed to add to cart');

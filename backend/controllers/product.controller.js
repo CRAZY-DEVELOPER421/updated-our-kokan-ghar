@@ -285,7 +285,7 @@ const getProductReviews = asyncHandler(async (req, res) => {
 
 const createReview = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { rating, title, body } = req.body;
+  const { rating, title, body, images } = req.body;
 
   const [existing] = await pool.query(
     'SELECT id FROM reviews WHERE product_id = ? AND user_id = ?',
@@ -296,9 +296,27 @@ const createReview = asyncHandler(async (req, res) => {
     return ApiResponse.error(res, 'You have already reviewed this product.', 400);
   }
 
+  // Normalize attached media: accept [{ type: 'image'|'video', url }] or legacy plain URL strings.
+  let imagesJson = null;
+  if (Array.isArray(images) && images.length > 0) {
+    const cleaned = images
+      .map((img) => {
+        if (typeof img === 'string' && img.trim()) return { type: 'image', url: img.trim() };
+        if (img && typeof img === 'object' && img.url && ['image', 'video'].includes(img.type)) {
+          return { type: img.type, url: String(img.url).trim() };
+        }
+        return null;
+      })
+      .filter(Boolean);
+    if (cleaned.length > 0) imagesJson = JSON.stringify(cleaned);
+  }
+
+  // Reviews are published immediately (auto-approved) so they (and their
+  // photos/videos) show up right away. Moderation can be added later — see
+  // the public query below which only returns is_approved = 1.
   const [result] = await pool.query(
-    'INSERT INTO reviews (product_id, user_id, rating, title, body) VALUES (?, ?, ?, ?, ?)',
-    [id, req.user.id, rating, title || null, body || null]
+    'INSERT INTO reviews (product_id, user_id, rating, title, body, images, is_approved) VALUES (?, ?, ?, ?, ?, ?, 1)',
+    [id, req.user.id, rating, title || null, body || null, imagesJson]
   );
 
   const [avgRating] = await pool.query(

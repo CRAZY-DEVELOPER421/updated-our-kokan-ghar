@@ -119,4 +119,62 @@ router.post("/video", verifyToken, isAdmin, uploadVideo.single("video"), asyncHa
   return ApiResponse.success(res, { url: `/uploads/${req.file.filename}` });
 }));
 
+/**
+ * @swagger
+ * /upload/review-image:
+ *   post:
+ *     summary: Upload an image for a product review (any logged-in customer)
+ *     tags: [Upload]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Upload success with file URL.
+ *       400:
+ *         description: No file uploaded or invalid file type.
+ */
+router.post("/review-image", verifyToken, uploadImage.single("image"), asyncHandler(async (req, res) => {
+  if (!req.file) return ApiResponse.error(res, "No file uploaded.", 400);
+  return ApiResponse.success(res, { url: `/uploads/${req.file.filename}` });
+}));
+
+/**
+ * @swagger
+ * /upload/review-video:
+ *   post:
+ *     summary: Upload a video for a product review (any logged-in customer, up to 200MB)
+ *     tags: [Upload]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               video:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Upload success with file URL.
+ *       400:
+ *         description: No file uploaded or invalid file type.
+ */
+router.post("/review-video", verifyToken, uploadVideo.single("video"), asyncHandler(async (req, res) => {
+  if (!req.file) return ApiResponse.error(res, "No file uploaded.", 400);
+  return ApiResponse.success(res, { url: `/uploads/${req.file.filename}` });
+}));
+
 module.exports = router;

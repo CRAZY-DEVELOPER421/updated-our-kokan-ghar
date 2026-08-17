@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/user.controller');
+const referralController = require('../controllers/referral.controller');
 const { verifyToken } = require('../middleware/auth');
 const { addressValidation, changePasswordValidation, setPasswordValidation } = require('../middleware/validate');
 
@@ -304,5 +305,21 @@ router.put('/notifications/:id/read', verifyToken, userController.markNotificati
  *         description: Could not fetch loyalty info.
  */
 router.get('/loyalty', verifyToken, userController.getLoyaltyInfo);
+
+/**
+ * @swagger
+ * /users/referrals:
+ *   get:
+ *     summary: Get current user's referral code, share link and referred friends
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Referral program details.
+ *       401:
+ *         description: Unauthorized.
+ */
+router.get('/referrals', verifyToken, referralController.getReferrals);
 
 module.exports = router;

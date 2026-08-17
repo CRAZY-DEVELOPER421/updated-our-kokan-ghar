@@ -34,6 +34,7 @@ const MENU_ITEMS = [
   { label: 'Addresses', desc: 'Manage delivery addresses', href: '/account/addresses', icon: I.pin },
   { label: 'Payment Methods', desc: 'UPI, Cards, Wallets & more', href: '/account/payment-methods', icon: I.card },
   { label: 'Konkan Coins & Rewards', desc: 'View rewards, coins & offers', href: '/account/loyalty', icon: I.coin },
+  { label: 'Refer & Earn', desc: 'Share your code, earn 50 coins per friend', href: '/account/referrals', icon: I.coin },
   { label: 'Coupons & Offers', desc: 'Explore all offers and discounts', href: '/coupons', icon: I.coupon },
   { label: 'Help Center', desc: 'FAQs, guides and support', href: '/faq', icon: I.help },
   { label: 'Settings', desc: 'Notifications, language & more', href: '/account/settings', icon: I.settings },
@@ -98,6 +99,7 @@ export default function AccountDashboard() {
     { label: 'Wishlist', href: '/account/wishlist', desc: 'Your saved favourites', color: 'from-pink-500 to-pink-600' },
     { label: 'Addresses', href: '/account/addresses', desc: 'Manage delivery addresses', color: 'from-purple-500 to-purple-600' },
     { label: 'Loyalty Points', href: '/account/loyalty', desc: 'Earn rewards on every order', color: 'from-amber-500 to-amber-600' },
+    { label: 'Refer & Earn', href: '/account/referrals', desc: 'Share code, earn coins per friend', color: 'from-emerald-500 to-teal-600' },
   ];
 
   return (

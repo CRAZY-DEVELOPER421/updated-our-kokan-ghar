@@ -1,15 +1,154 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '@/lib/api';
+import { getImageUrl } from '@/lib/utils';
 import StarRating from '@/components/ui/StarRating';
 import Button from '@/components/ui/Button';
 import toast from 'react-hot-toast';
 
+const MAX_IMAGES = 5;
+const MAX_VIDEOS = 1;
+
+// Backend stores media as [{ type: 'image'|'video', url }]; older rows may be plain URL strings.
+const normalizeMedia = (raw) => {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((m) => {
+      if (typeof m === 'string' && m.trim()) return { type: 'image', url: m.trim() };
+      if (m && typeof m === 'object' && m.url) return { type: m.type === 'video' ? 'video' : 'image', url: String(m.url) };
+      return null;
+    })
+    .filter(Boolean);
+};
+
+function MediaLightbox({ media, index, onClose, onPrev, onNext }) {
+  if (!media || media.length === 0) return null;
+  const item = media[index];
+  return (
+    <div
+      className="fixed inset-0 z-[200] bg-black/90 flex items-center justify-center p-4"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Review media viewer"
+    >
+      {/* Close */}
+      <button
+        onClick={onClose}
+        className="absolute top-4 right-4 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+        aria-label="Close media viewer"
+      >
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+
+      {/* Prev / Next */}
+      {media.length > 1 && (
+        <>
+          <button
+            onClick={(e) => { e.stopPropagation(); onPrev(); }}
+            className="absolute left-3 top-1/2 -translate-y-1/2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+            aria-label="Previous media"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onNext(); }}
+            className="absolute right-3 top-1/2 -translate-y-1/2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+            aria-label="Next media"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </>
+      )}
+
+      {/* Media */}
+      <div className="max-w-[90vw] max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
+        {item.type === 'video' ? (
+          <video
+            src={getImageUrl(item.url)}
+            controls
+            autoPlay
+            playsInline
+            className="max-h-[85vh] max-w-[90vw] rounded-xl"
+          />
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={getImageUrl(item.url)}
+            alt="Review photo"
+            className="max-h-[85vh] max-w-[90vw] object-contain rounded-xl"
+          />
+        )}
+        <p className="text-center text-xs text-white/60 mt-3">
+          {index + 1} / {media.length}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function ReviewMedia({ media }) {
+  const [lightbox, setLightbox] = useState(null);
+  const items = normalizeMedia(media);
+  if (items.length === 0) return null;
+
+  const open = (idx) => setLightbox({ media: items, index: idx });
+  const prev = () => setLightbox((lb) => ({ ...lb, index: (lb.index - 1 + lb.media.length) % lb.media.length }));
+  const next = () => setLightbox((lb) => ({ ...lb, index: (lb.index + 1) % lb.media.length }));
+
+  return (
+    <>
+      <div className="flex flex-wrap gap-2 mt-3">
+        {items.map((m, idx) =>
+          m.type === 'video' ? (
+            <button
+              key={idx}
+              onClick={() => open(idx)}
+              className="relative w-20 h-20 rounded-lg overflow-hidden bg-black shrink-0 group"
+              aria-label="Play review video"
+            >
+              <video src={getImageUrl(m.url)} muted playsInline preload="metadata" className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
+              <span className="absolute inset-0 flex items-center justify-center">
+                <span className="w-8 h-8 rounded-full bg-black/50 flex items-center justify-center">
+                  <svg className="w-4 h-4 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                </span>
+              </span>
+            </button>
+          ) : (
+            <button
+              key={idx}
+              onClick={() => open(idx)}
+              className="relative w-20 h-20 rounded-lg overflow-hidden bg-konkan-cream shrink-0"
+              aria-label="View review photo"
+            >
+              <Image src={getImageUrl(m.url)} alt="Review photo" fill sizes="80px" className="object-cover" loading="lazy" />
+            </button>
+          )
+        )}
+      </div>
+      {lightbox && (
+        <MediaLightbox media={lightbox.media} index={lightbox.index} onClose={() => setLightbox(null)} onPrev={prev} onNext={next} />
+      )}
+    </>
+  );
+}
+
 export default function ProductReviews({ productId, ratingStats }) {
   const [showForm, setShowForm] = useState(false);
   const [newReview, setNewReview] = useState({ rating: 5, title: '', body: '' });
+  const [media, setMedia] = useState([]);
+  const [uploading, setUploading] = useState(false);
   const [page, setPage] = useState(1);
   const queryClient = useQueryClient();
 
@@ -32,6 +171,7 @@ export default function ProductReviews({ productId, ratingStats }) {
       queryClient.invalidateQueries(['product', productId]);
       setShowForm(false);
       setNewReview({ rating: 5, title: '', body: '' });
+      setMedia([]);
       toast.success('Review submitted!');
     },
     onError: (err) => {
@@ -48,6 +188,63 @@ export default function ProductReviews({ productId, ratingStats }) {
       queryClient.invalidateQueries(['product-reviews', productId]);
     },
   });
+
+  const handleSubmit = () => {
+    submitMutation.mutate({ ...newReview, images: media });
+  };
+
+  // Upload selected files to the backend and append the returned URLs.
+  const handleFiles = async (e) => {
+    const files = Array.from(e.target.files || []);
+    e.target.value = ''; // allow re-selecting the same file
+    if (files.length === 0) return;
+
+    const imageCount = media.filter((m) => m.type === 'image').length;
+    const videoCount = media.filter((m) => m.type === 'video').length;
+    const picked = files.filter((file) => {
+      const isVideo = file.type.startsWith('video/');
+      if (isVideo) {
+        if (videoCount >= MAX_VIDEOS) { toast.error(`You can add up to ${MAX_VIDEOS} video`); return false; }
+        if (file.size > 200 * 1024 * 1024) { toast.error(`${file.name} is over the 200MB video limit`); return false; }
+        return true;
+      }
+      if (imageCount >= MAX_IMAGES) { toast.error(`You can add up to ${MAX_IMAGES} photos`); return false; }
+      if (file.size > 10 * 1024 * 1024) { toast.error(`${file.name} is over the 10MB photo limit`); return false; }
+      return true;
+    });
+
+    // Only the first N files (respecting caps) get uploaded.
+    let allowedImages = MAX_IMAGES - imageCount;
+    let allowedVideos = MAX_VIDEOS - videoCount;
+    const toUpload = [];
+    for (const file of picked) {
+      const isVideo = file.type.startsWith('video/');
+      if (isVideo && allowedVideos > 0) { toUpload.push(file); allowedVideos--; }
+      else if (!isVideo && allowedImages > 0) { toUpload.push(file); allowedImages--; }
+    }
+
+    if (toUpload.length === 0) return;
+    setUploading(true);
+    const uploaded = [];
+    for (const file of toUpload) {
+      try {
+        const isVideo = file.type.startsWith('video/');
+        const fd = new FormData();
+        fd.append(isVideo ? 'video' : 'image', file);
+        const res = await api.post(isVideo ? '/upload/review-video' : '/upload/review-image', fd);
+        if (res.data?.data?.url) uploaded.push({ type: isVideo ? 'video' : 'image', url: res.data.data.url });
+      } catch (err) {
+        toast.error(`Could not upload ${file.name}: ${err.response?.data?.message || 'Please try again'}`);
+      }
+    }
+    setUploading(false);
+    if (uploaded.length > 0) {
+      setMedia((prev) => [...prev, ...uploaded].slice(0, MAX_IMAGES + MAX_VIDEOS));
+      toast.success(`${uploaded.length} media file${uploaded.length > 1 ? 's' : ''} added`);
+    }
+  };
+
+  const removeMedia = (idx) => setMedia((prev) => prev.filter((_, i) => i !== idx));
 
   const stats = data?.data?.ratingStats || ratingStats || {};
   const reviews = data?.data?.reviews || [];
@@ -143,10 +340,53 @@ export default function ProductReviews({ productId, ratingStats }) {
                 maxLength={5000}
               />
             </div>
+
+            {/* Photo / Video upload */}
+            <div>
+              <label className="block text-sm font-medium text-konkan-text-primary mb-1">Add Photos / Video</label>
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 border-dashed border-konkan-sand bg-konkan-cream/40 cursor-pointer hover:border-konkan-green-primary/60 hover:bg-konkan-green-primary/5 transition-colors text-sm text-konkan-text-secondary">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  {uploading ? 'Uploading…' : 'Add photo / video'}
+                  <input type="file" accept="image/*,video/mp4,video/webm,video/quicktime" multiple className="hidden" onChange={handleFiles} disabled={uploading} />
+                </label>
+                <span className="text-xs text-konkan-text-secondary">
+                  Up to {MAX_IMAGES} photos + {MAX_VIDEOS} video · photos ≤10MB · video ≤200MB
+                </span>
+              </div>
+
+              {/* Selected media previews */}
+              {media.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {media.map((m, idx) => (
+                    <div key={idx} className="relative w-20 h-20 rounded-lg overflow-hidden bg-konkan-cream shrink-0 group">
+                      {m.type === 'video' ? (
+                        <video src={getImageUrl(m.url)} muted playsInline preload="metadata" className="w-full h-full object-cover" />
+                      ) : (
+                        <Image src={getImageUrl(m.url)} alt="Selected review media" fill sizes="80px" className="object-cover" />
+                      )}
+                      <button
+                        onClick={() => removeMedia(idx)}
+                        className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-konkan-error transition-colors"
+                        aria-label="Remove media"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <Button
-              onClick={() => submitMutation.mutate(newReview)}
-              loading={submitMutation.isLoading}
-              disabled={!newReview.body.trim()}
+              onClick={handleSubmit}
+              loading={submitMutation.isLoading || uploading}
+              disabled={!newReview.body.trim() || uploading}
             >
               Submit Review
             </Button>
@@ -200,6 +440,9 @@ export default function ProductReviews({ productId, ratingStats }) {
               {review.body && (
                 <p className="text-sm text-konkan-text-secondary leading-relaxed">{review.body}</p>
               )}
+
+              {/* Photos / videos attached to the review */}
+              <ReviewMedia media={review.images} />
 
               {/* Helpful */}
               <div className="flex items-center gap-3 mt-3 pt-3 border-t border-konkan-sand/50">

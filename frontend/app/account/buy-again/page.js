@@ -61,9 +61,7 @@ export default function BuyAgainPage() {
     setAddingId(item.product_id);
     try {
       const res = await addToCart(item.product_id, null, 1);
-      if (res.success) {
-        toast.success(`${item.product_name} added to cart`);
-      } else {
+      if (!res.success) {
         toast.error(res.message || 'Failed to add to cart');
       }
     } finally {
@@ -80,7 +78,6 @@ export default function BuyAgainPage() {
     }
     if (ok > 0) {
       setAddedAll(true);
-      toast.success(`${ok} item${ok > 1 ? 's' : ''} added to cart`);
     } else {
       toast.error('Could not add items to cart');
     }

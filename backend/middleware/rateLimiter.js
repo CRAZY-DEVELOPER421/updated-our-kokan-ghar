@@ -29,6 +29,34 @@ const generalLimiter = rateLimit({
 //   legacyHeaders: false
 // });
 
+// Registration limiter — tighter than the general API limiter because signup
+// is the #1 spam/fake-account attack surface (bot farms creating accounts to
+// farm referral coins). 20 signups / 15 min / IP is generous for real users
+// (even a shared office IP) but stops scripted mass-signup. The cap is
+// overridable via REGISTER_RATE_LIMIT (set it high for local/test servers).
+// Keys on the real client IP (X-Forwarded-For) so a tunnel proxy never makes
+// all visitors share one bucket.
+const registerLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: parseInt(process.env.REGISTER_RATE_LIMIT) || 20,
+  keyGenerator: (req) => clientIp(req),
+  message: {
+    success: false,
+    message: 'Too many signup attempts from this device, please try again later.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+// Client IP used for rate-limit buckets. Prefers the proxy header (the app
+// runs behind ngrok/tunnel in production, where req.ip would otherwise be the
+// proxy's IP for EVERY visitor and everyone would share one bucket).
+const clientIp = (req) => {
+  const xff = req.headers['x-forwarded-for'];
+  if (typeof xff === 'string' && xff.trim()) return xff.split(',')[0].trim();
+  return req.ip || req.socket?.remoteAddress || 'unknown';
+};
+
 const apiLimiter = rateLimit({
   windowMs: 1 * 60 * 1000,
   max: parseInt(process.env.API_RATE_LIMIT) || 1000,
@@ -42,4 +70,4 @@ const apiLimiter = rateLimit({
 });
 
 // RE-ENABLE AUTH LIMITER: restore `authLimiter` in this export too.
-module.exports = { generalLimiter, apiLimiter };
+module.exports = { generalLimiter, apiLimiter, registerLimiter };

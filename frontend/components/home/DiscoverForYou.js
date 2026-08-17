@@ -179,15 +179,16 @@ export default function DiscoverForYou() {
               }
               setCatDropdownOpen(!catDropdownOpen);
             }}
-            className="shrink-0 text-sm font-medium rounded-full px-4 py-2 transition-colors flex items-center gap-1"
+            className="shrink-0 text-sm font-medium rounded-full px-4 py-2 transition-all flex items-center gap-1 active:scale-95"
             suppressHydrationWarning
             style={{
-              backgroundColor: '#FFFFFF',
-              color: selectedCategory ? '#1B3B2F' : '#1A1A1A',
-              border: '1px solid #E0E0E0',
+              backgroundColor: selectedCategory ? '#1B3B2F' : '#FFFFFF',
+              color: selectedCategory ? '#FFFFFF' : '#1A1A1A',
+              border: selectedCategory ? '1px solid #1B3B2F' : '1px solid #E0E0E0',
               cursor: 'pointer',
               fontSize: '13px',
               whiteSpace: 'nowrap',
+              boxShadow: selectedCategory ? '0 1px 4px rgba(27,59,47,0.25)' : 'none',
             }}
           >
             {selectedCatName}
@@ -261,18 +262,19 @@ export default function DiscoverForYou() {
           )}
         </div>
 
-        {/* Price range chips */}
+        {/* Price range chips — active chip is clearly highlighted (green fill) */}
         {PRICE_CHIPS.map((chip) => (
           <button
             key={chip.label}
             onClick={() => handleFilterChange('price', chip)}
-            className="shrink-0 text-sm font-medium rounded-full px-4 py-2 transition-colors"
+            className="shrink-0 text-sm font-medium rounded-full px-4 py-2 transition-all active:scale-95"
             suppressHydrationWarning
             style={{
-              backgroundColor: '#FFFFFF',
-              color: isPriceActive(chip) ? '#1B3B2F' : '#1A1A1A',
+              backgroundColor: isPriceActive(chip) ? '#1B3B2F' : '#FFFFFF',
+              color: isPriceActive(chip) ? '#FFFFFF' : '#1A1A1A',
               fontSize: '13px',
-              border: '1px solid #E0E0E0',
+              border: isPriceActive(chip) ? '1px solid #1B3B2F' : '1px solid #E0E0E0',
+              boxShadow: isPriceActive(chip) ? '0 1px 4px rgba(27,59,47,0.25)' : 'none',
             }}
           >
             {chip.label}
