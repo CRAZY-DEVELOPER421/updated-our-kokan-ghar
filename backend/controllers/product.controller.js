@@ -118,6 +118,27 @@ const getProducts = asyncHandler(async (req, res) => {
 
   const [products] = await pool.query(query, [...params, limit, offset]);
 
+  // Attach active flash-sale info to each product so cards can show
+  // "⚡ Flash Sale" badges, sale pricing and scarcity bars.
+  const [flashSales] = await pool.query(
+    `SELECT product_id, sale_price, original_price, quantity_limit, sold_count, starts_at, ends_at
+     FROM flash_sales
+     WHERE is_active = 1 AND NOW() BETWEEN starts_at AND ends_at`
+  );
+  const flashMap = new Map(flashSales.map((fs) => [Number(fs.product_id), fs]));
+  for (const product of products) {
+    const fs = flashMap.get(Number(product.id));
+    if (fs) {
+      product.flash_sale = {
+        sale_price: fs.sale_price,
+        original_price: fs.original_price,
+        quantity_limit: fs.quantity_limit,
+        sold_count: fs.sold_count,
+        ends_at: fs.ends_at ? new Date(fs.ends_at).toISOString() : null,
+      };
+    }
+  }
+
   return ApiResponse.paginated(res, { products }, {
     page,
     limit,

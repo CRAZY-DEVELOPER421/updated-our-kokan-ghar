@@ -9,6 +9,7 @@ import useWishlistStore from '@/lib/store/wishlistStore';
 import useAuthStore from '@/lib/store/authStore';
 import useCartStore from '@/lib/store/cartStore';
 import { getImageUrl } from '@/lib/utils';
+import FlashSaleProgressBar from '@/components/ui/FlashSaleProgressBar';
 import ProductQuickViewModal from '@/components/product/ProductQuickViewModal';
 
 const WEIGHT_OPTIONS = [
@@ -167,8 +168,15 @@ export default function ProductCard({ product, view = 'grid' }) {
   };
 
   // ── Safe number conversion ──────────────────────────────
-  const price = parseFloat(product?.price) || 0;
-  const mrp = parseFloat(product?.mrp) || 0;
+  // If the product has an ACTIVE flash sale, its sale price wins over the
+  // regular price — cards in the all-products grid show the flash price,
+  // the strikethrough original, and the scarcity bar.
+  const flashSale = product?.flash_sale;
+  const hasFlash = !!flashSale && Number(flashSale?.sale_price) > 0;
+  const price = hasFlash ? parseFloat(flashSale.sale_price) : (parseFloat(product?.price) || 0);
+  const mrp = hasFlash && flashSale?.original_price
+    ? parseFloat(flashSale.original_price)
+    : (parseFloat(product?.mrp) || 0);
   const discountPercent = parseFloat(product?.discount_percent) || 0;
 
   const discount = discountPercent > 0
@@ -277,8 +285,21 @@ export default function ProductCard({ product, view = 'grid' }) {
               </div>
             )}
 
+            {/* Flash Sale badge — top-left, red, most prominent */}
+            {hasFlash && (
+              <span
+                className="absolute top-1 left-1 z-10 text-[9px] font-bold text-white px-1.5 py-[3px] rounded-[4px] leading-none shadow-sm flex items-center gap-0.5"
+                style={{ backgroundColor: '#E53935' }}
+              >
+                <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                Flash
+              </span>
+            )}
+
             {/* Discount badge — top-left corner, orange bg, white bold */}
-            {hasDiscount && (
+            {hasDiscount && !hasFlash && (
               <span
                 className="absolute top-1 left-1 z-10 text-[10px] font-bold text-white px-1.5 py-[3px] rounded-[4px] leading-none shadow-sm"
                 style={{ backgroundColor: '#E87722' }}
@@ -362,6 +383,17 @@ export default function ProductCard({ product, view = 'grid' }) {
                 </span>
               )}
             </div>
+
+            {/* Flash sale scarcity bar — compact on the list view */}
+            {hasFlash && (
+              <div style={{ maxWidth: '180px', marginTop: '4px' }}>
+                <FlashSaleProgressBar
+                  soldCount={flashSale.sold_count}
+                  quantityLimit={flashSale.quantity_limit}
+                  compact
+                />
+              </div>
+            )}
 
             {/* Delivery line + Add to Cart button — same row, bottom-anchored */}
             <div className="flex items-end justify-between" style={{ marginTop: '1px' }}>
@@ -474,6 +506,14 @@ export default function ProductCard({ product, view = 'grid' }) {
 
             {/* Badge Stack - Left */}
             <div className="absolute top-2 left-2 sm:top-3 sm:left-3 flex flex-col gap-1 z-10">
+              {hasFlash && (
+                <span className="text-[9px] sm:text-[11px] font-bold bg-gradient-to-r from-[#E53935] to-[#c62828] text-white px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full shadow-[0_2px_8px_rgba(229,57,53,0.4)] flex items-center gap-1 whitespace-nowrap">
+                  <svg className="w-2.5 h-2.5 sm:w-3 sm:h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  Flash Sale
+                </span>
+              )}
               {hasDiscount && (
                 <span className="text-[10px] sm:text-xs font-bold bg-gradient-to-r from-[#E87722] to-[#d95f0e] text-white px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full shadow-[0_2px_8px_rgba(232,119,34,0.35)]">
                   -{discount}%
@@ -617,6 +657,16 @@ export default function ProductCard({ product, view = 'grid' }) {
                 </span>
               )}
             </div>
+
+            {/* Flash sale scarcity bar — "X% sold — Only Y left" (real data) */}
+            {hasFlash && (
+              <div className="max-w-[180px] max-[768px]:max-w-[160px] max-[768px]:mb-1 mb-2 sm:mb-2.5">
+                <FlashSaleProgressBar
+                  soldCount={flashSale.sold_count}
+                  quantityLimit={flashSale.quantity_limit}
+                />
+              </div>
+            )}
 
             {/* Weight Selector — hidden on mobile, visible on desktop */}
             <div className="flex items-center gap-1.5 mb-3 min-h-[36px] max-[768px]:hidden">
