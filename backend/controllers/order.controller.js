@@ -202,8 +202,8 @@ const getOrderByNumber = asyncHandler(async (req, res) => {
     `SELECT o.*, a.name as address_name, a.phone as address_phone, a.house_no, a.street, a.city, a.state, a.pincode
      FROM orders o
      JOIN addresses a ON o.address_id = a.id
-     WHERE o.order_number = ? AND o.user_id = ?`,
-    [orderNumber, req.user.id]
+     WHERE (o.order_number = ? OR o.id = ?) AND o.user_id = ?`,
+    [orderNumber, orderNumber, req.user.id]
   );
 
   if (orders.length === 0) {

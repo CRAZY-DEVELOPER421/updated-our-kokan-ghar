@@ -1,58 +1,21 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Star, Quote } from 'lucide-react';
+import api from '@/lib/api';
 
-const testimonials = [
-  {
-    name: 'Rohan Joshi',
-    location: 'Pune, Maharashtra',
-    rating: 5,
-    text: 'The Devgad Alphonso mangoes are incredible! So sweet and flavorful. The packaging was perfect and they arrived in 2 days. Tastes just like the mangoes I had growing up in Ratnagiri.',
-    product: 'Alphonso Mangoes',
-    avatar: 'RJ',
-    bg: 'from-konkan-green-primary/10 to-konkan-cream',
-  },
-  {
-    name: 'Smita Desai',
-    location: 'Margao, Goa',
-    rating: 5,
-    text: 'Finally found authentic Konkan dried fish online! The Bombil and Sungta are exactly like what my grandmother used to make. The quality is exceptional. Will be a regular customer!',
-    product: 'Coastal Seafood',
-    avatar: 'SD',
-    bg: 'from-konkan-ocean/10 to-blue-50',
-  },
-  {
-    name: 'Arun Naik',
-    location: 'Mumbai, Maharashtra',
-    rating: 5,
-    text: 'The cashews from Kokan Ghar are the best I have ever tasted. Fresh, crunchy, and perfectly roasted. The Masala Cashews are my new favorite snack. Highly recommended!',
-    product: 'Cashew Nuts',
-    avatar: 'AN',
-    bg: 'from-konkan-gold/10 to-amber-50',
-  },
-  {
-    name: 'Priya Tendulkar',
-    location: 'Bangalore, Karnataka',
-    rating: 4,
-    text: 'Ordered Sol Kadhi concentrate and it was incredible. Tastes just like homemade. Also got Kokum juice which is refreshing. Fast delivery and great packaging. Will order again!',
-    product: 'Kokum & Beverages',
-    avatar: 'PT',
-    bg: 'from-konkan-saffron/10 to-orange-50',
-  },
-  {
-    name: 'Vijay Phadke',
-    location: 'Nashik, Maharashtra',
-    rating: 5,
-    text: 'The Indrayani rice is phenomenal. The aroma while cooking fills the whole house. Reminds me of the rice from my village in Konkan. Absolutely authentic!',
-    product: 'Konkan Rice',
-    avatar: 'VP',
-    bg: 'from-amber-100/50 to-konkan-cream',
-  },
+// Avatar gradient palette — cycled for real reviews (which have no preset bg)
+const AVATAR_BGS = [
+  'from-konkan-green-primary/10 to-konkan-cream',
+  'from-konkan-ocean/10 to-blue-50',
+  'from-konkan-gold/10 to-amber-50',
+  'from-konkan-saffron/10 to-orange-50',
+  'from-amber-100/50 to-konkan-cream',
+  'from-emerald-100/50 to-teal-50',
 ];
 
-// Duplicate once → seamless infinite loop (translateX -50% of the doubled track)
-const marqueeItems = [...testimonials, ...testimonials];
+const initials = (name = '') =>
+  name.split(' ').filter(Boolean).slice(0, 2).map((n) => n[0]).join('').toUpperCase() || 'C';
 
 function TestimonialCard({ t }) {
   return (
@@ -97,6 +60,36 @@ function TestimonialCard({ t }) {
 
 export default function TestimonialsSection() {
   const [paused, setPaused] = useState(false);
+  const [reviews, setReviews] = useState(null);
+
+  // Real customer reviews from the backend (admin picks them via "Add to
+  // Home" in the admin Reviews page). Falls back to the curated list below.
+  useEffect(() => {
+    let mounted = true;
+    api
+      .get('/reviews/home?limit=8')
+      .then((res) => {
+        if (mounted && res.data?.data?.reviews?.length) {
+          setReviews(res.data.data.reviews.map((r, idx) => ({
+            name: r.user_name || 'Customer',
+            location: '',
+            rating: Number(r.rating) || 5,
+            text: r.body || r.title || '',
+            product: r.product_name,
+            avatar: initials(r.user_name),
+            bg: AVATAR_BGS[idx % AVATAR_BGS.length],
+          })));
+        }
+      })
+      .catch(() => { /* keep fallback */ });
+    return () => { mounted = false; };
+  }, []);
+
+  // No featured reviews yet → hide the whole section instead of showing fakes.
+  if (!reviews || reviews.length === 0) return null;
+
+  // Duplicate once → seamless infinite loop (translateX -50% of the doubled track)
+  const marqueeItems = [...reviews, ...reviews];
 
   return (
     <section className="overflow-hidden">

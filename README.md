@@ -47,6 +47,11 @@ Monorepo with three apps: a customer-facing **storefront**, an **admin panel**, 
 - **Reorder nudge** — ~14 days after delivery, a “restock your favourites” email with the same items and one-click product links → repeat orders
 - Runs on a background scheduler (default every 60 min; disable with `LIFECYCLE_EMAILS_ENABLED=false`). Each order is emailed at most once per flow (`review_email_sent_at` / `reorder_email_sent_at`), so restarts never double-send
 
+### Wishlist Price-Drop Alerts (daily cron)
+- **“Cashew W240 ab ₹150 sasta!”** — when a wishlisted product’s price drops **≥ 5%** below the price at which the customer added it (or the last alert), they get an **in-app notification** (`price_drop` type — icon already on the Notifications page) **+ email** with the strikethrough old price, new price and a “Save ₹X” badge
+- The alert floor only moves **down**, so the same drop never double-sends — but a deeper drop triggers a fresh alert (cumulative savings vs the original price)
+- Runs on a daily background scheduler (default every 24h; tune with `PRICE_DROP_ALERTS_INTERVAL_HOURS`, trigger % with `PRICE_DROP_MIN_PERCENT`, disable with `PRICE_DROP_ALERTS_ENABLED=false`)
+
 ---
 
 ## Tech Stack

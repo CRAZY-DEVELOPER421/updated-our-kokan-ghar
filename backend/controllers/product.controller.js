@@ -6,7 +6,7 @@ const getProducts = asyncHandler(async (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 24;
   const offset = (page - 1) * limit;
-  const { category, min_price, max_price, rating, sort, q, organic, seasonal, featured } = req.query;
+  const { category, min_price, max_price, rating, sort, q, organic, seasonal, featured, region } = req.query;
 
   let whereClause = 'WHERE p.is_active = 1';
   const params = [];
@@ -70,6 +70,12 @@ const getProducts = asyncHandler(async (req, res) => {
     whereClause += ' AND (p.name LIKE ? OR p.description LIKE ? OR p.short_description LIKE ?)';
     const searchTerm = `%${q}%`;
     params.push(searchTerm, searchTerm, searchTerm);
+  }
+
+  if (region) {
+    // Case-insensitive region_origin match (e.g. 'goa' matches 'Goa').
+    whereClause += ' AND LOWER(p.region_origin) = ?';
+    params.push(String(region).trim().toLowerCase());
   }
 
   let orderClause = 'ORDER BY p.created_at DESC';
@@ -388,6 +394,30 @@ const getCategoryDeals = asyncHandler(async (req, res) => {
   return ApiResponse.success(res, { categories });
 });
 
+const getRegions = asyncHandler(async (req, res) => {
+  const [regions] = await pool.query(
+    `SELECT
+      p.region_origin as name,
+      COUNT(p.id) as product_count,
+      MIN(p.price) as starting_price,
+      (
+        SELECT pi.image_url
+        FROM products p2
+        LEFT JOIN product_images pi ON pi.product_id = p2.id AND pi.is_primary = 1
+        WHERE p2.region_origin = p.region_origin AND p2.is_active = 1
+        ORDER BY p2.total_sold DESC, p2.id ASC
+        LIMIT 1
+      ) as representative_image
+     FROM products p
+     WHERE p.is_active = 1 AND p.region_origin IS NOT NULL AND p.region_origin != ''
+     GROUP BY p.region_origin
+     HAVING product_count > 0
+     ORDER BY product_count DESC, p.region_origin ASC`
+  );
+
+  return ApiResponse.success(res, { regions });
+});
+
 const getRandomProducts = asyncHandler(async (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 12;
@@ -458,6 +488,7 @@ const getRandomProducts = asyncHandler(async (req, res) => {
 
 module.exports = {
   getProducts,
+  getRegions,
   getProductBySlug,
   getFeaturedProducts,
   getBestsellers,

@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { getImageUrl } from '@/lib/utils';
 import StarRating from '@/components/ui/StarRating';
+import FlashSaleProgressBar from '@/components/ui/FlashSaleProgressBar';
 import useWishlistStore from '@/lib/store/wishlistStore';
 import useCartStore from '@/lib/store/cartStore';
 
@@ -44,6 +45,9 @@ export default function ProductCarouselCard({ product, simplified = false }) {
   const reviewCount = Number(product?.review_count) || 0;
   const shortDescription = product?.short_description || '';
   const totalSold = Number(product?.total_sold) || 0;
+  // Flash-sale scarcity data (quantity_limit + sold_count from flash_sales)
+  const flashSold = Number(product?.sold_count) || 0;
+  const flashLimit = Number(product?.quantity_limit) || 0;
   const freeDelivery = product?.free_delivery ?? 1;
   const deliveryLabel = product?.delivery_estimate === 'today' ? 'Today'
     : product?.delivery_estimate === 'tomorrow' ? 'Tomorrow'
@@ -190,6 +194,13 @@ export default function ProductCarouselCard({ product, simplified = false }) {
                   ₹{mrp.toLocaleString('en-IN')}
                 </span>
               )}
+            </div>
+          )}
+
+          {/* Flash sale progress bar — "X% sold — Only Y left" (real data) */}
+          {flashLimit > 0 && (
+            <div className="mb-2">
+              <FlashSaleProgressBar soldCount={flashSold} quantityLimit={flashLimit} />
             </div>
           )}
 

@@ -320,6 +320,34 @@ const refreshTokenHandler = asyncHandler(async (req, res) => {
 });
 
 const logout = asyncHandler(async (req, res) => {
+  // ── Clear the user's notifications on logout ─────────────────────────
+  // Requirement: after logout the account should look brand new — no stale
+  // notification rows in the DB, no lingering badge counts. We resolve the
+  // user from the access token (sent by the frontend interceptor) and fall
+  // back to the refresh-token cookie, then delete all their notifications.
+  let userId = null;
+  try {
+    const authHeader = req.headers?.authorization || '';
+    if (authHeader.startsWith('Bearer ')) {
+      const decoded = jwt.verify(authHeader.slice(7), process.env.JWT_SECRET, { ignoreExpiration: true });
+      userId = decoded?.id || null;
+    }
+  } catch (e) { /* invalid/expired token — fall through to refresh cookie */ }
+
+  if (!userId) {
+    try {
+      const refreshToken = req.cookies?.refreshToken;
+      if (refreshToken) {
+        const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET, { ignoreExpiration: true });
+        userId = decoded?.id || null;
+      }
+    } catch (e) { /* no usable token — nothing to clear */ }
+  }
+
+  if (userId) {
+    await pool.query('DELETE FROM notifications WHERE user_id = ?', [userId]);
+  }
+
   res.clearCookie('refreshToken');
   return ApiResponse.success(res, {}, 'Logged out successfully.');
 });

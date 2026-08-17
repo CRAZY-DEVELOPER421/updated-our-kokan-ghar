@@ -11,6 +11,7 @@ import DealsUnder999 from '@/components/home/DealsUnder999';
 import AllUnder499 from '@/components/home/AllUnder499';
 import MobileProductRow from '@/components/home/MobileProductRow';
 import DiscoverForYou from '@/components/home/DiscoverForYou';
+import ShopByRegion from '@/components/home/ShopByRegion';
 import MobilePromoBanner from '@/components/home/MobilePromoBanner';
 import MobileTestimonials from '@/components/home/MobileTestimonials';
 import MobileBlogSection from '@/components/home/MobileBlogSection';
@@ -142,6 +143,11 @@ export default function HomePage() {
       {/* Discover Products For You (mobile) */}
       <div className="lg:hidden">
         <DiscoverForYou />
+      </div>
+
+      {/* Shop by Region (mobile + desktop) */}
+      <div className="pt-4 md:pt-0">
+        <ShopByRegion />
       </div>
 
       {/* Section 10: Testimonials (mobile) */}

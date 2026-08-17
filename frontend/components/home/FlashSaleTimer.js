@@ -68,6 +68,9 @@ export default function FlashSaleTimer() {
       review_count: p?.review_count || 0,
       short_description: p?.short_description || '',
       total_sold: Number(p?.total_sold) || 0,
+      // Real flash-sale scarcity — powers the "X% sold — Only Y left" bar
+      sold_count: Number(f.sold_count) || 0,
+      quantity_limit: Number(f.quantity_limit) || 0,
       free_delivery: p?.free_delivery ?? 1,
       delivery_estimate: p?.delivery_estimate || '3-5 days',
     };

@@ -6,7 +6,7 @@ import api from '@/lib/api';
 import ProductGrid from './ProductGrid';
 import Pagination from '@/components/ui/Pagination';
 
-export default function ProductGridInner({ page, sort, category, q, minPrice, maxPrice, rating, organic, seasonal, bestseller, discount }) {
+export default function ProductGridInner({ page, sort, category, q, minPrice, maxPrice, rating, organic, seasonal, bestseller, discount, region }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const searchParams = useSearchParams();
@@ -23,8 +23,9 @@ export default function ProductGridInner({ page, sort, category, q, minPrice, ma
     if (seasonal) params.set('seasonal', seasonal);
     if (bestseller) params.set('bestseller', bestseller);
     if (discount) params.set('discount', discount);
+    if (region) params.set('region', region);
     return params.toString();
-  }, [page, sort, category, q, minPrice, maxPrice, rating, organic, seasonal, bestseller, discount]);
+  }, [page, sort, category, q, minPrice, maxPrice, rating, organic, seasonal, bestseller, discount, region]);
 
   useEffect(() => {
     setLoading(true);

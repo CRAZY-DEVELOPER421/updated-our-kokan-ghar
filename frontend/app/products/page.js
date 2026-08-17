@@ -56,6 +56,7 @@ export default async function ProductsPage({ searchParams }) {
   const seasonal = sp.seasonal || '';
   const bestseller = sp.bestseller || '';
   const discount = sp.discount || '';
+  const region = sp.region || '';
 
   return (
     <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8 animate-fade-in">
@@ -78,12 +79,16 @@ export default async function ProductsPage({ searchParams }) {
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
             <div>
               <h1 className="section-title">
-                {category
-                  ? category.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
-                  : 'All Products'}
+                {region
+                  ? `${region.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')} Special`
+                  : category
+                    ? category.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+                    : 'All Products'}
               </h1>
               <p className="section-subtitle">
-                Authentic Konkan products, delivered to your doorstep
+                {region
+                  ? `Authentic products from ${region.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')} — straight from the source`
+                  : 'Authentic Konkan products, delivered to your doorstep'}
               </p>
             </div>
             <div className="hidden lg:block">
@@ -112,6 +117,7 @@ export default async function ProductsPage({ searchParams }) {
               seasonal={seasonal}
               bestseller={bestseller}
               discount={discount}
+              region={region}
             />
           </Suspense>
         </div>

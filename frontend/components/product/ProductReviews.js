@@ -444,6 +444,26 @@ export default function ProductReviews({ productId, ratingStats }) {
               {/* Photos / videos attached to the review */}
               <ReviewMedia media={review.images} />
 
+              {/* Store's reply (admin moderation panel) */}
+              {review.admin_reply && (
+                <div className="mt-3 ml-3 sm:ml-6 bg-konkan-green-primary/5 border-l-2 border-konkan-green-primary rounded-r-xl p-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="w-6 h-6 rounded-full bg-konkan-green-primary text-white flex items-center justify-center">
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                      </svg>
+                    </span>
+                    <p className="text-xs font-bold text-konkan-green-primary">Response from Konkan Ghar</p>
+                    {review.admin_replied_at && (
+                      <span className="text-[10px] text-konkan-text-secondary">
+                        {new Date(review.admin_replied_at).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-konkan-text-primary leading-relaxed">{review.admin_reply}</p>
+                </div>
+              )}
+
               {/* Helpful */}
               <div className="flex items-center gap-3 mt-3 pt-3 border-t border-konkan-sand/50">
                 <span className="text-xs text-konkan-text-secondary">Was this helpful?</span>

@@ -19,7 +19,10 @@ const getWishlist = asyncHandler(async (req, res) => {
 const addToWishlist = asyncHandler(async (req, res) => {
   const { productId } = req.params;
 
-  const [products] = await pool.query('SELECT id FROM products WHERE id = ? AND is_active = 1', [productId]);
+  // price_at_add is stamped at wishlist-time — the price-drop cron compares
+  // today's price against this baseline (or the last alert price) to decide
+  // whether to fire a "price dropped!" notification + email.
+  const [products] = await pool.query('SELECT id, price FROM products WHERE id = ? AND is_active = 1', [productId]);
   if (products.length === 0) {
     return ApiResponse.error(res, 'Product not found.', 404);
   }
@@ -34,8 +37,8 @@ const addToWishlist = asyncHandler(async (req, res) => {
   }
 
   await pool.query(
-    'INSERT INTO wishlist (user_id, product_id) VALUES (?, ?)',
-    [req.user.id, productId]
+    'INSERT INTO wishlist (user_id, product_id, price_at_add) VALUES (?, ?, ?)',
+    [req.user.id, productId, products[0].price]
   );
 
   return ApiResponse.created(res, {}, 'Added to wishlist.');

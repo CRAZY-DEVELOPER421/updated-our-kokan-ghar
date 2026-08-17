@@ -6,6 +6,7 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 import useWishlistStore from '@/lib/store/wishlistStore';
 import useCartStore from '@/lib/store/cartStore';
+import FlashSaleProgressBar from '@/components/ui/FlashSaleProgressBar';
 import { getImageUrl } from '@/lib/utils';
 
 export default function MobileProductCard({ product }) {
@@ -26,6 +27,8 @@ export default function MobileProductCard({ product }) {
   const hasDiscount = discount > 0 && mrp > price && price > 0;
   const rating = parseFloat(product?.average_rating || 0);
   const reviewCount = product?.review_count || 0;
+  const flashSold = Number(product?.sold_count) || 0;
+  const flashLimit = Number(product?.quantity_limit) || 0;
 
   // ── Handlers ──
   const handleWishlist = (e) => {
@@ -142,6 +145,13 @@ export default function MobileProductCard({ product }) {
               ({reviewCount})
             </span>
           </div>
+
+          {/* Flash sale scarcity bar — "X% sold — Only Y left" */}
+          {flashLimit > 0 && (
+            <div className="mt-1.5">
+              <FlashSaleProgressBar soldCount={flashSold} quantityLimit={flashLimit} compact />
+            </div>
+          )}
 
           {/* Price — 14px bold, 11px strikethrough */}
           <div className="flex items-center gap-1.5 mt-1">

@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import api from '@/lib/api';
 import Breadcrumb from '@/components/ui/Breadcrumb';
+import FlashSaleProgressBar from '@/components/ui/FlashSaleProgressBar';
 
 const ProductImages = dynamic(() => import('@/components/product/ProductImages'));
 const ProductReviews = dynamic(() => import('@/components/product/ProductReviews'), {
@@ -143,6 +144,19 @@ export default async function ProductDetailPage({ params }) {
           {/* Short Description */}
           {product.short_description && (
             <p className="text-konkan-text-secondary leading-relaxed">{product.short_description}</p>
+          )}
+
+          {/* Flash sale scarcity bar — "X% sold — Only Y left" (real data) */}
+          {product.flash_sale && Number(product.flash_sale.quantity_limit) > 0 && (
+            <div className="rounded-xl border border-red-100 bg-red-50/50 p-3 mb-3">
+              <p className="text-xs font-bold uppercase tracking-wide text-red-600 mb-1.5">
+                ⚡ Flash Sale — limited stock
+              </p>
+              <FlashSaleProgressBar
+                soldCount={product.flash_sale.sold_count}
+                quantityLimit={product.flash_sale.quantity_limit}
+              />
+            </div>
           )}
 
           {/* Buy box: dynamic price (incl. selected variant) + variant selector +

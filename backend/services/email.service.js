@@ -336,6 +336,42 @@ const sendBackInStockEmail = (email, name, productName, productUrl) => {
   return { html };
 };
 
+// ── Wishlist price-drop alert email ───────────────────────────────
+// Sent by the daily cron (backend/services/priceDrop.service.js) when a
+// wishlisted product's price drops >= PRICE_DROP_MIN_PERCENT. `oldPrice` is
+// the price when the customer added it to the wishlist; `savings` is the
+// cumulative rupee drop vs that original price.
+const sendPriceDropEmail = (email, name, productName, newPrice, oldPrice, savings, productUrl) => {
+  const html = emailShell({
+    title: `Price drop! ${escapeHtml(productName)} is now ₹${savings} cheaper`,
+    contentHtml: `
+      <p style="color: #1C1C1E; font-size: 16px;">Hello ${escapeHtml(name)},</p>
+      <p style="color: #6B7280; font-size: 14px; line-height: 1.7;">
+        Good news! The item you saved in your wishlist just got cheaper:
+      </p>
+      <table width="100%" style="margin: 14px 0; background: #F7F3EC; border-radius: 10px;">
+        <tr>
+          <td style="padding: 16px;">
+            <div style="color: #1C1C1E; font-weight: 600; font-size: 15px;">${escapeHtml(productName)}</div>
+            <div style="color: #E87722; font-size: 13px; margin-top: 6px;">
+              <span style="text-decoration: line-through; color: #9CA3AF;">₹${oldPrice}</span>
+              &nbsp;→&nbsp;
+              <strong style="font-size: 18px;">₹${newPrice}</strong>
+              &nbsp;
+              <span style="background: #E87722; color: #fff; padding: 2px 8px; border-radius: 999px; font-weight: bold;">Save ₹${savings}</span>
+            </div>
+          </td>
+        </tr>
+      </table>
+      ${ctaButton(productUrl, 'Grab It Now', '#E87722')}
+      <p style="color: #6B7280; font-size: 12px; margin-top: 18px;">
+        Prices can go back up anytime — this drop may not last.
+      </p>
+    `,
+  });
+  return { subject: `${escapeHtml(productName)} ab ₹${savings} sasta — ${BRAND} price drop!`, html };
+};
+
 module.exports = {
   sendEmail,
   sendOTPEmail,
@@ -347,5 +383,6 @@ module.exports = {
   sendBackInStockEmail,
   sendSuspensionEmail,
   sendReviewRequestEmail,
-  sendReorderEmail
+  sendReorderEmail,
+  sendPriceDropEmail
 };

@@ -60,14 +60,35 @@ function FlashCountdown() {
 }
 
 export default function MobileFlashSale() {
-  const { data: products, isLoading } = useQuery({
+  // REAL flash sales from the DB (same source as desktop) — each row carries
+  // quantity_limit + sold_count for the scarcity bar.
+  const { data: flashSales, isLoading } = useQuery({
     queryKey: ['mobile-flash-sales'],
     queryFn: async () => {
-      const res = await api.get('/products?sort=bestseller&limit=8');
-      return res.data.data?.products || [];
+      const res = await api.get('/flash-sales');
+      return res.data.data?.flashSales || [];
     },
     staleTime: 60000,
-  });    return (
+  });
+
+  // Map flash-sale rows into the MobileProductCard shape (price = sale price)
+  const products = (flashSales || []).slice(0, 8).map((f) => ({
+    id: f.product_id,
+    slug: f.product_slug,
+    name: f.product_name,
+    image: f.primary_image,
+    price: Number(f.sale_price),
+    mrp: Number(f.original_price),
+    discount_percent: Math.round(((Number(f.original_price) - Number(f.sale_price)) / Number(f.original_price)) * 100),
+    average_rating: 0,
+    review_count: 0,
+    sold_count: Number(f.sold_count) || 0,
+    quantity_limit: Number(f.quantity_limit) || 0,
+  }));
+
+  if (!isLoading && products.length === 0) return null;
+
+  return (
     <section>
       <div
         style={{

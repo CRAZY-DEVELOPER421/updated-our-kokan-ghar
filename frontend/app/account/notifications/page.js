@@ -75,6 +75,36 @@ export default function NotificationsPage() {
     return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
   };
 
+  // Resolve where a notification should navigate when clicked, from the JSON
+  // `data` payload the backend stored with it (order_id / slug / etc.).
+  // Types without a known target fall back to plain read-only cards.
+  const getNotificationLink = (n) => {
+    let data = n.data;
+    if (typeof data === 'string') { try { data = JSON.parse(data); } catch { data = {}; } }
+    data = data || {};
+    switch (n.type) {
+      case 'price_drop':
+        return data.slug ? `/products/${data.slug}` : (data.product_id ? `/products/${data.product_id}` : null);
+      case 'wishlist_back_in_stock':
+        return data.slug ? `/products/${data.slug}` : (data.product_id ? `/products/${data.product_id}` : null);
+      case 'review_responded':
+        return data.slug ? `/products/${data.slug}#reviews` : null;
+      case 'order_confirmed':
+      case 'order_shipped':
+      case 'order_delivered':
+      case 'order_cancelled':
+      case 'payment_received':
+      case 'payment_failed':
+        return data.order_id ? `/account/orders/${data.order_id}` : null;
+      case 'coupon_received':
+        return '/coupons';
+      case 'loyalty_earned':
+        return '/account/loyalty';
+      default:
+        return null;
+    }
+  };
+
   const unreadCount = notifications.filter((n) => !n.is_read && n.is_read !== 1).length;
 
   if (isLoading) {
@@ -125,14 +155,13 @@ export default function NotificationsPage() {
         <div className="space-y-1">
           {notifications.map((n) => {
             const isUnread = !n.is_read && n.is_read !== 1;
-            return (
-              <button
-                key={n.id}
-                onClick={() => { if (isUnread) readMutation.mutate(n.id); }}
-                className={`w-full text-left flex items-start gap-3 p-3 rounded-xl transition-colors ${
-                  isUnread ? 'bg-konkan-green-primary/5 hover:bg-konkan-green-primary/10' : 'hover:bg-konkan-cream'
-                }`}
-              >
+            const onOpen = () => { if (isUnread) readMutation.mutate(n.id); };
+            const cardClass = `w-full text-left flex items-start gap-3 p-3 rounded-xl transition-colors ${
+              isUnread ? 'bg-konkan-green-primary/5 hover:bg-konkan-green-primary/10' : 'hover:bg-konkan-cream'
+            }`;
+            const link = getNotificationLink(n);
+            const cardContent = (
+              <>
                 {/* Icon */}
                 <div className={`w-9 h-9 rounded-full flex items-center justify-center text-lg shrink-0 ${
                   isUnread ? 'bg-konkan-green-primary/10' : 'bg-konkan-cream'
@@ -159,6 +188,17 @@ export default function NotificationsPage() {
                 {isUnread && (
                   <div className="w-2 h-2 rounded-full bg-konkan-green-primary shrink-0 mt-2" />
                 )}
+              </>
+            );
+            // Clickable: navigates to the related page (product / order / etc.)
+            // and marks the notification read. Without a target, plain button.
+            return link ? (
+              <Link key={n.id} href={link} onClick={onOpen} className={cardClass}>
+                {cardContent}
+              </Link>
+            ) : (
+              <button key={n.id} onClick={onOpen} className={cardClass}>
+                {cardContent}
               </button>
             );
           })}

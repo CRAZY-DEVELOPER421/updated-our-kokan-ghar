@@ -70,6 +70,7 @@ const bannerRoutes = require('./routes/banner.routes');
 const analyticsRoutes = require('./routes/analytics.routes');
 const contactRoutes = require('./routes/contact.routes');
 const heroSlideRoutes = require('./routes/heroSlide.routes');
+const navbarRoutes = require('./routes/navbar.routes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -91,6 +92,7 @@ app.use('/api/banners', bannerRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/hero-slides', heroSlideRoutes);
+app.use('/api/navbar', navbarRoutes);
 
 // CMS (Team, Blog, Video, Media)
 const cmsRoutes = require('./routes/cms.routes');
@@ -216,6 +218,30 @@ ensureSuspendColumn().finally(() => {
         console.error('[Lifecycle] Sweep failed:', err.message);
       });
     }, LIFECYCLE_INTERVAL_MIN * 60 * 1000);
+  }
+
+  // Wishlist price-drop alerts — daily cron. When a wishlisted product's
+  // price drops >= PRICE_DROP_MIN_PERCENT (default 5%) below the price at
+  // which the customer added it (or the last alert), the user gets an in-app
+  // notification (type `price_drop`) + email. Fire-and-forget like the other
+  // schedulers: a failed sweep is logged, never crashes the server, and the
+  // alert floor only moves DOWN so the same drop never double-sends.
+  if (process.env.PRICE_DROP_ALERTS_ENABLED !== 'false') {
+    const { runPriceDropAlerts } = require('./services/priceDrop.service');
+    const PRICE_DROP_INTERVAL_HOURS = parseInt(process.env.PRICE_DROP_ALERTS_INTERVAL_HOURS, 10) || 24;
+
+    // First run shortly after boot (staggered), then every N hours.
+    setTimeout(() => {
+      runPriceDropAlerts().catch((err) => {
+        console.error('[PriceDrop] Initial run failed:', err.message);
+      });
+    }, 5 * 60 * 1000);
+
+    setInterval(() => {
+      runPriceDropAlerts().catch((err) => {
+        console.error('[PriceDrop] Sweep failed:', err.message);
+      });
+    }, PRICE_DROP_INTERVAL_HOURS * 60 * 60 * 1000);
   }
 
   app.listen(PORT, '0.0.0.0', () => {

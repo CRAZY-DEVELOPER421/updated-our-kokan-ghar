@@ -157,6 +157,18 @@ router.get('/new-arrivals', productController.getNewArrivals);
 
 /**
  * @swagger
+ * /products/regions:
+ *   get:
+ *     summary: Get all product regions with live product counts (Shop by Region)
+ *     tags: [Products]
+ *     responses:
+ *       200:
+ *         description: List of regions (region_origin) with product count, starting price and a representative image.
+ */
+router.get('/regions', productController.getRegions);
+
+/**
+ * @swagger
  * /products/{slug}:
  *   get:
  *     summary: Get a single product by slug

@@ -2,9 +2,9 @@
   "app": {
     "name": "Kokan Ghar",
     "tagline": "Authentic Konkan Products Online"
-  },
-  "nav": {
+  },    "nav": {
     "all_categories": "All Categories",
+    "shop_by_region": "Shop by Region",
     "fresh_arrivals": "Fresh Arrivals",
     "seasonal_picks": "Seasonal Picks",
     "seafood": "Seafood",

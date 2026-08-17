@@ -1254,4 +1254,144 @@ router.put('/customer-service/:id', verifyToken, isAdmin, customerServiceControl
  */
 router.delete('/customer-service/:id', verifyToken, isAdmin, customerServiceController.deletePage);
 
+// ===== REVIEW MODERATION =====
+
+/**
+ * @swagger
+ * /admin/reviews:
+ *   get:
+ *     summary: Get all reviews for moderation (admin, paginated, filterable)
+ *     tags: [Admin - Reviews]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema: { type: integer, default: 1 }
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer, default: 20 }
+ *       - in: query
+ *         name: status
+ *         schema: { type: string, enum: [all, approved, hidden] }
+ *       - in: query
+ *         name: search
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Paginated reviews with moderation stats.
+ */
+router.get('/reviews', verifyToken, isAdmin, adminController.getAdminReviews);
+
+/**
+ * @swagger
+ * /admin/reviews/{id}/status:
+ *   put:
+ *     summary: Approve or hide a review (admin)
+ *     tags: [Admin - Reviews]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [approved]
+ *             properties:
+ *               approved: { type: boolean }
+ *     responses:
+ *       200:
+ *         description: Review approved/hidden. Product rating recomputed.
+ *       404:
+ *         description: Review not found.
+ */
+router.put('/reviews/:id/status', verifyToken, isAdmin, adminController.updateReviewStatus);
+
+/**
+ * @swagger
+ * /admin/reviews/{id}/reply:
+ *   put:
+ *     summary: Post or remove the store's reply on a review (admin)
+ *     tags: [Admin - Reviews]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [reply]
+ *             properties:
+ *               reply: { type: string, description: 'Empty string removes the reply' }
+ *     responses:
+ *       200:
+ *         description: Reply posted or removed.
+ *       404:
+ *         description: Review not found.
+ */
+router.put('/reviews/:id/reply', verifyToken, isAdmin, adminController.replyToReview);
+
+/**
+ * @swagger
+ * /admin/reviews/{id}/home:
+ *   put:
+ *     summary: Feature or un-feature a review on the homepage slider (admin)
+ *     tags: [Admin - Reviews]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [show_on_home]
+ *             properties:
+ *               show_on_home: { type: boolean }
+ *     responses:
+ *       200:
+ *         description: Review added/removed from homepage slider.
+ *       404:
+ *         description: Review not found.
+ */
+router.put('/reviews/:id/home', verifyToken, isAdmin, adminController.toggleHomeReview);
+
+/**
+ * @swagger
+ * /admin/reviews/{id}:
+ *   delete:
+ *     summary: Delete a review (admin)
+ *     tags: [Admin - Reviews]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Review deleted. Product rating recomputed.
+ *       404:
+ *         description: Review not found.
+ */
+router.delete('/reviews/:id', verifyToken, isAdmin, adminController.deleteReview);
+
 module.exports = router;

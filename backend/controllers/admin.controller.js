@@ -1429,6 +1429,223 @@ const deleteVariant = asyncHandler(async (req, res) => {
   return ApiResponse.success(res, {}, 'Variant deleted.');
 });
 
+// ===== REVIEW MODERATION =====
+
+// Recompute a product's average_rating + review_count from its APPROVED
+// reviews. Called after every moderation action so the storefront rating
+// always reflects exactly what customers can see.
+const recomputeProductRating = async (productId) => {
+  const [avg] = await pool.query(
+    'SELECT AVG(rating) as avg_rating, COUNT(*) as review_count FROM reviews WHERE product_id = ? AND is_approved = 1',
+    [productId]
+  );
+  const count = Number(avg[0].review_count) || 0;
+  await pool.query(
+    'UPDATE products SET average_rating = ?, review_count = ? WHERE id = ?',
+    [count > 0 ? Math.round(Number(avg[0].avg_rating) * 100) / 100 : 0, count, productId]
+  );
+};
+
+/**
+ * GET /admin/reviews?status=all|approved|hidden&search=&page=&limit=
+ *
+ * Moderated list of every review (approved + hidden) with the product,
+ * reviewer, media, and reply state. `hidden` = is_approved 0 (either an old
+ * pre-auto-approve review or one an admin hid). `search` matches product
+ * name, reviewer name/email, or review text.
+ */
+const getAdminReviews = asyncHandler(async (req, res) => {
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 20;
+  const offset = (page - 1) * limit;
+  const { status, search, product_id } = req.query;
+
+  let whereClause = 'WHERE 1=1';
+  const params = [];
+
+  if (status === 'approved') {
+    whereClause += ' AND r.is_approved = 1';
+  } else if (status === 'hidden') {
+    whereClause += ' AND r.is_approved = 0';
+  }
+
+  if (product_id && !isNaN(product_id)) {
+    whereClause += ' AND r.product_id = ?';
+    params.push(parseInt(product_id));
+  }
+
+  if (search) {
+    whereClause += ' AND (p.name LIKE ? OR u.name LIKE ? OR u.email LIKE ? OR r.title LIKE ? OR r.body LIKE ?)';
+    const like = `%${search}%`;
+    params.push(like, like, like, like, like);
+  }
+
+  const [countResult] = await pool.query(
+    `SELECT COUNT(*) as total FROM reviews r
+     JOIN users u ON r.user_id = u.id
+     JOIN products p ON r.product_id = p.id
+     ${whereClause}`,
+    params
+  );
+
+  const [reviews] = await pool.query(
+    `SELECT r.id, r.product_id, r.user_id, r.rating, r.title, r.body, r.images,
+            r.is_verified_purchase, r.helpful_count, r.is_approved,
+            r.show_on_home, r.admin_reply, r.admin_replied_at, r.created_at,
+            p.name as product_name, p.slug as product_slug,
+            (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = 1 LIMIT 1) as product_image,
+            u.name as user_name, u.email as user_email
+     FROM reviews r
+     JOIN users u ON r.user_id = u.id
+     JOIN products p ON r.product_id = p.id
+     ${whereClause}
+     ORDER BY r.created_at DESC
+     LIMIT ? OFFSET ?`,
+    [...params, limit, offset]
+  );
+
+  // Live stats for the moderation header (always global, ignores filters)
+  const [statsRows] = await pool.query(
+    `SELECT
+       COUNT(*) AS total,
+       SUM(is_approved = 1) AS approved,
+       SUM(is_approved = 0) AS hidden,
+       SUM(admin_reply IS NOT NULL AND admin_reply <> '') AS with_reply,
+       SUM(show_on_home = 1) AS on_home
+     FROM reviews`
+  );
+  const s = statsRows[0] || {};
+  const stats = {
+    total: Number(s.total) || 0,
+    approved: Number(s.approved) || 0,
+    hidden: Number(s.hidden) || 0,
+    with_reply: Number(s.with_reply) || 0,
+    on_home: Number(s.on_home) || 0,
+  };
+
+  // Product cards for the filter grid: every active product + its review
+  // counts (so the admin can see at a glance which product got how many
+  // reviews and click a card to see only that product's reviews).
+  const [productCards] = await pool.query(
+    `SELECT p.id, p.name, p.slug,
+            pi.image_url AS image,
+            COUNT(r.id) AS total_reviews,
+            COALESCE(SUM(r.is_approved = 1), 0) AS approved_reviews,
+            COALESCE(SUM(r.is_approved = 0), 0) AS hidden_reviews,
+            COALESCE(SUM(r.show_on_home = 1), 0) AS on_home
+     FROM products p
+     LEFT JOIN reviews r ON r.product_id = p.id
+     LEFT JOIN product_images pi ON pi.product_id = p.id AND pi.is_primary = 1
+     WHERE p.is_active = 1
+     GROUP BY p.id, p.name, p.slug, pi.image_url
+     ORDER BY total_reviews DESC, p.name ASC`
+  );
+
+  return ApiResponse.paginated(res, { reviews, stats, productCards }, {
+    page, limit,
+    total: countResult[0].total,
+    pages: Math.ceil(countResult[0].total / limit)
+  });
+});
+
+/**
+ * PUT /admin/reviews/:id/home   body: { show_on_home: true|false }
+ * Feature (or un-feature) a review on the homepage "What Our Customers Say"
+ * slider. Only approved reviews can be featured — the public /reviews/home
+ * endpoint filters is_approved = 1 regardless, so a hidden review can never
+ * leak onto the homepage.
+ */
+const toggleHomeReview = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { show_on_home } = req.body;
+
+  if (show_on_home === undefined || show_on_home === null) {
+    return ApiResponse.error(res, 'show_on_home (true/false) is required.', 400);
+  }
+
+  const [reviews] = await pool.query('SELECT id FROM reviews WHERE id = ?', [id]);
+  if (reviews.length === 0) {
+    return ApiResponse.error(res, 'Review not found.', 404);
+  }
+
+  const value = show_on_home ? 1 : 0;
+  await pool.query('UPDATE reviews SET show_on_home = ? WHERE id = ?', [value, id]);
+
+  return ApiResponse.success(res, { id, show_on_home: value },
+    value ? 'Review added to homepage slider.' : 'Review removed from homepage slider.');
+});
+
+/**
+ * PUT /admin/reviews/:id/status   body: { approved: true|false }
+ * Approve (show on site) or hide/reject a review. Recomputes the product
+ * rating so the storefront average always matches visible reviews.
+ */
+const updateReviewStatus = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { approved } = req.body;
+
+  if (approved === undefined || approved === null) {
+    return ApiResponse.error(res, 'approved (true/false) is required.', 400);
+  }
+
+  const [reviews] = await pool.query('SELECT id, product_id FROM reviews WHERE id = ?', [id]);
+  if (reviews.length === 0) {
+    return ApiResponse.error(res, 'Review not found.', 404);
+  }
+
+  await pool.query('UPDATE reviews SET is_approved = ? WHERE id = ?', [approved ? 1 : 0, id]);
+  await recomputeProductRating(reviews[0].product_id);
+
+  return ApiResponse.success(res, { id, is_approved: approved ? 1 : 0 },
+    approved ? 'Review approved and now visible on the site.' : 'Review hidden from the site.');
+});
+
+/**
+ * PUT /admin/reviews/:id/reply    body: { reply: string }
+ * Post (or replace) the store's public reply under a review. An empty reply
+ * removes the reply. Does NOT change approval state.
+ */
+const replyToReview = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { reply } = req.body;
+
+  if (reply === undefined || reply === null) {
+    return ApiResponse.error(res, 'reply is required.', 400);
+  }
+
+  const [reviews] = await pool.query('SELECT id FROM reviews WHERE id = ?', [id]);
+  if (reviews.length === 0) {
+    return ApiResponse.error(res, 'Review not found.', 404);
+  }
+
+  const text = String(reply).trim();
+  await pool.query(
+    'UPDATE reviews SET admin_reply = ?, admin_replied_at = ? WHERE id = ?',
+    [text ? text : null, text ? new Date() : null, id]
+  );
+
+  return ApiResponse.success(res, { id, admin_reply: text || null },
+    text ? 'Reply posted.' : 'Reply removed.');
+});
+
+/**
+ * DELETE /admin/reviews/:id
+ * Permanently delete a review (votes cascade). Recomputes the product rating.
+ */
+const deleteReview = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const [reviews] = await pool.query('SELECT id, product_id FROM reviews WHERE id = ?', [id]);
+  if (reviews.length === 0) {
+    return ApiResponse.error(res, 'Review not found.', 404);
+  }
+
+  await pool.query('DELETE FROM reviews WHERE id = ?', [id]);
+  await recomputeProductRating(reviews[0].product_id);
+
+  return ApiResponse.success(res, {}, 'Review deleted.');
+});
+
 // ===== AUTHENTICATION =====
 const adminLogin = asyncHandler(async (req, res) => {
   const { password } = req.body;
@@ -1516,6 +1733,8 @@ module.exports = {
   getUsers, updateUserStatus, deleteUser,
   // Orders
   getOrderById,
+  // Reviews
+  getAdminReviews, updateReviewStatus, replyToReview, deleteReview, toggleHomeReview,
   // Analytics
   getDashboard, getTopProducts, getCategoryPerformance, getSearchTerms
 };

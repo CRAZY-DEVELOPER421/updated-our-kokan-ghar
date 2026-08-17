@@ -5,6 +5,22 @@ const { verifyToken } = require('../middleware/auth');
 
 /**
  * @swagger
+ * /reviews/home:
+ *   get:
+ *     summary: Get reviews for the homepage slider (public)
+ *     tags: [Reviews]
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer, default: 8 }
+ *     responses:
+ *       200:
+ *         description: Featured reviews (falls back to recent approved).
+ */
+router.get('/home', reviewController.getHomeReviews);
+
+/**
+ * @swagger
  * /reviews/{id}/helpful:
  *   post:
  *     summary: Vote a review as helpful or unhelpful (toggle)

@@ -16,6 +16,20 @@ export default function MobileHeader() {
   const cartCount = useCartStore((s) => s.itemCount);
   const { isAuthenticated, suspended, suspension, clearSuspended, fetchProfile, logout } = useAuthStore();
   const { data: settingsData } = useSiteSettings();
+
+  // Admin-managed navbar links (same source as the desktop navbar).
+  const { data: navData } = useQuery({
+    queryKey: ['navbar-items'],
+    queryFn: async () => {
+      const res = await api.get('/navbar');
+      return res.data?.data?.items || [];
+    },
+    staleTime: 60 * 1000,
+    retry: 1,
+  });
+  const navItems = navData && navData.length > 0
+    ? navData.map((item) => ({ label: item.label || item.label_key, href: item.href }))
+    : [];
   const customLogo = getImageUrl(settingsData?.settings?.site_logo);
 
   // Unread notification count — real data from GET /notifications (unread_count)
@@ -221,6 +235,7 @@ export default function MobileHeader() {
               <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#8A8A8A' }}>Shop</p>
               {[
                 { label: 'All Products', href: '/products' },
+                { label: 'Shop by Region', href: '/#shop-by-region' },
                 { label: 'Seafood', href: '/categories/coastal-seafood' },
                 { label: 'Pickles', href: '/categories/pickles-chutneys' },
                 { label: 'Spices', href: '/categories/natural-spices' },
@@ -244,12 +259,15 @@ export default function MobileHeader() {
               ))}
               <hr className="my-3 border-gray-100" />
               <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#8A8A8A' }}>Pages</p>
-              {[
-                { label: 'Offers', href: '/offers' },
-                { label: 'About Us', href: '/about' },
-                { label: 'Blog', href: '/blog' },
-                { label: 'Contact', href: '/contact' },
-              ].map((item) => (
+              {(navItems.length > 0
+                ? navItems.filter((i) => !i.href.startsWith('/#') && !i.href.startsWith('/products?') && !i.href.startsWith('/categories/'))
+                : [
+                    { label: 'Offers', href: '/offers' },
+                    { label: 'About Us', href: '/about' },
+                    { label: 'Blog', href: '/blog' },
+                    { label: 'Contact', href: '/contact' },
+                  ]
+              ).map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}

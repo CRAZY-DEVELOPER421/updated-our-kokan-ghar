@@ -1,39 +1,8 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-
-const testimonials = [
-  {
-    name: 'Anita Naik',
-    verified: 'Verified Buyer',
-    rating: 5,
-    text: 'The taste is just like home. Pure, authentic Konkan flavors. My family loves the pickles and spices!',
-  },
-  {
-    name: 'Rohan Joshi',
-    verified: 'Verified Buyer',
-    rating: 5,
-    text: 'Finally found real Konkan dried fish online. The Bombil is incredible — exactly like my grandmother used to make.',
-  },
-  {
-    name: 'Smita Desai',
-    verified: 'Verified Buyer',
-    rating: 4,
-    text: 'The Sol Kadhi concentrate is a lifesaver! Tastes homemade. Fast delivery and great packaging too.',
-  },
-  {
-    name: 'Arun Naik',
-    verified: 'Verified Buyer',
-    rating: 5,
-    text: 'Best cashews I have ever tasted. Fresh, crunchy, and perfectly roasted. Highly recommended!',
-  },
-  {
-    name: 'Priya Tendulkar',
-    verified: 'Verified Buyer',
-    rating: 5,
-    text: 'The Alphonso mangoes were divine! Sweet, juicy, and arrived perfectly ripe. Pure Ratnagiri magic.',
-  },
-];
+import api from '@/lib/api';
 
 function StarIcons({ count }) {
   return (
@@ -55,6 +24,35 @@ function StarIcons({ count }) {
 }
 
 export default function MobileTestimonials() {
+  // Real customer reviews from the backend (admin picks them via "Add to
+  // Home"). Falls back to the curated list below when none are featured yet
+  // or the API is unreachable, so this section is never empty.
+  const [reviews, setReviews] = useState(null);
+
+  useEffect(() => {
+    let mounted = true;
+    api
+      .get('/reviews/home?limit=8')
+      .then((res) => {
+        if (mounted && res.data?.data?.reviews?.length) {
+          setReviews(res.data.data.reviews.map((r) => ({
+            name: r.user_name || 'Customer',
+            verified: 'Verified Buyer',
+            rating: Number(r.rating) || 5,
+            text: r.body || r.title || '',
+            product: r.product_name,
+          })));
+        }
+      })
+      .catch(() => { /* keep fallback */ });
+    return () => { mounted = false; };
+  }, []);
+
+  // No featured reviews yet → hide the whole section instead of showing fakes.
+  if (!reviews || reviews.length === 0) return null;
+
+  const testimonials = reviews;
+
   return (
     <section>
       {/* Section Header */}

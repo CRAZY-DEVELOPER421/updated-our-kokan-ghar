@@ -20,18 +20,22 @@ import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { getImageUrl } from '@/lib/utils';
 
-const NAV_ITEMS = [
-  { labelKey: 'fresh_arrivals', href: '/products?sort=newest' },
-  { labelKey: 'seasonal_picks', href: '/products?seasonal=true' },
-  { labelKey: 'seafood', href: '/categories/coastal-seafood' },
-  { labelKey: 'organic', href: '/products?organic=true' },
-  { labelKey: 'cashew_special', href: '/categories/cashew-dry-fruits' },
-  { labelKey: 'konkan_mango', href: '/categories/konkan-mangoes-fruits' },
-  { labelKey: 'offers', href: '/offers' },
-  { labelKey: 'about', href: '/about' },
-  { labelKey: 'blog', href: '/blog' },
-  { labelKey: 'videos', href: '/videos' },
-  { labelKey: 'contact', href: '/contact' },
+// Fallback nav links — used when the API is unreachable. When the admin
+// panel has configured navbar items, those take over (label_key resolves
+// through translations, falling back to the plain label).
+const FALLBACK_NAV_ITEMS = [
+  { labelKey: 'shop_by_region', label: 'Shop by Region', href: '/#shop-by-region' },
+  { labelKey: 'fresh_arrivals', label: 'Fresh Arrivals', href: '/products?sort=newest' },
+  { labelKey: 'seasonal_picks', label: 'Seasonal Picks', href: '/products?seasonal=true' },
+  { labelKey: 'seafood', label: 'Seafood', href: '/categories/coastal-seafood' },
+  { labelKey: 'organic', label: 'Organic', href: '/products?organic=true' },
+  { labelKey: 'cashew_special', label: 'Cashew Special', href: '/categories/cashew-dry-fruits' },
+  { labelKey: 'konkan_mango', label: 'Konkan Mango', href: '/categories/konkan-mangoes-fruits' },
+  { labelKey: 'offers', label: 'Offers', href: '/offers' },
+  { labelKey: 'about', label: 'About', href: '/about' },
+  { labelKey: 'blog', label: 'Blog', href: '/blog' },
+  { labelKey: 'videos', label: 'Videos', href: '/videos' },
+  { labelKey: 'contact', label: 'Contact', href: '/contact' },
 ];
 
 export default function Navbar() {
@@ -47,6 +51,29 @@ export default function Navbar() {
   const { itemCount: cartCount } = useCartStore();
   const { count: wishlistCount } = useWishlistStore();
   const { data: categoriesData } = useCategories();
+
+  // Admin-managed navbar links. Falls back to FALLBACK_NAV_ITEMS when the
+  // API is down or returns nothing.
+  const { data: navData } = useQuery({
+    queryKey: ['navbar-items'],
+    queryFn: async () => {
+      const res = await api.get('/navbar');
+      return res.data?.data?.items || [];
+    },
+    staleTime: 60 * 1000,
+    retry: 1,
+  });
+  const navItems = (navData && navData.length > 0)
+    ? navData.map((item) => ({ labelKey: item.label_key, label: item.label, href: item.href }))
+    : FALLBACK_NAV_ITEMS;
+  // Resolve display label: translation key first, then the stored label.
+  const navLabel = (item) => {
+    if (item.labelKey) {
+      const translated = t(`nav.${item.labelKey}`);
+      if (translated && translated !== `nav.${item.labelKey}`) return translated;
+    }
+    return item.label || item.labelKey;
+  };
   const { data: settingsData } = useSiteSettings();
   const categoryRef = useRef(null);
 
@@ -334,11 +361,11 @@ export default function Navbar() {
               )}
             </div>
 
-            {/* Nav Items */}
+            {/* Nav Items — admin-managed via the panel */}
             <div className="flex items-center gap-1 ml-2 overflow-x-auto scrollbar-hide">
-              {NAV_ITEMS.map((item) => (
+              {navItems.map((item) => (
                 <Link
-                  key={item.href}
+                  key={item.href + item.label}
                   href={item.href}
                   className={`px-3 py-3 text-sm font-medium transition-colors rounded-lg whitespace-nowrap ${
                     pathname === item.href
@@ -346,7 +373,7 @@ export default function Navbar() {
                       : 'text-konkan-text-secondary hover:text-konkan-green-primary hover:bg-konkan-green-primary/5'
                   }`}
                 >
-                  {t(`nav.${item.labelKey}`)}
+                  {navLabel(item)}
                 </Link>
               ))}
             </div>
@@ -435,16 +462,16 @@ export default function Navbar() {
 
                 <hr className="my-3 border-konkan-sand" />
 
-                {/* Nav Links */}
+                {/* Nav Links — admin-managed via the panel */}
                 <p className="text-[10px] font-semibold uppercase tracking-widest text-konkan-text-secondary mb-2">Pages</p>
-                {NAV_ITEMS.map((item) => (
+                {navItems.map((item) => (
                   <Link
-                    key={item.href}
+                    key={item.href + item.label}
                     href={item.href}
                     className="flex items-center justify-between px-3 py-2.5 text-sm rounded-xl hover:bg-konkan-cream transition-colors text-konkan-text-primary"
                     onClick={() => setIsMobileOpen(false)}
                   >
-                    <span>{t(`nav.${item.labelKey}`)}</span>
+                    <span>{navLabel(item)}</span>
                     <ChevronRight className="w-3.5 h-3.5 text-konkan-text-secondary" />
                   </Link>
                 ))}
