@@ -91,6 +91,20 @@ router.get('/analytics/search-terms', verifyToken, isAdmin, analyticsController.
 
 /**
  * @swagger
+ * /admin/analytics/cancellation-reasons:
+ *   get:
+ *     summary: Get cancellation reasons breakdown (admin)
+ *     tags: [Admin - Analytics]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Cancellation reasons with counts.
+ */
+router.get('/analytics/cancellation-reasons', verifyToken, isAdmin, analyticsController.getCancellationReasons);
+
+/**
+ * @swagger
  * /admin/products:
  *   get:
  *     summary: Get all products (admin, paginated, with filters)

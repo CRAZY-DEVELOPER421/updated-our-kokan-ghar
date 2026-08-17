@@ -81,9 +81,49 @@ const getSearchTerms = asyncHandler(async (req, res) => {
   return ApiResponse.success(res, { terms });
 });
 
+// Cancellation reasons breakdown — free market research for the admin.
+// Groups cancelled orders by orders.cancel_reason (e.g. delivery_time_too_long).
+const getCancellationReasons = asyncHandler(async (req, res) => {
+  const [reasons] = await pool.query(
+    `SELECT
+       COALESCE(NULLIF(cancel_reason, ''), 'unknown') as reason,
+       COUNT(*) as count
+     FROM orders
+     WHERE status = 'cancelled'
+     GROUP BY reason
+     ORDER BY count DESC`
+  );
+
+  const [totalCancelled] = await pool.query(
+    "SELECT COUNT(*) as total FROM orders WHERE status = 'cancelled'"
+  );
+
+  // Readable labels for the chart legend
+  const LABELS = {
+    delivery_time_too_long: 'Delivery time too long',
+    found_cheaper_elsewhere: 'Found cheaper elsewhere',
+    ordered_by_mistake: 'Ordered by mistake',
+    changed_my_mind: 'Changed my mind',
+    price_too_high: 'Price too high',
+    payment_issue: 'Payment issue',
+    other: 'Other',
+    unknown: 'Not specified',
+  };
+
+  return ApiResponse.success(res, {
+    reasons: reasons.map((r) => ({
+      reason: r.reason,
+      label: LABELS[r.reason] || r.reason,
+      count: Number(r.count),
+    })),
+    total_cancelled: Number(totalCancelled[0].total),
+  });
+});
+
 module.exports = {
   getDashboard,
   getTopProducts,
   getCategoryPerformance,
-  getSearchTerms
+  getSearchTerms,
+  getCancellationReasons
 };

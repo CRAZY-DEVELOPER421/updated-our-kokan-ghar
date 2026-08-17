@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useQuery } from '@tanstack/react-query';
@@ -29,9 +30,23 @@ const STATUS_STEPS = [
   { key: 'delivered', label: 'Delivered' },
 ];
 
+const CANCEL_REASONS = [
+  { key: 'delivery_time_too_long', label: 'Delivery time is too long' },
+  { key: 'found_cheaper_elsewhere', label: 'Found it cheaper elsewhere' },
+  { key: 'ordered_by_mistake', label: 'Ordered by mistake' },
+  { key: 'changed_my_mind', label: 'Changed my mind' },
+  { key: 'price_too_high', label: 'Price is too high' },
+  { key: 'payment_issue', label: 'Payment issue' },
+  { key: 'other', label: 'Other', hasInput: true },
+];
+
 export default function OrderDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [otherReason, setOtherReason] = useState('');
+  const [cancelling, setCancelling] = useState(false);
 
   const { data: order, isLoading, error } = useQuery({
     queryKey: ['order', params.id],
@@ -227,25 +242,97 @@ export default function OrderDetailPage() {
       {/* Actions */}
       <div className="flex flex-col sm:flex-row items-center gap-3">
         {order.status !== 'cancelled' && order.status !== 'delivered' && (
-          <Button variant="outline" size="sm" onClick={async () => {
-            if (confirm('Are you sure you want to cancel this order?')) {
-              try {
-                const res = await api.post(`/orders/${order.id}/cancel`);
-                if (res.data.success) {
-                  toast.success('Order cancelled');
-                  router.refresh();
-                }
-              } catch (err) {
-                toast.error(err.response?.data?.message || 'Failed to cancel order');
-              }
-            }
-          }}>
+          <Button variant="outline" size="sm" onClick={() => { setCancelReason(''); setOtherReason(''); setShowCancelModal(true); }}>
             Cancel Order
           </Button>
         )}
         <Link href="/account/orders"><Button variant="outline" size="sm">Back to Orders</Button></Link>
         <Link href="/products"><Button variant="ghost" size="sm">Continue Shopping</Button></Link>
       </div>
+
+      {/* Cancel Order Modal — reason se puchta hai (Amazon/Flipkart jaisa) */}
+      {showCancelModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => !cancelling && setShowCancelModal(false)} />
+          <div className="relative bg-white rounded-2xl card p-6 w-full max-w-md shadow-xl">
+            <div className="flex items-start justify-between mb-1">
+              <h3 className="font-display text-lg font-bold text-konkan-text-primary">Cancel Order</h3>
+              <button onClick={() => setShowCancelModal(false)} disabled={cancelling} className="p-1.5 rounded-xl hover:bg-konkan-cream text-konkan-text-secondary transition-colors">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <p className="text-sm text-konkan-text-secondary mb-4">
+              Order #{order.order_number} — tell us why you're cancelling (helps us improve)
+            </p>
+
+            <div className="space-y-2">
+              {CANCEL_REASONS.map((reason) => (
+                <label
+                  key={reason.key}
+                  className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                    cancelReason === reason.key
+                      ? 'border-konkan-green-primary bg-konkan-cream/60'
+                      : 'border-konkan-sand hover:border-konkan-green-primary/40'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="cancel_reason"
+                    value={reason.key}
+                    checked={cancelReason === reason.key}
+                    onChange={() => setCancelReason(reason.key)}
+                    className="w-4 h-4 text-konkan-green-primary border-konkan-sand focus:ring-konkan-green-primary focus:ring-offset-0"
+                  />
+                  <span className="text-sm text-konkan-text-primary">{reason.label}</span>
+                </label>
+              ))}
+              {cancelReason === 'other' && (
+                <input
+                  type="text"
+                  value={otherReason}
+                  onChange={(e) => setOtherReason(e.target.value)}
+                  placeholder="Please specify…"
+                  maxLength={180}
+                  className="w-full px-3 py-2 text-sm rounded-xl border bg-white text-konkan-text-primary placeholder:text-konkan-text-secondary/60 focus:ring-2 focus:ring-konkan-green-primary/30 focus:border-konkan-green-primary outline-none transition-all"
+                  style={{ borderColor: '#D0D0D0' }}
+                />
+              )}
+            </div>
+
+            <div className="flex gap-3 mt-5">
+              <Button
+                variant="danger"
+                size="sm"
+                disabled={cancelling || !cancelReason}
+                className="flex-1"
+                onClick={async () => {
+                  setCancelling(true);
+                  try {
+                    const reason = cancelReason === 'other'
+                      ? (otherReason.trim() ? `other: ${otherReason.trim()}` : 'other')
+                      : cancelReason;
+                    const res = await api.post(`/orders/${order.id}/cancel`, { cancel_reason: reason });
+                    if (res.data.success) {
+                      toast.success('Order cancelled');
+                      setShowCancelModal(false);
+                      router.refresh();
+                    }
+                  } catch (err) {
+                    toast.error(err.response?.data?.message || 'Failed to cancel order');
+                  } finally {
+                    setCancelling(false);
+                  }
+                }}
+              >
+                {cancelling ? 'Cancelling…' : 'Confirm Cancellation'}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => setShowCancelModal(false)} disabled={cancelling}>
+                Keep Order
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

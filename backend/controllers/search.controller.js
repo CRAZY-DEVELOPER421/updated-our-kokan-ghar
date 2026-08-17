@@ -63,6 +63,27 @@ const search = asyncHandler(async (req, res) => {
     [...params, limit, offset]
   );
 
+  // Attach active flash-sale info so search-result cards show the ⚡ badge,
+  // sale price and scarcity bar just like the all-products grid.
+  const [flashSales] = await pool.query(
+    `SELECT product_id, sale_price, original_price, quantity_limit, sold_count, ends_at
+     FROM flash_sales
+     WHERE is_active = 1 AND NOW() BETWEEN starts_at AND ends_at`
+  );
+  const flashMap = new Map(flashSales.map((fs) => [Number(fs.product_id), fs]));
+  for (const product of products) {
+    const fs = flashMap.get(Number(product.id));
+    if (fs) {
+      product.flash_sale = {
+        sale_price: fs.sale_price,
+        original_price: fs.original_price,
+        quantity_limit: fs.quantity_limit,
+        sold_count: fs.sold_count,
+        ends_at: fs.ends_at ? new Date(fs.ends_at).toISOString() : null,
+      };
+    }
+  }
+
   await pool.query(
     'INSERT INTO search_logs (query, results_count, ip_address) VALUES (?, ?, ?)',
     [q.trim(), countResult[0].total, req.ip]

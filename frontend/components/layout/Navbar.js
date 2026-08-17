@@ -298,7 +298,7 @@ export default function Navbar() {
             {/* All Categories Dropdown */}
             <div className="relative" ref={categoryRef}>
               <button
-                className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-white bg-konkan-green-primary hover:bg-konkan-green-dark transition-colors rounded-t-xl"
+                className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-white bg-konkan-green-primary hover:bg-konkan-green-dark transition-colors"
                 onMouseEnter={() => setIsCategoryOpen(true)}
                 onClick={() => (isCategoryOpen ? closeCategoryMenu() : setIsCategoryOpen(true))}
                 aria-haspopup="menu"

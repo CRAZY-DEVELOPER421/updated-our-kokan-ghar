@@ -57,7 +57,12 @@ export default function AdminAnalyticsPage() {
     queryFn: async () => { const r = await api.get('/admin/analytics/search-terms'); return r.data.data; },
   });
 
-  const isLoading = dashLoading || topLoading || catLoading || searchLoading;
+  const { data: cancelReasons, isLoading: cancelLoading } = useQuery({
+    queryKey: ['admin-analytics-cancellations'],
+    queryFn: async () => { const r = await api.get('/admin/analytics/cancellation-reasons'); return r.data.data; },
+  });
+
+  const isLoading = dashLoading || topLoading || catLoading || searchLoading || cancelLoading;
   const isError = dashError;
 
   const stats = [
@@ -192,6 +197,40 @@ export default function AdminAnalyticsPage() {
             </div>
           ) : (
             <div className="flex items-center justify-center h-[250px] text-sm text-slate-400">No orders yet.</div>
+          )}
+        </div>
+
+        {/* Cancellation Reasons */}
+        <div className="bg-white rounded-xl p-5 border border-slate-100 hover:shadow-md transition-shadow">
+          <h2 className="font-bold text-slate-900 text-sm mb-1">Cancellation Reasons</h2>
+          <p className="text-[11px] text-slate-400 mb-4">Why customers cancel — {cancelReasons?.total_cancelled || 0} cancelled orders</p>
+          {isLoading ? (
+            <ChartSkeleton height={250} />
+          ) : (cancelReasons?.reasons || []).length > 0 ? (
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+              <ResponsiveContainer width="60%" height={220}>
+                <PieChart>
+                  <Pie data={cancelReasons.reasons} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="count" nameKey="label" paddingAngle={2}>
+                    {cancelReasons.reasons.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} stroke="none" />)}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="space-y-1.5 w-full sm:w-auto">
+                {cancelReasons.reasons.map((r, i) => (
+                  <div key={r.reason} className="flex items-center gap-2 text-xs">
+                    <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                    <span className="text-slate-600 min-w-[120px]">{r.label}</span>
+                    <span className="font-bold text-slate-900 tabular-nums">{r.count}</span>
+                    <span className="text-slate-400 text-[10px] tabular-nums">
+                      {cancelReasons.total_cancelled ? Math.round((r.count / cancelReasons.total_cancelled) * 100) : 0}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-[250px] text-sm text-slate-400">No cancellations yet.</div>
           )}
         </div>
 

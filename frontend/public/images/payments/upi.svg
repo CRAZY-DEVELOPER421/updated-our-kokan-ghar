@@ -1,4 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 84 28">
-  <text x="0" y="21" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="bold" fill="#2E9B5C">UPI</text>
-  <path d="M66 20l8-8 8 8" fill="none" stroke="#2E9B5C" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 84 28" role="img" aria-label="UPI">
+  <title>UPI</title>
+  <rect x="1" y="1" width="82" height="26" rx="6" fill="#2E9B5C"/>
+  <text x="9" y="20" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="bold" fill="#FFFFFF" letter-spacing="1">UPI</text>
+  <path d="M52 19l7-7 7 7" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

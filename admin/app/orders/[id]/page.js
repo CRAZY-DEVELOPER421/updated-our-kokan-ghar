@@ -69,6 +69,16 @@ export default function AdminOrderDetailPage({ params }) {
               <div><p className="text-xs text-gray-500">Payment</p><p className="capitalize text-gray-900">{order.payment_method}</p></div>
               <div><p className="text-xs text-gray-500">Payment Status</p><p className={`font-medium ${order.payment_status === 'paid' ? 'text-green-600' : 'text-yellow-600'}`}>{order.payment_status}</p></div>
               <div><p className="text-xs text-gray-500">Status</p><span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${STATUS_COLORS[order.status] || 'bg-gray-50 text-gray-600'}`}>{order.status}</span></div>
+              {order.status === 'cancelled' && (
+                <div className="col-span-2 md:col-span-4 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+                  <p className="text-xs text-gray-500">Cancellation Reason</p>
+                  <p className="text-sm font-medium text-red-700 capitalize">
+                    {order.cancel_reason
+                      ? String(order.cancel_reason).replace(/^other:\s*/i, '').replace(/_/g, ' ')
+                      : 'Not specified'}
+                  </p>
+                </div>
+              )}
               {order.subtotal > 0 && <div><p className="text-xs text-gray-500">Subtotal</p><p className="text-gray-900">₹{order.subtotal}</p></div>}
               {order.coupon_discount > 0 && <div><p className="text-xs text-gray-500">Coupon</p><p className="text-green-600">-₹{order.coupon_discount}</p></div>}
               {order.coupon_code && <div><p className="text-xs text-gray-500">Coupon Code</p><p className="font-mono text-gray-900">{order.coupon_code}</p></div>}

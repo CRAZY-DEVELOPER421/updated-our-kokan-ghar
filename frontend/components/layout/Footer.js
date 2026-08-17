@@ -238,9 +238,7 @@ export default function Footer() {
             <span className="text-konkan-sand/60 text-xs">We Accept:</span>
             {/* Razorpay */}
             <span className="flex items-center justify-center" style={{ height: '28px', padding: '0 10px', backgroundColor: '#FFFFFF', borderRadius: '6px' }}>
-              <svg width="80" height="20" viewBox="0 0 116 30" aria-label="Razorpay">
-                <text x="0" y="22" fontFamily="Arial, Helvetica, sans-serif" fontSize="20" fontWeight="bold" fill="#0A2540">Razorpay</text>
-              </svg>
+              <Image src="/images/payments/razorpay.svg" alt="Razorpay" width={60} height={20} className="h-5 w-auto" unoptimized />
             </span>
             {/* UPI */}
             <span className="flex items-center justify-center" style={{ height: '28px', padding: '0 10px', backgroundColor: '#FFFFFF', borderRadius: '6px' }}>
@@ -260,18 +258,7 @@ export default function Footer() {
             </span>
             {/* Net Banking */}
             <span className="flex items-center justify-center" style={{ height: '28px', padding: '0 10px', backgroundColor: '#FFFFFF', borderRadius: '6px' }}>
-              <svg width="110" height="20" viewBox="0 0 132 30" aria-label="Net Banking">
-                <g fill="none" stroke="#0A2540" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" transform="translate(1 6)">
-                  <path d="M2 10l10-7 10 7" />
-                  <path d="M4 11v8" />
-                  <path d="M11 11v8" />
-                  <path d="M18 11v8" />
-                  <path d="M1 21h22" />
-                  <path d="M6 21v-2" />
-                  <path d="M16 21v-2" />
-                </g>
-                <text x="32" y="21" fontFamily="Arial, Helvetica, sans-serif" fontSize="14" fontWeight="bold" fill="#0A2540">Net Banking</text>
-              </svg>
+              <Image src="/images/payments/netbanking.svg" alt="Net Banking" width={90} height={20} className="h-5 w-auto" unoptimized />
             </span>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-5">

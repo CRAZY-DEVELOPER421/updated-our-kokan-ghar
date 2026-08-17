@@ -208,6 +208,9 @@ CREATE TABLE orders (
   total_amount DECIMAL(10,2) NOT NULL,
   payment_method ENUM('online','cod') NOT NULL DEFAULT 'cod',
   payment_status ENUM('pending','paid','failed','refunded') NOT NULL DEFAULT 'pending',
+  -- Why the customer cancelled (delivery time / price / changed mind...).
+  -- Fed by the cancel-order dialog; shown in admin cancellation analytics.
+  cancel_reason VARCHAR(191) DEFAULT NULL,
   razorpay_order_id VARCHAR(100),
   razorpay_payment_id VARCHAR(100),
   notes TEXT,

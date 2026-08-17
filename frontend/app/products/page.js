@@ -57,6 +57,8 @@ export default async function ProductsPage({ searchParams }) {
   const bestseller = sp.bestseller || '';
   const discount = sp.discount || '';
   const region = sp.region || '';
+  const brand = sp.brand || '';
+  const inStock = sp.in_stock || '';
 
   return (
     <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8 animate-fade-in">
@@ -118,6 +120,8 @@ export default async function ProductsPage({ searchParams }) {
               bestseller={bestseller}
               discount={discount}
               region={region}
+              brand={brand}
+              inStock={inStock}
             />
           </Suspense>
         </div>

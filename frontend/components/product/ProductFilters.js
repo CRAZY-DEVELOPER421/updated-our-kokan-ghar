@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { SlidersHorizontal, X, ChevronDown, Star } from 'lucide-react';
+import PriceRangeSlider from '@/components/ui/PriceRangeSlider';
 
 export default function ProductFilters({ categories = [] }) {
   const router = useRouter();
@@ -14,12 +15,18 @@ export default function ProductFilters({ categories = [] }) {
   const activeRating = searchParams.get('rating') || '';
   const activeMinPrice = searchParams.get('min_price') || '';
   const activeMaxPrice = searchParams.get('max_price') || '';
-  const [minPrice, setMinPrice] = useState(activeMinPrice || '');
-  const [maxPrice, setMaxPrice] = useState(activeMaxPrice || '');
+  const activeBrands = (searchParams.get('brand') || '').split(',').filter(Boolean);
+  const activeRegions = (searchParams.get('region') || '').split(',').filter(Boolean);
+  const activeInStock = searchParams.get('in_stock') === 'true';
+  const activeDiscount = searchParams.get('discount') || '';
+  const activeOrganic = searchParams.get('organic') === 'true';
+  const activeSeasonal = searchParams.get('seasonal') === 'true';
+  const activeBestseller = searchParams.get('bestseller') === 'true';
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [expandedSections, setExpandedSections] = useState(['category', 'price', 'rating']);
+  const [expandedSections, setExpandedSections] = useState(['category', 'price', 'rating', 'brand', 'region', 'discount', 'deals']);
   const [catDropdownOpen, setCatDropdownOpen] = useState(false);
   const catRef = useRef(null);
+  const priceTimerRef = useRef(null);
 
   // Fetch categories from DB (same as MobileFilterToolbar)
   const { data: catData } = useQuery({
@@ -32,6 +39,35 @@ export default function ProductFilters({ categories = [] }) {
   });
   const allCategories = catData?.length > 0 ? catData : categories;
   const parentCategories = allCategories.filter((c) => !c.parent_id);
+
+  // Fetch distinct brands + regions (with counts) for the filter lists
+  const { data: filterOptions } = useQuery({
+    queryKey: ['product-filters-options'],
+    queryFn: async () => {
+      const res = await api.get('/products/filters');
+      return res.data.data || { brands: [], regions: [] };
+    },
+    staleTime: 300000,
+  });
+  const brands = filterOptions?.brands || [];
+  const regions = filterOptions?.regions || [];
+  // Slider range — dynamic from DB: min floor = real min price,
+  // max = real max price rounded up (e.g. ₹2235 → ₹2500).
+  const priceRange = filterOptions?.price_range || { min: 0, max: 5000 };
+  const PRICE_MIN = priceRange.min || 0;
+  const PRICE_MAX = priceRange.max || 5000;
+
+  // Multi-select toggle: append/remove a value from a comma-separated param
+  const toggleMultiFilter = (key, value, activeList) => {
+    const params = new URLSearchParams(searchParams.toString());
+    const next = activeList.includes(value)
+      ? activeList.filter((v) => v !== value)
+      : [...activeList, value];
+    if (next.length > 0) params.set(key, next.join(','));
+    else params.delete(key);
+    params.set('page', '1');
+    router.push(`/products?${params.toString()}`);
+  };
 
   const toggleSection = (section) => {
     setExpandedSections((prev) =>
@@ -51,15 +87,25 @@ export default function ProductFilters({ categories = [] }) {
     setCatDropdownOpen(false);
   };
 
-  const applyPrice = () => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (minPrice) params.set('min_price', minPrice);
-    else params.delete('min_price');
-    if (maxPrice) params.set('max_price', maxPrice);
-    else params.delete('max_price');
-    params.set('page', '1');
-    router.push(`/products?${params.toString()}`);
+  // Price slider — smooth drag pe turant filter nahi lagta (lag hoga).
+  // User jab ~800ms ruk jata hai tabhi URL push hota hai → grid refresh.
+  const applyPriceSlider = (range) => {
+    if (priceTimerRef.current) clearTimeout(priceTimerRef.current);
+    priceTimerRef.current = setTimeout(() => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (range.min > PRICE_MIN) params.set('min_price', String(range.min));
+      else params.delete('min_price');
+      if (range.max < PRICE_MAX) params.set('max_price', String(range.max));
+      else params.delete('max_price');
+      params.set('page', '1');
+      router.push(`/products?${params.toString()}`);
+    }, 800);
   };
+
+  // Cleanup pending debounce on unmount
+  useEffect(() => () => {
+    if (priceTimerRef.current) clearTimeout(priceTimerRef.current);
+  }, []);
 
   // Listen for custom event from MobileFilterToolbar to open filter drawer
   useEffect(() => {
@@ -87,6 +133,13 @@ export default function ProductFilters({ categories = [] }) {
     activeCategory,
     activeRating,
     activeMinPrice || activeMaxPrice ? 'price' : '',
+    activeBrands.length > 0 ? 'brand' : '',
+    activeRegions.length > 0 ? 'region' : '',
+    activeInStock ? 'in_stock' : '',
+    activeDiscount ? 'discount' : '',
+    activeOrganic ? 'organic' : '',
+    activeSeasonal ? 'seasonal' : '',
+    activeBestseller ? 'bestseller' : '',
   ].filter(Boolean).length;
 
   const hasActiveFilters = activeFilterCountValue > 0;
@@ -175,31 +228,19 @@ export default function ProductFilters({ categories = [] }) {
         <SectionHeader id="price" title="Price Range" />
         {expandedSections.includes('price') && (
           <div className="pb-3">
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                value={minPrice}
-                onChange={(e) => setMinPrice(e.target.value)}
-                placeholder="Min"
-                className="w-full px-3 py-2 text-sm rounded-xl border bg-white text-konkan-text-primary placeholder:text-konkan-text-secondary/60 focus:ring-2 focus:ring-konkan-green-primary/30 focus:border-konkan-green-primary outline-none transition-all"
-                style={{ borderColor: '#D0D0D0' }}
-              />
-              <span style={{ color: '#8A8A8A' }}>—</span>
-              <input
-                type="number"
-                value={maxPrice}
-                onChange={(e) => setMaxPrice(e.target.value)}
-                placeholder="Max"
-                className="w-full px-3 py-2 text-sm rounded-xl border bg-white text-konkan-text-primary placeholder:text-konkan-text-secondary/60 focus:ring-2 focus:ring-konkan-green-primary/30 focus:border-konkan-green-primary outline-none transition-all"
-                style={{ borderColor: '#D0D0D0' }}
-              />
-            </div>
-            <button
-              onClick={applyPrice}
-              className="mt-2 w-full py-2 text-xs font-medium text-white bg-konkan-green-primary rounded-xl hover:bg-konkan-green-dark transition-colors"
-            >
-              Apply
-            </button>
+            {/* Dual-thumb slider — drag smooth, filter ~1 sec rukne pe lagta hai.
+                Range DB se dynamic: dono thumbs kahi bhi move kar sakte hain
+                (e.g. ₹600 – ₹2200), step ₹50 for precise selection. */}
+            <PriceRangeSlider
+              min={PRICE_MIN}
+              max={PRICE_MAX}
+              step={50}
+              value={{
+                min: activeMinPrice ? parseInt(activeMinPrice) : PRICE_MIN,
+                max: activeMaxPrice ? parseInt(activeMaxPrice) : PRICE_MAX,
+              }}
+              onChange={applyPriceSlider}
+            />
           </div>
         )}
       </div>
@@ -239,10 +280,132 @@ export default function ProductFilters({ categories = [] }) {
           </div>
         )}
       </div>
-      {/* Availability */}
+      {/* Brand — multi-select checkbox list with counts */}
+      <div className="border-b border-konkan-sand py-1">
+        <SectionHeader id="brand" title="Brand" />
+        {expandedSections.includes('brand') && (
+          <div className="pb-3 space-y-1 max-h-48 overflow-y-auto scrollbar-hide">
+            {brands.length === 0 && (
+              <p className="text-xs text-konkan-text-secondary/60">Loading brands…</p>
+            )}
+            {brands.map((brand) => {
+              const name = typeof brand === 'string' ? brand : brand.name;
+              const count = typeof brand === 'string' ? 0 : brand.count;
+              const isActive = activeBrands.some((b) => b.toLowerCase() === name.toLowerCase());
+              return (
+                <label key={name} className="flex items-center gap-2.5 py-1 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={isActive}
+                    onChange={() => toggleMultiFilter('brand', name, activeBrands)}
+                    className="w-4 h-4 rounded border-konkan-sand text-konkan-green-primary focus:ring-konkan-green-primary focus:ring-offset-0"
+                  />
+                  <span className={`text-sm transition-colors flex-1 ${isActive ? 'text-konkan-green-primary font-medium' : 'text-konkan-text-secondary group-hover:text-konkan-text-primary'}`}>
+                    {name}
+                  </span>
+                  {count > 0 && (
+                    <span className="text-[11px] text-konkan-text-secondary/70 tabular-nums">({count})</span>
+                  )}
+                </label>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Region — multi-select checkbox list with counts */}
+      <div className="border-b border-konkan-sand py-1">
+        <SectionHeader id="region" title="Region" />
+        {expandedSections.includes('region') && (
+          <div className="pb-3 space-y-1 max-h-48 overflow-y-auto scrollbar-hide">
+            {regions.length === 0 && (
+              <p className="text-xs text-konkan-text-secondary/60">Loading regions…</p>
+            )}
+            {regions.map((region) => {
+              const name = typeof region === 'string' ? region : region.name;
+              const count = typeof region === 'string' ? 0 : region.count;
+              const isActive = activeRegions.some((r) => r.toLowerCase() === name.toLowerCase());
+              return (
+                <label key={name} className="flex items-center gap-2.5 py-1 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={isActive}
+                    onChange={() => toggleMultiFilter('region', name, activeRegions)}
+                    className="w-4 h-4 rounded border-konkan-sand text-konkan-green-primary focus:ring-konkan-green-primary focus:ring-offset-0"
+                  />
+                  <span className={`text-sm transition-colors flex-1 ${isActive ? 'text-konkan-green-primary font-medium' : 'text-konkan-text-secondary group-hover:text-konkan-text-primary'}`}>
+                    {name}
+                  </span>
+                  {count > 0 && (
+                    <span className="text-[11px] text-konkan-text-secondary/70 tabular-nums">({count})</span>
+                  )}
+                </label>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Discount — percentage thresholds */}
+      <div className="border-b border-konkan-sand py-1">
+        <SectionHeader id="discount" title="Discount" />
+        {expandedSections.includes('discount') && (
+          <div className="pb-3 space-y-1">
+            {[10, 25, 50, 70].map((pct) => {
+              const isActive = activeDiscount === String(pct);
+              return (
+                <label key={pct} className="flex items-center gap-2.5 py-1 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={isActive}
+                    onChange={() => updateFilter('discount', isActive ? '' : String(pct))}
+                    className="w-4 h-4 rounded border-konkan-sand text-konkan-green-primary focus:ring-konkan-green-primary focus:ring-offset-0"
+                  />
+                  <span className={`text-sm transition-colors ${isActive ? 'text-konkan-green-primary font-medium' : 'text-konkan-text-secondary group-hover:text-konkan-text-primary'}`}>
+                    {pct}% &amp; above
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Deals — Organic / Seasonal / Bestseller toggles */}
+      <div className="border-b border-konkan-sand py-1">
+        <SectionHeader id="deals" title="Deals &amp; Categories" />
+        {expandedSections.includes('deals') && (
+          <div className="pb-3 space-y-1">
+            {[
+              { key: 'organic', label: 'Organic', active: activeOrganic },
+              { key: 'seasonal', label: 'Seasonal', active: activeSeasonal },
+              { key: 'bestseller', label: 'Bestseller', active: activeBestseller },
+            ].map((opt) => (
+              <label key={opt.key} className="flex items-center gap-2.5 py-1 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={opt.active}
+                  onChange={() => updateFilter(opt.key, opt.active ? '' : 'true')}
+                  className="w-4 h-4 rounded border-konkan-sand text-konkan-green-primary focus:ring-konkan-green-primary focus:ring-offset-0"
+                />
+                <span className={`text-sm transition-colors ${opt.active ? 'text-konkan-green-primary font-medium' : 'text-konkan-text-secondary group-hover:text-konkan-text-primary'}`}>
+                  {opt.label}
+                </span>
+              </label>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Availability — REAL in-stock toggle (wired to ?in_stock=true) */}
       <div className="py-3">
         <label className="flex items-center gap-3 cursor-pointer group">
-          <input type="checkbox" className="w-4 h-4 rounded border-konkan-sand text-konkan-green-primary focus:ring-konkan-green-primary focus:ring-offset-0" />
+          <input
+            type="checkbox"
+            checked={activeInStock}
+            onChange={() => updateFilter('in_stock', activeInStock ? '' : 'true')}
+            className="w-4 h-4 rounded border-konkan-sand text-konkan-green-primary focus:ring-konkan-green-primary focus:ring-offset-0"
+          />
           <span className="text-sm text-konkan-text-secondary group-hover:text-konkan-text-primary transition-colors">In Stock Only</span>
         </label>
       </div>

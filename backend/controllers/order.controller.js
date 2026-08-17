@@ -226,8 +226,32 @@ const getOrderByNumber = asyncHandler(async (req, res) => {
   return ApiResponse.success(res, { order: orders[0] });
 });
 
+// Cancellation reasons the customer can pick from the cancel dialog.
+// Stored verbatim in orders.cancel_reason so the admin analytics can group by them.
+const CANCEL_REASONS = [
+  'delivery_time_too_long',
+  'found_cheaper_elsewhere',
+  'ordered_by_mistake',
+  'changed_my_mind',
+  'price_too_high',
+  'payment_issue',
+  'other',
+];
+
 const cancelOrder = asyncHandler(async (req, res) => {
   const { id } = req.params;
+  const { cancel_reason } = req.body;
+
+  // Validate the reason (if provided) — free-form "other" gets a custom text.
+  let reason = null;
+  if (cancel_reason && String(cancel_reason).trim()) {
+    const trimmed = String(cancel_reason).trim().slice(0, 191);
+    reason = CANCEL_REASONS.includes(trimmed)
+      ? trimmed
+      : trimmed.toLowerCase().startsWith('other')
+        ? 'other'
+        : trimmed;
+  }
 
   const [orders] = await pool.query(
     "SELECT id, status FROM orders WHERE id = ? AND user_id = ? AND status IN ('pending', 'confirmed')",
@@ -239,13 +263,13 @@ const cancelOrder = asyncHandler(async (req, res) => {
   }
 
   await pool.query(
-    "UPDATE orders SET status = 'cancelled' WHERE id = ?",
-    [id]
+    'UPDATE orders SET status = ?, cancel_reason = ? WHERE id = ?',
+    ['cancelled', reason, id]
   );
 
   await pool.query(
     'INSERT INTO order_tracking (order_id, status, message) VALUES (?, ?, ?)',
-    [id, 'cancelled', 'Order cancelled by customer.']
+    [id, 'cancelled', `Order cancelled by customer${reason ? ` — ${reason}` : ''}.`]
   );
 
   const [items] = await pool.query('SELECT product_id, quantity FROM order_items WHERE order_id = ?', [id]);

@@ -169,6 +169,18 @@ router.get('/regions', productController.getRegions);
 
 /**
  * @swagger
+ * /products/filters:
+ *   get:
+ *     summary: Get distinct brands and regions for the product filter sidebar
+ *     tags: [Products]
+ *     responses:
+ *       200:
+ *         description: Lists of distinct brands and region_origin values.
+ */
+router.get('/filters', productController.getFilterOptions);
+
+/**
+ * @swagger
  * /products/{slug}:
  *   get:
  *     summary: Get a single product by slug

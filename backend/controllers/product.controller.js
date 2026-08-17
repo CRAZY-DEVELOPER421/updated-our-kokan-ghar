@@ -6,7 +6,7 @@ const getProducts = asyncHandler(async (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 24;
   const offset = (page - 1) * limit;
-  const { category, min_price, max_price, rating, sort, q, organic, seasonal, featured, region } = req.query;
+  const { category, min_price, max_price, rating, sort, q, organic, seasonal, featured, region, brand, in_stock, discount, bestseller } = req.query;
 
   let whereClause = 'WHERE p.is_active = 1';
   const params = [];
@@ -73,9 +73,37 @@ const getProducts = asyncHandler(async (req, res) => {
   }
 
   if (region) {
-    // Case-insensitive region_origin match (e.g. 'goa' matches 'Goa').
-    whereClause += ' AND LOWER(p.region_origin) = ?';
-    params.push(String(region).trim().toLowerCase());
+    // Multi-select, case-insensitive: ?region=goa,ratnagiri matches either.
+    const regionList = String(region).split(',').map((r) => r.trim().toLowerCase()).filter(Boolean);
+    if (regionList.length > 0) {
+      const placeholders = regionList.map(() => '?').join(',');
+      whereClause += ` AND LOWER(p.region_origin) IN (${placeholders})`;
+      params.push(...regionList);
+    }
+  }
+
+  if (brand) {
+    // Multi-select, case-insensitive: ?brand=kokan%20fresh,goan%20roots matches either.
+    const brandList = String(brand).split(',').map((b) => b.trim().toLowerCase()).filter(Boolean);
+    if (brandList.length > 0) {
+      const placeholders = brandList.map(() => '?').join(',');
+      whereClause += ` AND LOWER(p.brand) IN (${placeholders})`;
+      params.push(...brandList);
+    }
+  }
+
+  if (in_stock === 'true') {
+    whereClause += ' AND p.stock_quantity > 0';
+  }
+
+  if (discount && !isNaN(parseInt(discount))) {
+    // ?discount=30 → products with ≥30% off (discount_percent column)
+    whereClause += ' AND p.discount_percent >= ?';
+    params.push(parseInt(discount));
+  }
+
+  if (bestseller === 'true') {
+    whereClause += ' AND p.total_sold > 0';
   }
 
   let orderClause = 'ORDER BY p.created_at DESC';
@@ -96,6 +124,7 @@ const getProducts = asyncHandler(async (req, res) => {
       orderClause = 'ORDER BY p.total_sold DESC';
       break;
     case 'discount':
+    case 'discount_desc':
       orderClause = 'ORDER BY p.discount_percent DESC';
       break;
     default:
@@ -415,6 +444,34 @@ const getCategoryDeals = asyncHandler(async (req, res) => {
   return ApiResponse.success(res, { categories });
 });
 
+const getFilterOptions = asyncHandler(async (req, res) => {
+  const [brands] = await pool.query(
+    `SELECT brand, COUNT(*) as count FROM products
+     WHERE is_active = 1 AND brand IS NOT NULL AND brand != ''
+     GROUP BY brand ORDER BY brand ASC`
+  );
+  const [regions] = await pool.query(
+    `SELECT region_origin, COUNT(*) as count FROM products
+     WHERE is_active = 1 AND region_origin IS NOT NULL AND region_origin != ''
+     GROUP BY region_origin ORDER BY region_origin ASC`
+  );
+  const [priceRange] = await pool.query(
+    'SELECT MIN(price) as min_price, MAX(price) as max_price FROM products WHERE is_active = 1'
+  );
+  // Round the max up to a friendly number (e.g. 2235 → 2500) so the slider
+  // feels natural; min stays as the real floor.
+  const rawMax = Number(priceRange[0]?.max_price || 0);
+  const maxPrice = rawMax > 0 ? Math.ceil(rawMax / 250) * 250 : 5000;
+  return ApiResponse.success(res, {
+    brands: brands.map((b) => ({ name: b.brand, count: Number(b.count) })),
+    regions: regions.map((r) => ({ name: r.region_origin, count: Number(r.count) })),
+    price_range: {
+      min: Math.floor(Number(priceRange[0]?.min_price || 0)),
+      max: maxPrice,
+    },
+  });
+});
+
 const getRegions = asyncHandler(async (req, res) => {
   const [regions] = await pool.query(
     `SELECT
@@ -510,6 +567,7 @@ const getRandomProducts = asyncHandler(async (req, res) => {
 module.exports = {
   getProducts,
   getRegions,
+  getFilterOptions,
   getProductBySlug,
   getFeaturedProducts,
   getBestsellers,
