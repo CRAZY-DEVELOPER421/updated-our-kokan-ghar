@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/select';
 
 const SORT_OPTIONS = [
-  { label: 'Relevance', value: 'relevance' },
+  { label: 'Name: A to Z', value: 'relevance' },
   { label: 'Price: Low to High', value: 'price_asc' },
   { label: 'Price: High to Low', value: 'price_desc' },
   { label: 'Discount: High to Low', value: 'discount_desc' },

@@ -34,6 +34,9 @@ mysql -u root -p konkan_bazaar -e "SELECT COUNT(*) AS total_products FROM produc
 | `customer_service_schema.sql` | Terms, returns, shipping, FAQ, privacy pages | For policy pages |
 | `settings_schema.sql` | `site_settings` — contact info, social links | For settings |
 | `social_oauth_migration.sql` | OAuth: makes `password_hash` nullable | For Google/Facebook login |
+| `campaigns_schema.sql` | Festive campaign landing pages (`campaigns` + `campaign_products`) | For festival collection pages |
+| `campaigns_sections_schema.sql` | Campaign v2 — page background + unlimited sections (`campaign_sections`, `campaign_section_products`, `campaign_section_blogs`) | For festival collection pages (run after `campaigns_schema.sql`) |
+| `low_stock_schema.sql` | Low stock alerts — adds `low_stock_threshold`/`critical_stock_threshold` to products + `stock_alerts` table | For low stock alerts & daily digest |
 
 Run the optional files only for the features you use — they're idempotent and safe to
 re-run. **Do not skip `social_oauth_migration.sql` if you enable social login** — see

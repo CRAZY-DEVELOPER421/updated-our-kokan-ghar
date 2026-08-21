@@ -81,7 +81,8 @@ export default function FlashSaleTimer() {
   const targetDate = endTimes.length ? new Date(Math.min(...endTimes)).toISOString() : null;
 
   return (
-    <section>
+    <section className="w-full" style={{ backgroundColor: '#FFF3E0' }}>
+      <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* ══ Header row: title + subtext (left) | live countdown (right) ══ */}
       <div className="flex items-center justify-between gap-6 mb-7">
         <div>
@@ -119,6 +120,7 @@ export default function FlashSaleTimer() {
             <ProductCarouselCard product={sale} />
           </div>
         ))}
+      </div>
       </div>
     </section>
   );

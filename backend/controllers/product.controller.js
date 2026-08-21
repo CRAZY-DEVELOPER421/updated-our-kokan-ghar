@@ -106,7 +106,9 @@ const getProducts = asyncHandler(async (req, res) => {
     whereClause += ' AND p.total_sold > 0';
   }
 
-  let orderClause = 'ORDER BY p.created_at DESC';
+  // Default (no explicit sort) = alphabetical by name so shoppers can
+  // quickly find a specific product while browsing a category.
+  let orderClause = 'ORDER BY p.name ASC';
   switch (sort) {
     case 'price_asc':
       orderClause = 'ORDER BY p.price ASC';
@@ -128,7 +130,9 @@ const getProducts = asyncHandler(async (req, res) => {
       orderClause = 'ORDER BY p.discount_percent DESC';
       break;
     default:
-      orderClause = 'ORDER BY p.created_at DESC';
+      // 'relevance' or unknown values → alphabetical (case-insensitive
+      // thanks to the utf8mb4_unicode_ci collation).
+      orderClause = 'ORDER BY p.name ASC';
   }
 
   const countQuery = `SELECT COUNT(*) as total FROM products p JOIN categories c ON p.category_id = c.id ${whereClause}`;
@@ -277,19 +281,73 @@ const getNewArrivals = asyncHandler(async (req, res) => {
 const getRelatedProducts = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  const [product] = await pool.query('SELECT category_id FROM products WHERE id = ?', [id]);
+  const [product] = await pool.query(
+    'SELECT category_id, price FROM products WHERE id = ?',
+    [id]
+  );
   if (product.length === 0) {
     return ApiResponse.error(res, 'Product not found.', 404);
   }
 
-  const [products] = await pool.query(
-    `SELECT p.*,
-      (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = 1 LIMIT 1) as primary_image
-     FROM products p 
-     WHERE p.category_id = ? AND p.id != ? AND p.is_active = 1
-     ORDER BY RAND() LIMIT 8`,
-    [product[0].category_id, id]
+  const { category_id, price } = product[0];
+  const priceNum = parseFloat(price) || 0;
+
+  // Price range: ±40% of current product price
+  const minPrice = Math.max(priceNum * 0.6, priceNum - 200);
+  const maxPrice = priceNum * 1.4 + 200;
+
+  // Find the parent category — categories are hierarchical (parent → children).
+  // Each child has only 1 product, so we need to look at siblings under
+  // the same parent. If this category IS the parent, use it directly.
+  const [catRow] = await pool.query(
+    'SELECT parent_id FROM categories WHERE id = ?',
+    [category_id]
   );
+  const parentId = catRow[0]?.parent_id || category_id;
+
+  // Category IDs to search: the parent + all its children
+  const [siblingCats] = await pool.query(
+    'SELECT id FROM categories WHERE id = ? OR parent_id = ?',
+    [parentId, parentId]
+  );
+  const catIds = siblingCats.map(c => c.id);
+  if (catIds.length === 0) catIds.push(category_id);
+
+  // Build the category placeholder: (?, ?, ?, ...)
+  const catPlaceholders = catIds.map(() => '?').join(',');
+
+  // First try: same parent category + similar price range (most relevant)
+  let [products] = await pool.query(
+    `SELECT p.*,
+      (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = 1 LIMIT 1) as primary_image,
+      c.name as category_name
+     FROM products p
+     JOIN categories c ON p.category_id = c.id
+     WHERE p.category_id IN (${catPlaceholders}) AND p.id != ? AND p.is_active = 1
+       AND p.price BETWEEN ? AND ?
+     ORDER BY p.total_sold DESC, p.average_rating DESC
+     LIMIT 8`,
+    [...catIds, id, minPrice, maxPrice]
+  );
+
+  // Fallback: same parent category, any price (fill up to 8)
+  if (products.length < 4) {
+    const existingIds = products.map(p => p.id);
+    const existingPlaceholders = existingIds.length > 0 ? existingIds.map(() => '?').join(',') : '0';
+    const [extras] = await pool.query(
+      `SELECT p.*,
+        (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = 1 LIMIT 1) as primary_image,
+        c.name as category_name
+       FROM products p
+       JOIN categories c ON p.category_id = c.id
+       WHERE p.category_id IN (${catPlaceholders}) AND p.id != ? AND p.is_active = 1
+         AND p.id NOT IN (${existingPlaceholders})
+       ORDER BY p.total_sold DESC, p.average_rating DESC
+       LIMIT ?`,
+      [...catIds, id, ...existingIds, 8 - products.length]
+    );
+    products = [...products, ...extras];
+  }
 
   return ApiResponse.success(res, { products });
 });

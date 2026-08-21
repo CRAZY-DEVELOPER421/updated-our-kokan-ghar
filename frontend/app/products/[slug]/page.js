@@ -8,7 +8,7 @@ const ProductImages = dynamic(() => import('@/components/product/ProductImages')
 const ProductReviews = dynamic(() => import('@/components/product/ProductReviews'), {
   loading: () => <div className="skeleton h-64 rounded-xl" />,
 });
-const BestsellerRow = dynamic(() => import('@/components/home/BestsellerRow'), {
+const SimilarProducts = dynamic(() => import('@/components/product/SimilarProducts'), {
   loading: () => <div className="skeleton h-64 rounded-xl" />,
 });
 const ProductTabs = dynamic(() => import('@/components/product/ProductDetailClient').then(m => m.ProductTabs));
@@ -17,6 +17,7 @@ const ProductActions = dynamic(() => import('@/components/product/ProductActions
 });
 const PincodeChecker = dynamic(() => import('@/components/product/ProductDetailClient').then(m => m.PincodeChecker));
 const RecentlyViewed = dynamic(() => import('@/components/product/ProductDetailClient').then(m => m.RecentlyViewed));
+const NotifyMeButton = dynamic(() => import('@/components/product/NotifyMeButton'));
 
 async function getProduct(slug) {
   try {
@@ -169,6 +170,11 @@ export default async function ProductDetailPage({ params }) {
             />
           </Suspense>
 
+          {/* Notify Me — out-of-stock products */}
+          {product.stock_quantity <= 0 && (
+            <NotifyMeButton productId={product.id} />
+          )}
+
           {/* Delivery Info */}
           <div className="border-t border-konkan-sand/50 pt-4 space-y-3">
             <Suspense fallback={<div className="skeleton h-10 w-full rounded-lg" />}>
@@ -219,10 +225,10 @@ export default async function ProductDetailPage({ params }) {
         </div>
       </div>
 
-      {/* Related Products */}
+      {/* Similar Products — same category + price range */}
       <div className="mb-10">
         <Suspense fallback={<div className="skeleton h-64 rounded-xl" />}>
-          <BestsellerRow title="Customers Also Bought" subtitle="Products related to this item" />
+          <SimilarProducts productId={product.id} />
         </Suspense>
       </div>
 

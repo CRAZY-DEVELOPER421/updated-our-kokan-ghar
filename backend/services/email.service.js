@@ -374,6 +374,7 @@ const sendPriceDropEmail = (email, name, productName, newPrice, oldPrice, saving
 
 module.exports = {
   sendEmail,
+  emailShell,
   sendOTPEmail,
   sendWelcomeEmail,
   sendLoginEmail,

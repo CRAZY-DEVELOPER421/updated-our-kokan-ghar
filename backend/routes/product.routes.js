@@ -3,6 +3,9 @@ const router = express.Router();
 const productController = require('../controllers/product.controller');
 const { verifyToken } = require('../middleware/auth');
 const { reviewValidation } = require('../middleware/validate');
+const backInStockService = require('../services/backInStock.service');
+const asyncHandler = require('../utils/asyncHandler');
+const ApiResponse = require('../utils/apiResponse');
 
 /**
  * @swagger
@@ -197,6 +200,48 @@ router.get('/filters', productController.getFilterOptions);
  *       404:
  *         description: Product not found.
  */
+// ── Back-in-Stock Notifications ───────────────────────────
+/**
+ * @swagger
+ * /products/{id}/notify:
+ *   post:
+ *     summary: Subscribe to back-in-stock notification
+ *     tags: [Products]
+ */
+router.post('/:id/notify', asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { email } = req.body;
+  const userEmail = email || req.user?.email;
+
+  if (!userEmail) {
+    return ApiResponse.error(res, 'Email is required. Please log in or provide your email.', 400);
+  }
+
+  const result = await backInStockService.subscribe(parseInt(id), req.user, userEmail);
+
+  if (result.success) {
+    return ApiResponse.success(res, { subscribed: true }, result.message);
+  }
+  return ApiResponse.error(res, result.message, 400);
+}));
+
+/**
+ * @swagger
+ * /products/{id}/notify:
+ *   get:
+ *     summary: Check if current user/email is subscribed for back-in-stock
+ *     tags: [Products]
+ */
+router.get('/:id/notify', asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const email = req.query.email || req.user?.email;
+
+  if (!email) return ApiResponse.success(res, { subscribed: false });
+
+  const result = await backInStockService.checkSubscription(parseInt(id), email);
+  return ApiResponse.success(res, result);
+}));
+
 router.get('/:slug', productController.getProductBySlug);
 
 /**

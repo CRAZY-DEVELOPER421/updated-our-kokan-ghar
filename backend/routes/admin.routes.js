@@ -1268,6 +1268,145 @@ router.put('/customer-service/:id', verifyToken, isAdmin, customerServiceControl
  */
 router.delete('/customer-service/:id', verifyToken, isAdmin, customerServiceController.deletePage);
 
+// ===== CAMPAIGNS (FESTIVE COLLECTION PAGES) =====
+const campaignController = require('../controllers/campaign.controller');
+
+/**
+ * @swagger
+ * /admin/campaigns:
+ *   get:
+ *     summary: Get all campaigns (admin, with product count)
+ *     tags: [Admin - Campaigns]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of campaigns.
+ */
+router.get('/campaigns', verifyToken, isAdmin, campaignController.getCampaigns);
+
+/**
+ * @swagger
+ * /admin/campaigns/{id}:
+ *   get:
+ *     summary: Get a single campaign by ID (admin, includes product_ids)
+ *     tags: [Admin - Campaigns]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Campaign details.
+ *       404:
+ *         description: Campaign not found.
+ */
+router.get('/campaigns/:id', verifyToken, isAdmin, campaignController.getCampaignById);
+
+/**
+ * @swagger
+ * /admin/campaigns:
+ *   post:
+ *     summary: Create a campaign (admin)
+ *     tags: [Admin - Campaigns]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name, slug]
+ *             properties:
+ *               name: { type: string }
+ *               slug: { type: string }
+ *               tagline: { type: string }
+ *               description: { type: string }
+ *               theme_color: { type: string }
+ *               banner_image_url: { type: string }
+ *               mobile_banner_image_url: { type: string }
+ *               meta_title: { type: string }
+ *               meta_description: { type: string }
+ *               starts_at: { type: string, format: date-time }
+ *               ends_at: { type: string, format: date-time }
+ *               is_active: { type: boolean }
+ *               sort_order: { type: integer }
+ *               product_ids:
+ *                 type: array
+ *                 items: { type: integer }
+ *     responses:
+ *       201:
+ *         description: Campaign created.
+ */
+router.post('/campaigns', verifyToken, isAdmin, campaignController.createCampaign);
+
+/**
+ * @swagger
+ * /admin/campaigns/{id}:
+ *   put:
+ *     summary: Update a campaign (admin)
+ *     tags: [Admin - Campaigns]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name: { type: string }
+ *               slug: { type: string }
+ *               tagline: { type: string }
+ *               description: { type: string }
+ *               theme_color: { type: string }
+ *               banner_image_url: { type: string }
+ *               mobile_banner_image_url: { type: string }
+ *               meta_title: { type: string }
+ *               meta_description: { type: string }
+ *               starts_at: { type: string, format: date-time }
+ *               ends_at: { type: string, format: date-time }
+ *               is_active: { type: boolean }
+ *               sort_order: { type: integer }
+ *               product_ids:
+ *                 type: array
+ *                 items: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Campaign updated.
+ *       404:
+ *         description: Campaign not found.
+ */
+router.put('/campaigns/:id', verifyToken, isAdmin, campaignController.updateCampaign);
+
+/**
+ * @swagger
+ * /admin/campaigns/{id}:
+ *   delete:
+ *     summary: Delete a campaign (admin, removes its curated product links)
+ *     tags: [Admin - Campaigns]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: integer }
+ *     responses:
+ *       200:
+ *         description: Campaign deleted.
+ */
+router.delete('/campaigns/:id', verifyToken, isAdmin, campaignController.deleteCampaign);
+
 // ===== REVIEW MODERATION =====
 
 /**

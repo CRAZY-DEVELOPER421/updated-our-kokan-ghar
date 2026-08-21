@@ -71,6 +71,7 @@ const analyticsRoutes = require('./routes/analytics.routes');
 const contactRoutes = require('./routes/contact.routes');
 const heroSlideRoutes = require('./routes/heroSlide.routes');
 const navbarRoutes = require('./routes/navbar.routes');
+const campaignRoutes = require('./routes/campaign.routes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -93,6 +94,7 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/hero-slides', heroSlideRoutes);
 app.use('/api/navbar', navbarRoutes);
+app.use('/api/campaigns', campaignRoutes);
 
 // CMS (Team, Blog, Video, Media)
 const cmsRoutes = require('./routes/cms.routes');
@@ -181,7 +183,17 @@ const ensureSuspendColumn = async () => {
   }
 };
 
-ensureSuspendColumn().finally(() => {
+ensureSuspendColumn().finally(async () => {
+  // Ensure stock_alerts table + low_stock_threshold column exist
+  try {
+    const { ensureStockAlertSchema } = require('./services/stockAlert.service');
+    await ensureStockAlertSchema();
+    const { ensureSchema: ensureBisSchema } = require('./services/backInStock.service');
+    await ensureBisSchema();
+  } catch (err) {
+    console.error('[Startup] schema ensure failed:', err.message);
+  }
+
   // Auto-reactivate expired timed suspensions in the background (every 60s).
   // The user is unblocked the moment their suspend_until passes — no login,
   // no admin visit, no manual action required. The same rule is also applied
@@ -242,6 +254,70 @@ ensureSuspendColumn().finally(() => {
         console.error('[PriceDrop] Sweep failed:', err.message);
       });
     }, PRICE_DROP_INTERVAL_HOURS * 60 * 60 * 1000);
+  }
+
+  // ── Daily Business Digest — sent every day at 08:00 AM IST ──
+  // Uses an in-process setInterval that checks IST hour/minute.
+  // For production reliability, prefer system cron (see README below).
+  if (process.env.DAILY_DIGEST_ENABLED !== 'false') {
+    const { sendDailyDigest } = require('./services/dailyDigest.service');
+
+    // Calculate ms until next 08:00 AM IST
+    function msUntilNextDigest() {
+      const now = new Date();
+      // IST = UTC+5:30
+      const istNow = new Date(now.getTime() + (5.5 * 60 * 60 * 1000) + (now.getTimezoneOffset() * 60 * 1000));
+      const target = new Date(istNow);
+      target.setHours(8, 0, 0, 0);
+      if (target <= istNow) target.setDate(target.getDate() + 1);
+      return target.getTime() - istNow.getTime();
+    }
+
+    const scheduleNext = () => {
+      const delay = msUntilNextDigest();
+      const hours = Math.floor(delay / (1000 * 60 * 60));
+      const mins = Math.floor((delay % (1000 * 60 * 60)) / (1000 * 60));
+      console.log(`[Digest] Next daily digest in ${hours}h ${mins}m (08:00 AM IST)`);
+      setTimeout(() => {
+        sendDailyDigest().catch((err) => {
+          console.error('[Digest] Scheduled run failed:', err.message);
+        });
+        scheduleNext(); // schedule the next day
+      }, delay);
+    };
+
+    // First check shortly after boot, then daily
+    setTimeout(() => {
+      const now = new Date();
+      const istNow = new Date(now.getTime() + (5.5 * 60 * 60 * 1000) + (now.getTimezoneOffset() * 60 * 1000));
+      // If it's currently 08:00 AM IST ± 5 minutes, send immediately
+      if (istNow.getHours() === 8 && istNow.getMinutes() < 5) {
+        sendDailyDigest().catch((err) => {
+          console.error('[Digest] Initial run failed:', err.message);
+        });
+      }
+      scheduleNext();
+    }, 7 * 60 * 1000); // staggered after other schedulers
+  }
+
+  // ── Abandoned Cart Recovery — hourly sweep ──
+  // Finds carts idle for 24+ hours, sends recovery emails with coupons.
+  if (process.env.ABANDONED_CART_RECOVERY_ENABLED !== 'false') {
+    const { runAbandonedCartRecovery } = require('./services/abandonedCart.service');
+    const CART_RECOVERY_INTERVAL_MIN = parseInt(process.env.ABANDONED_CART_INTERVAL_MIN, 10) || 60;
+
+    // First run shortly after boot (staggered), then every N minutes.
+    setTimeout(() => {
+      runAbandonedCartRecovery().catch((err) => {
+        console.error('[AbandonedCart] Initial run failed:', err.message);
+      });
+    }, 9 * 60 * 1000);
+
+    setInterval(() => {
+      runAbandonedCartRecovery().catch((err) => {
+        console.error('[AbandonedCart] Sweep failed:', err.message);
+      });
+    }, CART_RECOVERY_INTERVAL_MIN * 60 * 1000);
   }
 
   app.listen(PORT, '0.0.0.0', () => {

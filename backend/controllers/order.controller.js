@@ -6,6 +6,7 @@ const loyaltyService = require('../services/loyalty.service');
 const { sendEmail, sendOrderConfirmation } = require('../services/email.service');
 const { sendOrderSMS } = require('../services/sms.service');
 const { createNotification } = require('../services/notification.service');
+const { checkAndAlertStock } = require('../services/stockAlert.service');
 
 const generateOrderNumber = () => {
   const prefix = 'KB';
@@ -114,6 +115,11 @@ const createOrder = asyncHandler(async (req, res) => {
       'UPDATE products SET stock_quantity = stock_quantity - ?, total_sold = total_sold + ? WHERE id = ?',
       [item.quantity, item.quantity, item.product_id]
     );
+
+    // Fire-and-forget: check low-stock after each product's stock deduction
+    checkAndAlertStock(pool, item.product_id).catch((err) => {
+      console.error(`[StockAlert] post-order check failed for product #${item.product_id}:`, err.message);
+    });
   }
 
   await pool.query(
@@ -275,6 +281,11 @@ const cancelOrder = asyncHandler(async (req, res) => {
   const [items] = await pool.query('SELECT product_id, quantity FROM order_items WHERE order_id = ?', [id]);
   for (const item of items) {
     await pool.query('UPDATE products SET stock_quantity = stock_quantity + ? WHERE id = ?', [item.quantity, item.product_id]);
+
+    // Fire-and-forget: restocking may resolve an existing low-stock alert
+    checkAndAlertStock(pool, item.product_id).catch((err) => {
+      console.error(`[StockAlert] post-cancel check failed for product #${item.product_id}:`, err.message);
+    });
   }
 
   // Refund any loyalty points redeemed on this order

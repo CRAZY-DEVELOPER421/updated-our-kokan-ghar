@@ -23,7 +23,12 @@ const getDashboard = asyncHandler(async (req, res) => {
   );
 
   const [lowStockProducts] = await pool.query(
-    'SELECT id, name, slug, stock_quantity, sku FROM products WHERE is_active = 1 AND stock_quantity < 10 ORDER BY stock_quantity ASC LIMIT 10'
+    `SELECT id, name, slug, stock_quantity, sku,
+            low_stock_threshold, critical_stock_threshold
+     FROM products
+     WHERE is_active = 1
+       AND stock_quantity <= COALESCE(low_stock_threshold, 10)
+     ORDER BY stock_quantity ASC LIMIT 10`
   );
 
   return ApiResponse.success(res, {

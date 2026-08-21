@@ -7,7 +7,7 @@ import api from '@/lib/api';
 import { SlidersHorizontal, ArrowUpDown, ChevronDown } from 'lucide-react';
 
 const SORT_OPTIONS = [
-  { label: 'Relevance', value: 'relevance' },
+  { label: 'Name: A to Z', value: 'relevance' },
   { label: 'Price: Low to High', value: 'price_asc' },
   { label: 'Price: High to Low', value: 'price_desc' },
   { label: 'Avg. Rating', value: 'rating' },
@@ -33,7 +33,10 @@ export default function MobileFilterToolbar() {
     staleTime: 300000,
   });
   const categories = catData || [];
-  const parentCategories = categories.filter(c => !c.parent_id);
+  // Alphabetical (A–Z) so the category picker is easy to scan — display-only.
+  const parentCategories = categories
+    .filter(c => !c.parent_id)
+    .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base' }));
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -81,7 +84,7 @@ export default function MobileFilterToolbar() {
     window.dispatchEvent(new CustomEvent('open-mobile-filters'));
   };
 
-  const currentSortLabel = SORT_OPTIONS.find(o => o.value === activeSort)?.label || 'Relevance';
+  const currentSortLabel = SORT_OPTIONS.find(o => o.value === activeSort)?.label || 'Name: A to Z';
 
   return (
     <div className="lg:hidden flex items-center gap-2 mb-3 sticky top-[56px] z-30 bg-white py-2 -mx-4 px-4 border-b border-gray-100 shadow-sm">

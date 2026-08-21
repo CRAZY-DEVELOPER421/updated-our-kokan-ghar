@@ -177,14 +177,12 @@ export default function HomePage() {
         <CategoryGrid />
       </section>
 
-      {/* Flash Sale — desktop only, full-bleed background */}
-      <section className="hidden lg:block w-full" style={{ backgroundColor: '#FFF3E0' }}>
-        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <Suspense fallback={<div className="skeleton h-80 rounded-2xl" />}>
-            <FlashSaleTimer />
-          </Suspense>
-        </div>
-      </section>
+      {/* Flash Sale — desktop only, full-bleed background (hidden when no active sales) */}
+      <div className="hidden lg:block">
+        <Suspense fallback={<div className="skeleton h-80 rounded-2xl" />}>
+          <FlashSaleTimer />
+        </Suspense>
+      </div>
 
       {/* Deals Under ₹999 — desktop only */}
       <section className="hidden lg:block max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">

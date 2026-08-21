@@ -47,6 +47,10 @@ export default function Navbar() {
   const closeCategoryMenu = () => { setIsCategoryOpen(false); setActiveCat(null); };
   const pathname = usePathname();
   const router = useRouter();
+
+  // Campaign landing pages are immersive — only the top bar (logo, search,
+  // icons) is shown; the category nav row below it stays hidden there.
+  const isCampaignPage = pathname?.startsWith('/campaign');
   const { user, isAuthenticated, suspended, suspension, clearSuspended, fetchProfile, logout } = useAuthStore();
   const { itemCount: cartCount } = useCartStore();
   const { count: wishlistCount } = useWishlistStore();
@@ -104,6 +108,14 @@ export default function Navbar() {
     { id: 8, name: 'Pickles & Chutneys', slug: 'pickles-chutneys', children: [] },
   ];
   const [mounted, setMounted] = useState(false);
+
+  // Alphabetical (A–Z) ordering for the category menus — display-only, so
+  // shoppers can find a specific category fast. Does NOT touch the admin's
+  // sort_order, which is still used elsewhere (homepage sections, etc).
+  const sortByName = (list = []) => [...list].sort((a, b) =>
+    String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base' })
+  );
+  const sortedCategories = sortByName(categories);
 
   useEffect(() => {
     setMounted(true);
@@ -285,7 +297,8 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Navigation Links - Desktop (hidden on scroll down) */}
+      {/* Navigation Links - Desktop (hidden on scroll down, and always on campaign pages) */}
+      {!isCampaignPage && (
       <div
         className={`hidden lg:block transition-all duration-300 ease-out motion-reduce:transition-none ${
           isScrolled
@@ -315,7 +328,7 @@ export default function Navbar() {
                 >
                   {/* Left column: all categories (vertical scroll only) */}
                   <div className="w-64 bg-white py-2 max-h-[calc(100vh-12rem)] overflow-y-auto overflow-x-hidden">
-                    {categories.map((cat) => {
+                    {sortedCategories.map((cat) => {
                       const catKey = cat.slug?.replace(/-/g, '_');
                       const isActive = activeCat?.id === cat.id;
                       return (
@@ -345,7 +358,7 @@ export default function Navbar() {
                       <p className="px-4 pt-1 pb-2 text-[10px] font-semibold uppercase tracking-widest text-konkan-text-secondary">
                         {activeCat.name}
                       </p>
-                      {activeCat.children.map((child) => (
+                      {sortByName(activeCat.children).map((child) => (
                         <Link
                           key={child.id}
                           href={`/categories/${child.slug}`}
@@ -380,6 +393,7 @@ export default function Navbar() {
           </div>
         </div>
       </div>
+      )}
 
       {/* Mobile Menu — Smooth Slide from Right */}
       <div
@@ -440,7 +454,7 @@ export default function Navbar() {
               <nav className="space-y-1">
                 {/* Category Links - from API */}
                 <p className="text-[10px] font-semibold uppercase tracking-widest text-konkan-text-secondary mb-2">Categories</p>
-                {categories.slice(0, 12).map((cat) => (
+                {sortedCategories.slice(0, 12).map((cat) => (
                   <Link
                     key={cat.id}
                     href={`/categories/${cat.slug}`}

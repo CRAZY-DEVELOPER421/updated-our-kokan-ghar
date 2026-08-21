@@ -5,6 +5,7 @@ const asyncHandler = require('../utils/asyncHandler');
 const { generateUniqueSlug } = require('../utils/generateSlug');
 const { createNotification } = require('../services/notification.service');
 const { sendEmail, sendOfferEmail, sendSuspensionEmail } = require('../services/email.service');
+const { checkAndAlertStock } = require('../services/stockAlert.service');
 const { sendOrderSMS } = require('../services/sms.service');
 const { statusOf, reactivateExpiredSuspensions } = require('../services/suspension.service');
 
@@ -212,6 +213,12 @@ const createProduct = asyncHandler(async (req, res) => {
     }
 
     await conn.commit();
+
+    // Fire-and-forget: check low-stock after product creation
+    checkAndAlertStock(pool, result.insertId).catch((err) => {
+      console.error('[StockAlert] post-create check failed:', err.message);
+    });
+
     return ApiResponse.created(res, { id: result.insertId, slug }, 'Product created.');
   } catch (err) {
     await conn.rollback();
@@ -292,6 +299,14 @@ const updateProduct = asyncHandler(async (req, res) => {
     }
 
     await conn.commit();
+
+    // Fire-and-forget: check low-stock after product update (only if stock_quantity changed)
+    if (updates.stock_quantity !== undefined) {
+      checkAndAlertStock(pool, id).catch((err) => {
+        console.error('[StockAlert] post-update check failed:', err.message);
+      });
+    }
+
     return ApiResponse.success(res, {}, 'Product updated.');
   } catch (err) {
     await conn.rollback();
