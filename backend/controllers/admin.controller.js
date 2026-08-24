@@ -8,6 +8,8 @@ const { sendEmail, sendOfferEmail, sendSuspensionEmail } = require('../services/
 const { checkAndAlertStock } = require('../services/stockAlert.service');
 const { sendOrderSMS } = require('../services/sms.service');
 const { statusOf, reactivateExpiredSuspensions } = require('../services/suspension.service');
+const { sendPushToUser } = require('./push.controller');
+const pushService = require('../services/pushNotification.service');
 
 // ===== PRODUCT MANAGEMENT =====
 
@@ -307,6 +309,13 @@ const updateProduct = asyncHandler(async (req, res) => {
       });
     }
 
+    // Fire-and-forget: price-drop alert to product watchers
+    if (updates.price !== undefined) {
+      pushService.checkPriceDrops(id, updates.price).catch((err) => {
+        console.error('[Push] Price-drop check failed for product #' + id + ':', err.message);
+      });
+    }
+
     return ApiResponse.success(res, {}, 'Product updated.');
   } catch (err) {
     await conn.rollback();
@@ -526,6 +535,12 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
         `Your order is on its way! ${location ? `Current location: ${location}` : 'Track your order for real-time updates.'}`,
         { order_id: id, order_number, location: location || null }
       );
+      // Push notification (fire-and-forget)
+      sendPushToUser(user_id, {
+        title: '📦 Order Shipped!',
+        body: `Your Kokan Ghar order #${order_number} is on the way!`,
+        url: `/orders/${id}`,
+      }).catch(err => console.error(`[Push] Failed for order #${order_number} (shipped):`, err.message));
     } else if (status === 'out_for_delivery') {
       await createNotification(
         user_id,
@@ -534,6 +549,12 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
         `Your package is out for delivery and will arrive soon!`,
         { order_id: id, order_number }
       );
+      // Push notification (fire-and-forget)
+      sendPushToUser(user_id, {
+        title: '🚚 Out for Delivery!',
+        body: `Your Kokan Ghar order #${order_number} will arrive soon!`,
+        url: `/orders/${id}`,
+      }).catch(err => console.error(`[Push] Failed for order #${order_number} (out_for_delivery):`, err.message));
     } else if (status === 'delivered') {
       await createNotification(
         user_id,
@@ -542,6 +563,12 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
         'Your order has been delivered. Enjoy your Konkan products! Please leave a review.',
         { order_id: id, order_number }
       );
+      // Push notification (fire-and-forget)
+      sendPushToUser(user_id, {
+        title: '✅ Order Delivered!',
+        body: `Your order #${order_number} has been delivered — enjoy!`,
+        url: `/orders/${id}`,
+      }).catch(err => console.error(`[Push] Failed for order #${order_number} (delivered):`, err.message));
     } else if (status === 'confirmed') {
       await createNotification(
         user_id,
@@ -550,6 +577,26 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
         'Your order has been confirmed and is being prepared.',
         { order_id: id, order_number }
       );
+      // Push notification (fire-and-forget)
+      sendPushToUser(user_id, {
+        title: '✅ Order Confirmed!',
+        body: `Your Kokan Ghar order #${order_number} is confirmed and being prepared.`,
+        url: `/orders/${id}`,
+      }).catch(err => console.error(`[Push] Failed for order #${order_number} (confirmed):`, err.message));
+    } else if (status === 'cancelled') {
+      await createNotification(
+        user_id,
+        'order_cancelled',
+        `Order #${order_number} cancelled`,
+        'Your order has been cancelled.',
+        { order_id: id, order_number }
+      );
+      // Push notification (fire-and-forget)
+      sendPushToUser(user_id, {
+        title: '❌ Order Cancelled',
+        body: `Your Kokan Ghar order #${order_number} was cancelled.`,
+        url: `/orders/${id}`,
+      }).catch(err => console.error(`[Push] Failed for order #${order_number} (cancelled):`, err.message));
     }
 
     // Fire-and-forget SMS for key statuses — never fails the admin update
@@ -765,6 +812,26 @@ const createFlashSale = asyncHandler(async (req, res) => {
     'INSERT INTO flash_sales (product_id, sale_price, original_price, quantity_limit, starts_at, ends_at, is_active) VALUES (?, ?, ?, ?, ?, ?, 1)',
     [product_id, sale_price, original_price, quantity_limit, starts_at, ends_at]
   );
+
+  // Auto-push to subscribed users about the flash sale (fire-and-forget)
+  (async () => {
+    try {
+      const [products] = await pool.query('SELECT name, slug FROM products WHERE id = ?', [product_id]);
+      const [images] = await pool.query('SELECT image_url FROM product_images WHERE product_id = ? AND is_primary = 1 LIMIT 1', [product_id]);
+      if (products.length > 0) {
+        await pushService.sendFlashSalePush({
+          productId: product_id,
+          productName: products[0].name,
+          salePrice: sale_price,
+          originalPrice: original_price,
+          endsAt: ends_at,
+          productImage: images[0]?.image_url || null,
+        });
+      }
+    } catch (err) {
+      console.error('[Push] Flash sale push failed:', err.message);
+    }
+  })();
 
   return ApiResponse.created(res, { id: result.insertId }, 'Flash sale created.');
 });

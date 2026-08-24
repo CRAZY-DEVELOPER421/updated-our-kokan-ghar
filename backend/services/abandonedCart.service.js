@@ -21,6 +21,8 @@
 const pool = require('../config/db');
 const emailService = require('./email.service');
 const { getAdminEmail } = require('./stockAlert.service');
+let pushService;
+try { pushService = require('./pushNotification.service'); } catch (e) { pushService = null; }
 
 // ── Configuration ──────────────────────────────────────────────
 const ABANDON_HOURS = parseInt(process.env.ABANDON_CART_HOURS, 10) || 24;
@@ -200,6 +202,16 @@ async function runAbandonedCartRecovery() {
           );
           sent++;
           console.log(`[AbandonedCart] RECOVERY_EMAIL_SENT — ${cart.email} (cart #${cart.id}, coupon: ${coupon.code})`);
+
+          // 5b. Also send push notification (fire-and-forget)
+          if (pushService) {
+            const cartItems = await getCartItems(cart.id);
+            pushService.sendAbandonedCartPush(cart.user_id, {
+              cartItems: cartItems.map(i => ({ name: i.name })),
+              cartTotal: cart.cart_total,
+              couponCode: coupon.code,
+            }).catch(err => console.error(`[Push] Abandoned cart push failed for user ${cart.user_id}:`, err.message));
+          }
         } else {
           console.error(`[AbandonedCart] Email failed for cart #${cart.id}:`, result?.error || 'unknown');
         }

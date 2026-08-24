@@ -72,6 +72,8 @@ const contactRoutes = require('./routes/contact.routes');
 const heroSlideRoutes = require('./routes/heroSlide.routes');
 const navbarRoutes = require('./routes/navbar.routes');
 const campaignRoutes = require('./routes/campaign.routes');
+const pushRoutes = require('./routes/push.routes');
+const pushAdvancedRoutes = require('./routes/pushAdvanced.routes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -95,6 +97,8 @@ app.use('/api/contact', contactRoutes);
 app.use('/api/hero-slides', heroSlideRoutes);
 app.use('/api/navbar', navbarRoutes);
 app.use('/api/campaigns', campaignRoutes);
+app.use('/api/push', pushRoutes);
+app.use('/api/push', pushAdvancedRoutes);
 
 // CMS (Team, Blog, Video, Media)
 const cmsRoutes = require('./routes/cms.routes');

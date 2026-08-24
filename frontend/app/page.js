@@ -18,6 +18,7 @@ import MobileBlogSection from '@/components/home/MobileBlogSection';
 import MobileHelpContact from '@/components/home/MobileHelpContact';
 import MobileNewsletter from '@/components/home/MobileNewsletter';
 
+
 // HeroSlider — dynamically imported (desktop only) to avoid swiper CSS render-blocking
 const HeroSlider = dynamic(() => import('@/components/home/HeroSlider'), {
   loading: () => <div className="skeleton h-[250px] lg:h-[500px] w-full rounded-2xl" />,
@@ -165,6 +166,8 @@ export default function HomePage() {
         <MobileNewsletter />
       </div>
 
+
+
       {/* Section 13: Help/Contact (mobile) */}
       <div className="lg:hidden">
         <MobileHelpContact />
@@ -254,6 +257,8 @@ export default function HomePage() {
           <NewsletterSection />
         </Suspense>
       </section>
+
+
     </div>
   );
 }

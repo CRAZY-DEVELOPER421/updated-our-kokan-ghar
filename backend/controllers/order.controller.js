@@ -7,6 +7,7 @@ const { sendEmail, sendOrderConfirmation } = require('../services/email.service'
 const { sendOrderSMS } = require('../services/sms.service');
 const { createNotification } = require('../services/notification.service');
 const { checkAndAlertStock } = require('../services/stockAlert.service');
+const { sendPushToUser } = require('./push.controller');
 
 const generateOrderNumber = () => {
   const prefix = 'KB';
@@ -306,6 +307,13 @@ const cancelOrder = asyncHandler(async (req, res) => {
     'Your order has been cancelled successfully. Refund will be processed within 5-7 business days if applicable.',
     { order_id: id, order_number: orderNumber }
   );
+
+  // Push notification (fire-and-forget)
+  sendPushToUser(req.user.id, {
+    title: '❌ Order Cancelled',
+    body: `Your Kokan Ghar order #${orderNumber} was cancelled.`,
+    url: `/orders/${id}`,
+  }).catch(err => console.error(`[Push] Failed for order #${orderNumber} (customer cancel):`, err.message));
 
   return ApiResponse.success(res, {}, 'Order cancelled successfully.');
 });

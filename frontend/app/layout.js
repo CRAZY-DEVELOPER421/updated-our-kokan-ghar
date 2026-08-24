@@ -10,6 +10,9 @@ import MobileBottomNav from '@/components/home/MobileBottomNav';
 import MobileFooter from '@/components/layout/MobileFooter';
 import ToastProvider from '@/components/ui/Toast';
 import SuspensionGate from '@/components/layout/SuspensionGate';
+import PwaInstallPopup from '@/components/pwa/PwaInstallPopup';
+import FloatingNotifPrompt from '@/components/pwa/FloatingNotifPrompt';
+import IosPwaBanner from '@/components/pwa/IosPwaBanner';
 
 // Dynamically import below-the-fold components to reduce initial JS payload
 const PageTransition = dynamicLib(() => import('@/components/layout/PageTransition'));
@@ -53,6 +56,13 @@ export const metadata = {
   icons: {
     icon: '/favicon.svg',
     shortcut: '/favicon.svg',
+    apple: '/icons/icon-192x192.svg',
+  },
+  other: {
+    'theme-color': '#2D6A4F',
+    'apple-mobile-web-app-capable': 'yes',
+    'apple-mobile-web-app-status-bar-style': 'black-translucent',
+    'mobile-web-app-capable': 'yes',
   },
   openGraph: {
     title: 'Kokan Ghar - Authentic Konkan Products Online',
@@ -118,6 +128,9 @@ export default function RootLayout({ children }) {
         <QueryProviders>
           <I18nProvider>
             <ToastProvider />
+            <PwaInstallPopup />
+            <FloatingNotifPrompt />
+            <IosPwaBanner />
             {/* Global suspension popup + route guard (suspended users stay home) */}
             <SuspensionGate />
             <div className="hidden lg:block sticky top-0 z-50"><Navbar /></div>

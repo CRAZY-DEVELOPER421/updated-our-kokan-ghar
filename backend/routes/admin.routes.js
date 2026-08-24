@@ -5,6 +5,8 @@ const analyticsController = require('../controllers/analytics.controller');
 const settingsController = require('../controllers/settings.controller');
 const { verifyToken, isAdmin } = require('../middleware/auth');
 const { productValidation, categoryValidation } = require('../middleware/validate');
+const asyncHandler = require('../utils/asyncHandler');
+const ApiResponse = require('../utils/apiResponse');
 
 /**
  * @swagger
@@ -1546,5 +1548,80 @@ router.put('/reviews/:id/home', verifyToken, isAdmin, adminController.toggleHome
  *         description: Review not found.
  */
 router.delete('/reviews/:id', verifyToken, isAdmin, adminController.deleteReview);
+
+// ── Broadcast Push Notifications ──
+
+/**
+ * @swagger
+ * /admin/push/broadcast:
+ *   post:
+ *     summary: Send a broadcast push notification to all subscribers
+ *     tags: [Admin - Push Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [title, body, clickUrl]
+ *             properties:
+ *               title: { type: string, description: 'Notification heading' }
+ *               body: { type: string, description: 'Notification description' }
+ *               imageUrl: { type: string, description: 'Optional image URL' }
+ *               clickUrl: { type: string, description: 'URL to open on click' }
+ */
+router.post('/push/broadcast', verifyToken, isAdmin, asyncHandler(async (req, res) => {
+  const { title, body, imageUrl, clickUrl } = req.body;
+  const pushService = require('../services/pushNotification.service');
+  const pool = require('../config/db');
+
+  // Validate
+  if (!title || !title.trim()) return ApiResponse.error(res, 'Heading is required.', 400);
+  if (!body || !body.trim()) return ApiResponse.error(res, 'Description is required.', 400);
+  if (!clickUrl || !clickUrl.trim()) return ApiResponse.error(res, 'Open Link is required.', 400);
+
+  const result = await pushService.sendPushToAll({
+    title: title.trim(),
+    body: body.trim(),
+    imageUrl: imageUrl?.trim() || null,
+    clickUrl: clickUrl.trim(),
+  });
+
+  return ApiResponse.success(res, result, `Broadcast sent: ${result.successCount} delivered, ${result.expiredRemoved} expired removed, ${result.failed} failed.`);
+}));
+
+/**
+ * @swagger
+ * /admin/push/broadcast/history:
+ *   get:
+ *     summary: Get broadcast notification history
+ *     tags: [Admin - Push Notifications]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.get('/push/broadcast/history', verifyToken, isAdmin, asyncHandler(async (req, res) => {
+  const pool = require('../config/db');
+  const [rows] = await pool.query(
+    "SELECT * FROM push_campaigns WHERE campaign_type = 'broadcast' ORDER BY created_at DESC LIMIT 50"
+  );
+  return ApiResponse.success(res, { broadcasts: rows });
+}));
+
+/**
+ * @swagger
+ * /admin/push/subscribers/count:
+ *   get:
+ *     summary: Get total push subscriber count
+ *     tags: [Admin - Push Notifications]
+ *     security:
+ *       - bearerAuth: []
+ */
+router.get('/push/subscribers/count', verifyToken, isAdmin, asyncHandler(async (req, res) => {
+  const pool = require('../config/db');
+  const [rows] = await pool.query('SELECT COUNT(*) as count FROM push_subscriptions');
+  return ApiResponse.success(res, { count: rows[0].count });
+}));
 
 module.exports = router;
