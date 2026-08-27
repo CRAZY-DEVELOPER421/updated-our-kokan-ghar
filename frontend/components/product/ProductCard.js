@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import useWishlistStore from '@/lib/store/wishlistStore';
 import useAuthStore from '@/lib/store/authStore';
 import useCartStore from '@/lib/store/cartStore';
+import useCompareStore from '@/lib/store/compareStore';
 import { getImageUrl } from '@/lib/utils';
 import FlashSaleProgressBar from '@/components/ui/FlashSaleProgressBar';
 import ProductQuickViewModal from '@/components/product/ProductQuickViewModal';
@@ -84,6 +85,8 @@ export default function ProductCard({ product, view = 'grid' }) {
   const cartItems = useCartStore((s) => s.items);
   const updateQuantity = useCartStore((s) => s.updateQuantity);
   const removeItem = useCartStore((s) => s.removeItem);
+  const compareToggle = useCompareStore((s) => s.toggleProduct);
+  const isComparing = useCompareStore((s) => s.selectedIds.includes(product?.id));
   const isInCart = cartItems.some(item => parseInt(item.product_id) === parseInt(product?.id));
   const cartItem = cartItems.find(item => parseInt(item.product_id) === parseInt(product?.id));
   const cartItemId = cartItem?.id;
@@ -226,6 +229,13 @@ export default function ProductCard({ product, view = 'grid' }) {
     setQuickViewOpen(true);
   };
 
+  const handleCompare = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const result = compareToggle(product.id);
+    if (result?.error) toast.error(result.error);
+  };
+
   const handleWeightSelect = (e, weight) => {
     e.preventDefault();
     e.stopPropagation();
@@ -307,6 +317,21 @@ export default function ProductCard({ product, view = 'grid' }) {
                 -{discount}%
               </span>
             )}
+
+            {/* Compare checkbox — top-right below wishlist */}
+            <button
+              onClick={handleCompare}
+              className={`absolute top-8 right-1 z-10 w-5 h-5 rounded-full flex items-center justify-center transition-all duration-200 shadow-sm ${
+                isComparing
+                  ? 'bg-konkan-green-primary text-white'
+                  : 'bg-white/90 text-gray-400 hover:text-konkan-green-primary'
+              }`}
+              aria-label={isComparing ? 'Remove from compare' : 'Add to compare'}
+            >
+              <svg className="w-2.5 h-2.5" fill={isComparing ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+              </svg>
+            </button>
 
             {/* Wishlist heart — top-right corner, white circle outline */}
             <button
@@ -533,6 +558,21 @@ export default function ProductCard({ product, view = 'grid' }) {
                 </span>
               )}
             </div>
+
+            {/* Compare Button — floating on image top-right below wishlist */}
+            <button
+              onClick={handleCompare}
+              className={`absolute top-2 right-2 sm:top-3 sm:right-3 z-10 w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center transition-all duration-200 shadow-sm ${
+                isComparing
+                  ? 'bg-konkan-green-primary text-white scale-110'
+                  : 'bg-white/90 backdrop-blur-sm text-gray-400 hover:text-konkan-green-primary hover:bg-white hover:scale-110'
+              } max-[768px]:top-8 max-[768px]:right-2.5 sm:top-12 sm:right-3`}
+              aria-label={isComparing ? 'Remove from compare' : 'Add to compare'}
+            >
+              <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill={isComparing ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+              </svg>
+            </button>
 
             {/* Wishlist Button — floating on image top-right (mobile + desktop) */}
             <button
