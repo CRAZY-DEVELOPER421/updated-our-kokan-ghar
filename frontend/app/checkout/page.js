@@ -126,6 +126,12 @@ export default function CheckoutPage() {
     }
   }, [isAuthenticated]);
 
+  // Re-fetch cart every time the user advances a step — catches race conditions
+  // where the merge from login hadn't completed when the page first mounted.
+  useEffect(() => {
+    if (isAuthenticated && step > 0) fetchCart();
+  }, [step, isAuthenticated]);
+
   const loadAddresses = async () => {
     try {
       const res = await api.get('/users/addresses');
@@ -186,6 +192,17 @@ export default function CheckoutPage() {
     setProcessing(true);
 
     try {
+      // Re-fetch the cart right before ordering — guards against the race
+      // where login merge hadn't finished when the page first loaded.
+      await fetchCart();
+      // Read the freshest items from the store after the fetch.
+      const freshItems = useCartStore.getState().items;
+      if (!freshItems || freshItems.length === 0) {
+        toast.error('Your cart is empty. Please add items before placing an order.');
+        setProcessing(false);
+        return;
+      }
+
       const orderRes = await api.post('/orders/create', {
         address_id: selectedAddress,
         payment_method: paymentMethod,
@@ -226,7 +243,10 @@ export default function CheckoutPage() {
                     }
                   },
               theme: { color: '#2D6A4F' },
-              modal: { ondismiss: () => setProcessing(false) },
+              modal: { ondismiss: () => {
+                setProcessing(false);
+                toast.error('Payment was cancelled. Your cart is safe — you can try again.');
+              }},
             };
 
             const razorpay = new window.Razorpay(options);

@@ -79,6 +79,16 @@ const verifyPayment = asyncHandler(async (req, res) => {
     ['paid', 'online', razorpay_payment_id, 'confirmed', order_id]
   );
 
+  // Payment verified — now safe to clear the cart (was kept for online retry).
+  const [paidCart] = await pool.query(
+    'SELECT id FROM cart WHERE user_id = ?',
+    [req.user.id]
+  );
+  if (paidCart.length > 0) {
+    await pool.query('DELETE FROM cart_items WHERE cart_id = ?', [paidCart[0].id]);
+    await pool.query('UPDATE cart SET coupon_code = NULL, coupon_discount = 0 WHERE id = ?', [paidCart[0].id]);
+  }
+
   await pool.query(
     'INSERT INTO order_tracking (order_id, status, message) VALUES (?, ?, ?)',
     [order_id, 'confirmed', 'Payment received. Order confirmed.']

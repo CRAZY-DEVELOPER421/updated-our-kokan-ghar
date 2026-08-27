@@ -46,7 +46,8 @@ const useAuthStore = create(
               isAuthenticated: true,
               isLoading: false,
             });
-            // Merge any guest cart into this account, then fetch user data
+            // Merge any guest cart into this account FIRST (must complete
+            // before isAuthenticated flips so the checkout page sees items).
             await useCartStore.getState().mergeGuestCart();
             useWishlistStore.getState().fetchWishlist();
             // Set GA4 user properties

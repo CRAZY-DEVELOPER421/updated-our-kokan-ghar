@@ -52,6 +52,24 @@ const createOrder = asyncHandler(async (req, res) => {
     return ApiResponse.error(res, 'Address not found.', 404);
   }
 
+  // ── Clean up abandoned pending online orders ────────────────────────────
+  // If the user previously placed an online order but dismissed the Razorpay
+  // modal, the order sits in "pending" status with stock deducted. Cancel it
+  // before creating a new order so stock is restored and the user can retry.
+  const [pendingOrders] = await pool.query(
+    "SELECT id FROM orders WHERE user_id = ? AND payment_method = 'online' AND payment_status = 'pending' AND status = 'pending'",
+    [req.user.id]
+  );
+  for (const po of pendingOrders) {
+    // Restore stock for items in the abandoned order
+    const [poItems] = await pool.query('SELECT product_id, quantity FROM order_items WHERE order_id = ?', [po.id]);
+    for (const poi of poItems) {
+      await pool.query('UPDATE products SET stock_quantity = stock_quantity + ? WHERE id = ?', [poi.quantity, poi.product_id]);
+    }
+    await pool.query("UPDATE orders SET status = 'cancelled', cancel_reason = 'abandoned_pending_payment' WHERE id = ?", [po.id]);
+    await pool.query('INSERT INTO order_tracking (order_id, status, message) VALUES (?, ?, ?)', [po.id, 'cancelled', 'Order cancelled: payment not completed.']);
+  }
+
   const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const shippingCharge = subtotal >= 499 ? 0 : 49;
   const taxAmount = Math.round(subtotal * 0.05 * 100) / 100;
@@ -146,10 +164,12 @@ const createOrder = asyncHandler(async (req, res) => {
     }
   }
 
-  await pool.query('DELETE FROM cart_items WHERE cart_id = ?', [cart[0].id]);
-  await pool.query('UPDATE cart SET coupon_code = NULL, coupon_discount = 0 WHERE id = ?', [cart[0].id]);
-
+  // COD orders: clear cart immediately (no payment modal to dismiss).
+  // Online orders: keep cart items until payment is verified, so if the
+  // Razorpay modal is dismissed the customer can retry without re-adding.
   if (payment_method === 'cod') {
+    await pool.query('DELETE FROM cart_items WHERE cart_id = ?', [cart[0].id]);
+    await pool.query('UPDATE cart SET coupon_code = NULL, coupon_discount = 0 WHERE id = ?', [cart[0].id]);
     await loyaltyService.addPoints(req.user.id, totalAmount, `Points from order ${orderNumber}`);
   }
 
