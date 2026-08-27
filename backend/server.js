@@ -31,7 +31,9 @@ app.use(cors({
       ...frontendOrigins,
       ...(process.env.RAILWAY_STATIC_URL ? [process.env.RAILWAY_STATIC_URL] : []),
     ];
-    callback(null, allowed.includes(origin));
+    // Allow any ngrok-free.dev subdomain (tunnel URLs change on restart)
+    const isNgrok = /^https?:\/\/[^/]+\.ngrok-free\.dev$/.test(origin);
+    callback(null, allowed.includes(origin) || isNgrok);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
