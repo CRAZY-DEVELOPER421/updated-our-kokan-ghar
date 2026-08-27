@@ -20,9 +20,9 @@ const PincodeChecker = dynamic(() => import('@/components/product/ProductDetailC
 const RecentlyViewed = dynamic(() => import('@/components/product/ProductDetailClient').then(m => m.RecentlyViewed));
 const NotifyMeButton = dynamic(() => import('@/components/product/NotifyMeButton'));
 
-async function getProduct(slug) {
+async function getProduct(slug, lang = 'en') {
   try {
-    const res = await api.get(`/products/${slug}`);
+    const res = await api.get(`/products/${slug}?lang=${lang}`);
     if (res.data?.data?.product) return res.data.data.product;
     return null;
   } catch {
@@ -30,34 +30,58 @@ async function getProduct(slug) {
   }
 }
 
-export async function generateMetadata({ params }) {
+// Get display name: regional if available, else English
+function getDisplayName(product) {
+  return product?.regional_name || product?.name || '';
+}
+
+// Get display description: regional if available, else English
+function getDisplayDescription(product) {
+  return product?.regional_short_description || product?.short_description || '';
+}
+
+export async function generateMetadata({ params, searchParams }) {
   const { slug } = await params;
-  const product = await getProduct(slug);
+  const lang = (await searchParams)?.lang || 'en';
+  const product = await getProduct(slug, lang);
   if (!product) return { title: 'Product Not Found' };
 
+  const displayName = getDisplayName(product);
+  const displayDesc = getDisplayDescription(product);
+
   return {
-    title: `${product.name} | Buy Online`,
-    description: product.meta_description || product.short_description?.slice(0, 160) || `Buy ${product.name} online from Konkan Bazaar. Authentic Konkan region product.`,
+    title: `${displayName} | Buy Online`,
+    description: product.regional_meta_description || product.meta_description || displayDesc?.slice(0, 160) || `Buy ${displayName} online from Konkan Bazaar.`,
 
     openGraph: {
-      title: `${product.name}`,
-      description: product.short_description?.slice(0, 160),
+      title: displayName,
+      description: displayDesc?.slice(0, 160),
       images: product.images?.[0]?.image_url ? [{ url: product.images[0].image_url }] : [],
       url: `https://www.kokanghar.in/products/${slug}`,
       type: 'website',
     },
     twitter: {
       card: 'summary_large_image',
-      title: `${product.name}`,
-      description: product.short_description?.slice(0, 160),
+      title: displayName,
+      description: displayDesc?.slice(0, 160),
     },
-    alternates: { canonical: `https://www.kokanghar.in/products/${slug}` },
+    alternates: {
+      canonical: `https://www.kokanghar.in/products/${slug}`,
+      languages: {
+        'en': `/products/${slug}`,
+        'mr': `/products/${slug}?lang=mr`,
+        'hi': `/products/${slug}?lang=hi`,
+        'kn': `/products/${slug}?lang=kn`,
+        'gu': `/products/${slug}?lang=gu`,
+      },
+    },
   };
 }
 
-export default async function ProductDetailPage({ params }) {
+export default async function ProductDetailPage({ params, searchParams }) {
   const { slug } = await params;
-  const product = await getProduct(slug);
+  const lang = (await searchParams)?.lang || 'en';
+  const product = await getProduct(slug, lang);
 
   if (!product) {
     return (
@@ -73,11 +97,13 @@ export default async function ProductDetailPage({ params }) {
     );
   }
 
+  const displayName = getDisplayName(product);
+  const displayDesc = getDisplayDescription(product);
   const productJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Product',
-    name: product.name,
-    description: product.short_description,
+    name: displayName,
+    description: displayDesc,
     image: product.images?.[0]?.image_url,
     sku: product.sku,
     brand: { '@type': 'Brand', name: product.brand || 'Konkan Bazaar' },
@@ -104,7 +130,7 @@ export default async function ProductDetailPage({ params }) {
       <Breadcrumb items={[
         { label: 'Products', href: '/products' },
         { label: product.category_name, href: `/categories/${product.category_slug}` },
-        { label: product.name },
+        { label: getDisplayName(product) },
       ]} />
 
       {/* Product Main Section */}
@@ -123,7 +149,7 @@ export default async function ProductDetailPage({ params }) {
               <span className="text-xs font-medium text-konkan-green-primary uppercase tracking-wider">{product.brand}</span>
             )}
             <h1 className="font-display text-2xl md:text-3xl lg:text-4xl font-bold text-konkan-text-primary mt-1">
-              {product.name}
+              {getDisplayName(product)}
             </h1>
           </div>
 
@@ -145,8 +171,8 @@ export default async function ProductDetailPage({ params }) {
           </div>
 
           {/* Short Description */}
-          {product.short_description && (
-            <p className="text-konkan-text-secondary leading-relaxed">{product.short_description}</p>
+          {getDisplayDescription(product) && (
+            <p className="text-konkan-text-secondary leading-relaxed">{getDisplayDescription(product)}</p>
           )}
 
           {/* Flash sale scarcity bar — "X% sold — Only Y left" (real data) */}

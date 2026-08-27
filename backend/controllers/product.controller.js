@@ -1,12 +1,10 @@
 const pool = require('../config/db');
 const ApiResponse = require('../utils/apiResponse');
-const asyncHandler = require('../utils/asyncHandler');
-
-const getProducts = asyncHandler(async (req, res) => {
-  const page = parseInt(req.query.page) || 1;
-  const limit = parseInt(req.query.limit) || 24;
-  const offset = (page - 1) * limit;
-  const { category, min_price, max_price, rating, sort, q, organic, seasonal, featured, region, brand, in_stock, discount, bestseller } = req.query;
+const asyncHandler = require('../utils/asyncHandler');  const getProducts = asyncHandler(async (req, res) => {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 24;
+    const offset = (page - 1) * limit;
+    const { category, min_price, max_price, rating, sort, q, organic, seasonal, featured, region, brand, in_stock, discount, bestseller, lang } = req.query;
 
   let whereClause = 'WHERE p.is_active = 1';
   const params = [];
@@ -172,6 +170,9 @@ const getProducts = asyncHandler(async (req, res) => {
     }
   }
 
+  // Apply regional content to each product in the listing
+  for (const p of products) resolveRegional(p, lang);
+
   return ApiResponse.paginated(res, { products }, {
     page,
     limit,
@@ -180,8 +181,26 @@ const getProducts = asyncHandler(async (req, res) => {
   });
 });
 
+// Helper: resolve regional content for a product based on ?lang= query param.
+// If lang is provided and the product has a translation, the regional fields
+// override the English defaults so the frontend can render localized content.
+function resolveRegional(product, lang) {
+  if (!lang || lang === 'en' || !product) return product;
+  const suffix = `_${lang}`;
+  // name_mr, description_mr, short_description_mr, meta_title_mr, meta_description_mr
+  for (const field of ['name', 'description', 'short_description', 'meta_title', 'meta_description']) {
+    const regionalField = `${field}${suffix}`;
+    if (product[regionalField]) {
+      product[`regional_${field}`] = product[regionalField];
+    }
+  }
+  product.regional_lang = lang;
+  return product;
+}
+
 const getProductBySlug = asyncHandler(async (req, res) => {
   const { slug } = req.params;
+  const lang = req.query.lang || req.headers['accept-language']?.split(',')[0]?.split('-')[0] || 'en';
 
   const [products] = await pool.query(
     `SELECT p.*, c.name as category_name, c.slug as category_slug
@@ -230,6 +249,9 @@ const getProductBySlug = asyncHandler(async (req, res) => {
   product.tags = tags.map(t => t.tag);
   product.flash_sale = flashSale.length > 0 ? flashSale[0] : null;
   product.tags_list = tags.map(t => t.tag);
+
+  // Apply regional content based on ?lang= param
+  resolveRegional(product, lang);
 
   return ApiResponse.success(res, { product });
 });
@@ -620,28 +642,29 @@ const getRandomProducts = asyncHandler(async (req, res) => {
     total,
     pages: Math.ceil(total / limit)
   });
-});
+});  const getProductsByIds = asyncHandler(async (req, res) => {
+    const { ids, lang } = req.query;
+    if (!ids) return ApiResponse.error(res, 'ids parameter is required.', 400);
 
-const getProductsByIds = asyncHandler(async (req, res) => {
-  const { ids } = req.query;
-  if (!ids) return ApiResponse.error(res, 'ids parameter is required.', 400);
+    const idList = String(ids).split(',').map(Number).filter(Boolean);
+    if (idList.length === 0) return ApiResponse.error(res, 'No valid IDs provided.', 400);
+    if (idList.length > 10) return ApiResponse.error(res, 'Maximum 10 products per comparison.', 400);
 
-  const idList = String(ids).split(',').map(Number).filter(Boolean);
-  if (idList.length === 0) return ApiResponse.error(res, 'No valid IDs provided.', 400);
-  if (idList.length > 10) return ApiResponse.error(res, 'Maximum 10 products per comparison.', 400);
+    const placeholders = idList.map(() => '?').join(',');
+    const [products] = await pool.query(
+      `SELECT p.*, c.name as category_name,
+        (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = 1 LIMIT 1) as primary_image
+       FROM products p
+       JOIN categories c ON p.category_id = c.id
+       WHERE p.id IN (${placeholders}) AND p.is_active = 1`,
+      idList
+    );
 
-  const placeholders = idList.map(() => '?').join(',');
-  const [products] = await pool.query(
-    `SELECT p.*, c.name as category_name,
-      (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = 1 LIMIT 1) as primary_image
-     FROM products p
-     JOIN categories c ON p.category_id = c.id
-     WHERE p.id IN (${placeholders}) AND p.is_active = 1`,
-    idList
-  );
+    // Apply regional content
+    for (const p of products) resolveRegional(p, lang);
 
-  return ApiResponse.success(res, { products });
-});
+    return ApiResponse.success(res, { products });
+  });
 
 module.exports = {
   getProducts,
