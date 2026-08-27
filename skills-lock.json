@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "skills": {
+    "code-quality": {
+      "source": "shaunburdick/skills",
+      "sourceType": "github",
+      "skillPath": "skills/code-quality/SKILL.md",
+      "computedHash": "f8c0ee691ad83ffe93b1d555c39482c08c913c74998cf07b5e9063e1f9f746c6"
+    },
+    "code-review-and-quality": {
+      "source": "addyosmani/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/code-review-and-quality/SKILL.md",
+      "computedHash": "6231479cc74c7ed70a5618b81b3f94034d9806c0319a1a23d15f9b94a368c581"
+    },
+    "git-safety": {
+      "source": "shaunburdick/skills",
+      "sourceType": "github",
+      "skillPath": "skills/git-safety/SKILL.md",
+      "computedHash": "0fd9cc9735dfe6425fdc9da046b986931326156397bfbdd74e32d9ac8522f492"
+    },
+    "spec-driven-development": {
+      "source": "shaunburdick/skills",
+      "sourceType": "github",
+      "skillPath": "skills/spec-driven-development/SKILL.md",
+      "computedHash": "a910d220c742fee8b45cc3a762b1a1188f2271b038bb77adae9e6706a9ae3214"
+    },
+    "test-driven-development": {
+      "source": "addyosmani/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/test-driven-development/SKILL.md",
+      "computedHash": "a8fef2b010af8402fd2979bdb2e5e39e5baa1ca14b5cdec366ee75df5e1dec68"
+    }
+  }
+}
