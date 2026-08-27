@@ -5,6 +5,7 @@ import { persist } from 'zustand/middleware';
 import api from '@/lib/api';
 import useCartStore from './cartStore';
 import useWishlistStore from './wishlistStore';
+import { setGAUserProperties, clearGAUserProperties } from '@/lib/gtag';
 
 // Extract structured suspension info from an API error payload (or a plain
 // object), so every code path stores the same shape.
@@ -48,6 +49,8 @@ const useAuthStore = create(
             // Merge any guest cart into this account, then fetch user data
             await useCartStore.getState().mergeGuestCart();
             useWishlistStore.getState().fetchWishlist();
+            // Set GA4 user properties
+            setGAUserProperties(res.data.data.user);
             return { success: true };
           }
         } catch (error) {
@@ -89,6 +92,8 @@ const useAuthStore = create(
             // Merge any guest cart into this account, then fetch user data
             await useCartStore.getState().mergeGuestCart();
             useWishlistStore.getState().fetchWishlist();
+            // Set GA4 user properties
+            setGAUserProperties(res.data.data.user);
             return { success: true };
           }
         } catch (error) {
@@ -111,6 +116,8 @@ const useAuthStore = create(
         // Reset cart & wishlist in-memory state
         useCartStore.getState().resetCart();
         useWishlistStore.getState().resetWishlist();
+        // Clear GA4 user properties
+        clearGAUserProperties();
         set({ user: null, isAuthenticated: false, suspended: false, suspension: null });
         window.dispatchEvent(new Event('auth:logout'));
       },
@@ -126,6 +133,7 @@ const useAuthStore = create(
             // A successful profile fetch means the account is active again
             // (backend auto-reactivates expired timed suspensions).
             set({ user: res.data.data.user, isAuthenticated: true, suspended: false, suspension: null });
+            setGAUserProperties(res.data.data.user);
           }
         } catch (error) {
           if (error.response?.status === 401) {

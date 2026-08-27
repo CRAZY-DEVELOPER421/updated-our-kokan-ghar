@@ -3,7 +3,7 @@
 // This page must be dynamically rendered — contains client-only dependencies (zustand persist, window, Razorpay)
 export const dynamic = 'force-dynamic';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -14,6 +14,7 @@ import api from '@/lib/api';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Breadcrumb from '@/components/ui/Breadcrumb';
+import { trackBeginCheckout, trackAddShippingInfo, trackAddPaymentInfo } from '@/lib/gtag';
 
 const STEPS = [
   { key: 'address', label: 'Delivery Address' },
@@ -46,6 +47,34 @@ export default function CheckoutPage() {
   // ── Best coupon suggestion ──
   const [suggestedCoupons, setSuggestedCoupons] = useState([]);
   const [applyingCoupon, setApplyingCoupon] = useState(false);
+
+  // GA4 checkout funnel tracking (deduped via refs)
+  const checkoutTracked = useRef(false);
+  const shippingTracked = useRef(false);
+  const paymentTracked = useRef(false);
+
+  useEffect(() => {
+    if (!checkoutTracked.current && isAuthenticated && items?.length && summary) {
+      checkoutTracked.current = true;
+      trackBeginCheckout(items, summary.total || 0, coupon || null);
+    }
+  }, [isAuthenticated, items, summary, coupon]);
+
+  // Track add_shipping_info when user moves from address → summary (step 0→1)
+  useEffect(() => {
+    if (step === 1 && !shippingTracked.current && items?.length && summary) {
+      shippingTracked.current = true;
+      trackAddShippingInfo(items, summary.total || 0, 'Standard');
+    }
+  }, [step, items?.length, summary]);
+
+  // Track add_payment_info when user moves to payment step (step 2)
+  useEffect(() => {
+    if (step === 2 && !paymentTracked.current && items?.length && summary) {
+      paymentTracked.current = true;
+      trackAddPaymentInfo(items, summary.total || 0, paymentMethod);
+    }
+  }, [step, items?.length, summary, paymentMethod]);
 
   useEffect(() => {
     if (!isAuthenticated || !items?.length) {

@@ -8,6 +8,7 @@ import useCartStore from '@/lib/store/cartStore';
 import useAuthStore from '@/lib/store/authStore';
 import useWishlistStore from '@/lib/store/wishlistStore';
 import { getImageUrl } from '@/lib/utils';
+import { trackAddToCart } from '@/lib/gtag';
 
 export default function ProductActions({ product, stockQuantity = 0, variants = [] }) {
   const router = useRouter();
@@ -93,6 +94,20 @@ export default function ProductActions({ product, stockQuantity = 0, variants = 
     setIsAdding(true);
     const res = await addToCart(productId, selectedVariant?.id || null, qty);
     setIsAdding(false);
+    if (res.success) {
+      // Fire GA4 add_to_cart event
+      trackAddToCart(
+        {
+          id: product.id,
+          name: product.name,
+          price: selectedVariant ? basePrice + (Number(selectedVariant.price_modifier) || 0) : basePrice,
+          category_name: product.category_name || product.category || '',
+          category_id: product.category_id || '',
+          brand: product.brand || 'Konkan Ghar',
+        },
+        qty,
+      );
+    }
     if (!res.success && !useAuthStore.getState().suspended) {
       // Suspended → the global gate popup already explains it; no error toast.
       // Read live store state (not the closure) — the suspension is detected
@@ -110,6 +125,18 @@ export default function ProductActions({ product, stockQuantity = 0, variants = 
     const res = await addToCart(productId, selectedVariant?.id || null, qty);
     setIsAdding(false);
     if (res.success) {
+      // Fire GA4 add_to_cart event (Buy Now also adds to cart first)
+      trackAddToCart(
+        {
+          id: product.id,
+          name: product.name,
+          price: selectedVariant ? basePrice + (Number(selectedVariant.price_modifier) || 0) : basePrice,
+          category_name: product.category_name || product.category || '',
+          category_id: product.category_id || '',
+          brand: product.brand || 'Konkan Ghar',
+        },
+        qty,
+      );
       router.push('/checkout');
     } else if (!useAuthStore.getState().suspended) {
       // Suspended → the global gate popup already explains it; no error toast.

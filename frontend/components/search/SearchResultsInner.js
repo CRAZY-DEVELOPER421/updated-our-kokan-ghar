@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import api from '@/lib/api';
 import ProductGrid from '@/components/product/ProductGrid';
 import Skeleton from '@/components/ui/Skeleton';
+import { trackSearch, trackViewSearchResults } from '@/lib/gtag';
 
 export default function SearchResultsInner() {
   const searchParams = useSearchParams();
@@ -34,6 +35,20 @@ export default function SearchResultsInner() {
     JSON.stringify({ query, sort, category, minPrice, maxPrice, rating, organic, seasonal, bestseller, discount }),
     [query, sort, category, minPrice, maxPrice, rating, organic, seasonal, bestseller, discount]
   );
+
+  // Fire GA4 search events when results first load
+  const ga4TrackedRef = useRef(false);
+  useEffect(() => {
+    ga4TrackedRef.current = false;
+  }, [filterKey]);
+
+  useEffect(() => {
+    if (query && !ga4TrackedRef.current && allProducts.length > 0) {
+      ga4TrackedRef.current = true;
+      trackSearch(query);
+      trackViewSearchResults(query, allProducts);
+    }
+  }, [query, allProducts.length]);
 
   // Reset when filters change
   useEffect(() => {

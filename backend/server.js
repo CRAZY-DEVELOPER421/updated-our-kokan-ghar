@@ -74,6 +74,7 @@ const navbarRoutes = require('./routes/navbar.routes');
 const campaignRoutes = require('./routes/campaign.routes');
 const pushRoutes = require('./routes/push.routes');
 const pushAdvancedRoutes = require('./routes/pushAdvanced.routes');
+const ga4Routes = require('./routes/ga4.routes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -99,6 +100,7 @@ app.use('/api/navbar', navbarRoutes);
 app.use('/api/campaigns', campaignRoutes);
 app.use('/api/push', pushRoutes);
 app.use('/api/push', pushAdvancedRoutes);
+app.use('/api/ga4', ga4Routes);
 
 // CMS (Team, Blog, Video, Media)
 const cmsRoutes = require('./routes/cms.routes');

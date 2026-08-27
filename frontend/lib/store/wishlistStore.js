@@ -2,6 +2,7 @@
 
 import { create } from 'zustand';
 import api from '@/lib/api';
+import { trackAddToWishlist, trackRemoveFromWishlist } from '@/lib/gtag';
 
 const useWishlistStore = create(
   (set, get) => ({
@@ -46,6 +47,12 @@ const useWishlistStore = create(
       if (existing) {
         try {
           await api.delete(`/wishlist/${productId}`);
+          // Fire GA4 remove_from_wishlist
+          trackRemoveFromWishlist({
+            id: existing.product_id,
+            name: existing.name || existing.product_name,
+            price: existing.price,
+          });
           set((state) => {
             const newItems = state.items.filter((i) => i.product_id !== parseInt(productId));
             return { items: newItems, count: newItems.length };
@@ -57,6 +64,12 @@ const useWishlistStore = create(
       } else {
         try {
           await api.post(`/wishlist/${productId}`);
+          // Fire GA4 add_to_wishlist — fetch the item details for the event
+          const itemRes = await api.get(`/products/${productId}`).catch(() => null);
+          const product = itemRes?.data?.data?.product;
+          if (product) {
+            trackAddToWishlist(product);
+          }
           await get().fetchWishlist();
           return { success: true, inWishlist: true };
         } catch (error) {

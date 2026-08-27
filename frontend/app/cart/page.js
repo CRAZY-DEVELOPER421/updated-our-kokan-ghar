@@ -11,6 +11,7 @@ import useCartStore from '@/lib/store/cartStore';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import Breadcrumb from '@/components/ui/Breadcrumb';
+import { trackViewCart } from '@/lib/gtag';
 
 export default function CartPage() {
   const router = useRouter();
@@ -32,6 +33,13 @@ export default function CartPage() {
   useEffect(() => {
     fetchCart();
   }, [fetchCart]);
+
+  // Fire GA4 view_cart when cart items are loaded
+  useEffect(() => {
+    if (items?.length > 0 && summary) {
+      trackViewCart(items, summary.total || 0);
+    }
+  }, [items?.length, summary?.total]);
 
   // Fetch best applicable coupons whenever the cart contents change
   useEffect(() => {

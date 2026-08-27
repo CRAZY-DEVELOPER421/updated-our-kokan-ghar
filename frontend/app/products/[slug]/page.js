@@ -3,6 +3,7 @@ import dynamic from 'next/dynamic';
 import api from '@/lib/api';
 import Breadcrumb from '@/components/ui/Breadcrumb';
 import FlashSaleProgressBar from '@/components/ui/FlashSaleProgressBar';
+import GtagViewItem from '@/components/product/GtagViewItem';
 
 const ProductImages = dynamic(() => import('@/components/product/ProductImages'));
 const ProductReviews = dynamic(() => import('@/components/product/ProductReviews'), {
@@ -98,6 +99,7 @@ export default async function ProductDetailPage({ params }) {
   return (
     <div className="container-custom py-6 md:py-8 animate-fade-in">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }} />
+      <GtagViewItem product={product} />
 
       <Breadcrumb items={[
         { label: 'Products', href: '/products' },

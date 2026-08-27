@@ -6,6 +6,8 @@ import Link from 'next/link';
 // canvas-confetti is dynamically imported inside useEffect to avoid bundling it in the main chunk
 import Button from '@/components/ui/Button';
 import BestsellerRow from '@/components/home/BestsellerRow';
+import api from '@/lib/api';
+import { trackPurchase } from '@/lib/gtag';
 
 function OrderSuccessContent() {
   const searchParams = useSearchParams();
@@ -15,6 +17,29 @@ function OrderSuccessContent() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Fire GA4 purchase event once (deduped via sessionStorage inside trackPurchase)
+  useEffect(() => {
+    if (!orderNumber) return;
+    api
+      .get(`/orders/${orderNumber}`)
+      .then((res) => {
+        if (res.data?.success) {
+          const order = res.data.data.order || res.data.data;
+          const items = order.items || [];
+          const totalValue = Number(order.total_amount) || 0;
+          trackPurchase(order.order_number || orderNumber, totalValue, items, {
+            tax: Number(order.tax_amount) || 0,
+            shipping: Number(order.shipping_charge) || 0,
+            coupon: order.coupon_code || undefined,
+            paymentType: order.payment_method || undefined,
+          });
+        }
+      })
+      .catch(() => {
+        // Non-critical — analytics failure should not break the page
+      });
+  }, [orderNumber]);
 
   useEffect(() => {
     if (!mounted) return;

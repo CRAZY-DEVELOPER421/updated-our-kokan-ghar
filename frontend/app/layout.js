@@ -1,3 +1,4 @@
+import Script from 'next/script';
 import { Playfair_Display, Inter, Poppins } from 'next/font/google';
 import './globals.css';
 import dynamicLib from 'next/dynamic';
@@ -13,6 +14,7 @@ import SuspensionGate from '@/components/layout/SuspensionGate';
 import PwaInstallPopup from '@/components/pwa/PwaInstallPopup';
 import FloatingNotifPrompt from '@/components/pwa/FloatingNotifPrompt';
 import IosPwaBanner from '@/components/pwa/IosPwaBanner';
+import CookieConsent from '@/components/ui/CookieConsent';
 
 // Dynamically import below-the-fold components to reduce initial JS payload
 const PageTransition = dynamicLib(() => import('@/components/layout/PageTransition'));
@@ -125,12 +127,59 @@ export default function RootLayout({ children }) {
         {/* Structured data (JSON-LD) — rendered in body; Next.js manages <head> metadata itself */}
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(searchActionLd) }} />
+
+        {/* Google Analytics 4 — Consent Mode v2 + Enhanced Conversions */}
+        {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (
+          <>
+            <Script
+              src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}`}
+              strategy="afterInteractive"
+            />
+            <Script id="ga4-init" strategy="afterInteractive">
+              {`window.dataLayer = window.dataLayer || [];
+function gtag(){window.dataLayer.push(arguments);}
+window.gtag = gtag;
+
+// Consent Mode v2 defaults — all denied until user accepts
+gtag('consent', 'default', {
+  ad_storage: 'denied',
+  analytics_storage: 'denied',
+  ad_user_data: 'denied',
+  ad_personalization: 'denied',
+  functionality_storage: 'denied',
+  personalization_storage: 'denied',
+  security_storage: 'granted',
+  wait_for_update: 500,
+});
+
+// Auto-update consent if previously granted in this browser
+if (localStorage.getItem('ga4_consent') === 'granted') {
+  gtag('consent', 'update', {
+    ad_storage: 'granted',
+    analytics_storage: 'granted',
+    ad_user_data: 'granted',
+    ad_personalization: 'granted',
+    functionality_storage: 'granted',
+    personalization_storage: 'granted',
+  });
+}
+
+gtag('js', new Date());
+gtag('config', '${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}', {
+  page_path: window.location.pathname,
+  send_page_view: false,
+});`}
+            </Script>
+          </>
+        )}
+
         <QueryProviders>
           <I18nProvider>
             <ToastProvider />
             <PwaInstallPopup />
             <FloatingNotifPrompt />
             <IosPwaBanner />
+            <CookieConsent />
             {/* Global suspension popup + route guard (suspended users stay home) */}
             <SuspensionGate />
             <div className="hidden lg:block sticky top-0 z-50"><Navbar /></div>
