@@ -1,0 +1,16 @@
+# ngrok configuration
+# Place this in: C:\Users\<you>\AppData\Local\ngrok\ngrok.yml
+# Or use: ngrok config edit
+#
+# After placing, register your authtoken once:
+#   ngrok config add-authtoken <your-token>
+#
+# Then simply run:
+#   ngrok http 8080
+
+version: "2"
+tunnels:
+  konkan-bazaar:
+    addr: 8080
+    proto: http
+    inspect: true
