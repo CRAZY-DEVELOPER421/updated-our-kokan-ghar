@@ -622,6 +622,27 @@ const getRandomProducts = asyncHandler(async (req, res) => {
   });
 });
 
+const getProductsByIds = asyncHandler(async (req, res) => {
+  const { ids } = req.query;
+  if (!ids) return ApiResponse.error(res, 'ids parameter is required.', 400);
+
+  const idList = String(ids).split(',').map(Number).filter(Boolean);
+  if (idList.length === 0) return ApiResponse.error(res, 'No valid IDs provided.', 400);
+  if (idList.length > 10) return ApiResponse.error(res, 'Maximum 10 products per comparison.', 400);
+
+  const placeholders = idList.map(() => '?').join(',');
+  const [products] = await pool.query(
+    `SELECT p.*, c.name as category_name,
+      (SELECT image_url FROM product_images WHERE product_id = p.id AND is_primary = 1 LIMIT 1) as primary_image
+     FROM products p
+     JOIN categories c ON p.category_id = c.id
+     WHERE p.id IN (${placeholders}) AND p.is_active = 1`,
+    idList
+  );
+
+  return ApiResponse.success(res, { products });
+});
+
 module.exports = {
   getProducts,
   getRegions,
@@ -636,5 +657,6 @@ module.exports = {
   createReview,
   getDealsUnder999,
   getCategoryDeals,
-  getRandomProducts
+  getRandomProducts,
+  getProductsByIds
 };

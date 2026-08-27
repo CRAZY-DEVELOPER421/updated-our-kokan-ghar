@@ -28,13 +28,13 @@ export default function ComparePage() {
     ids.forEach((id) => useCompareStore.getState().toggleProduct(id));
 
     setLoading(true);
-    Promise.all(ids.map((id) => api.get(`/products/${id}`).then((r) => r.data?.data?.product).catch(() => null)))
-      .then((results) => {
-        const valid = results.filter(Boolean);
-        if (valid.length === 0) {
+    api.get(`/products/by-ids?ids=${ids.join(',')}`)
+      .then((res) => {
+        const list = res.data?.data?.products || [];
+        if (list.length === 0) {
           setError('Could not load any of the selected products.');
         }
-        setProducts(valid);
+        setProducts(list);
         setLoading(false);
       })
       .catch(() => {

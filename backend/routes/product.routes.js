@@ -74,6 +74,9 @@ const ApiResponse = require('../utils/apiResponse');
  */
 router.get('/', productController.getProducts);
 
+// Batch fetch by IDs (used by /compare page)
+router.get('/by-ids', productController.getProductsByIds);
+
 /**
  * @swagger
  * /products/deals:
