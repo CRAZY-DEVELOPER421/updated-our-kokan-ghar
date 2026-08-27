@@ -318,21 +318,6 @@ export default function ProductCard({ product, view = 'grid' }) {
               </span>
             )}
 
-            {/* Compare checkbox — top-right below wishlist */}
-            <button
-              onClick={handleCompare}
-              className={`absolute top-8 right-1 z-10 w-5 h-5 rounded-full flex items-center justify-center transition-all duration-200 shadow-sm ${
-                isComparing
-                  ? 'bg-konkan-green-primary text-white'
-                  : 'bg-white/90 text-gray-400 hover:text-konkan-green-primary'
-              }`}
-              aria-label={isComparing ? 'Remove from compare' : 'Add to compare'}
-            >
-              <svg className="w-2.5 h-2.5" fill={isComparing ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-              </svg>
-            </button>
-
             {/* Wishlist heart — top-right corner, white circle outline */}
             <button
               onClick={handleWishlist}
@@ -559,25 +544,10 @@ export default function ProductCard({ product, view = 'grid' }) {
               )}
             </div>
 
-            {/* Compare Button — floating on image top-right below wishlist */}
-            <button
-              onClick={handleCompare}
-              className={`absolute top-2 right-2 sm:top-3 sm:right-3 z-10 w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center transition-all duration-200 shadow-sm ${
-                isComparing
-                  ? 'bg-konkan-green-primary text-white scale-110'
-                  : 'bg-white/90 backdrop-blur-sm text-gray-400 hover:text-konkan-green-primary hover:bg-white hover:scale-110'
-              } max-[768px]:top-8 max-[768px]:right-2.5 sm:top-12 sm:right-3`}
-              aria-label={isComparing ? 'Remove from compare' : 'Add to compare'}
-            >
-              <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill={isComparing ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-              </svg>
-            </button>
-
             {/* Wishlist Button — floating on image top-right (mobile + desktop) */}
             <button
               onClick={handleWishlist}
-              className="max-[768px]:flex lg:flex absolute max-[768px]:top-2.5 max-[768px]:right-2.5 top-2 right-2 sm:top-3 sm:right-3 z-10 max-[768px]:w-6 max-[768px]:h-6 w-7 h-7 sm:w-9 sm:h-9 bg-white/90 backdrop-blur-sm rounded-full items-center justify-center hover:bg-white hover:scale-110 transition-all duration-200 shadow-[0_2px_8px_rgba(0,0,0,0.12)]"
+              className="max-[768px]:flex lg:flex absolute max-[768px]:top-2.5 max-[768px]:right-2.5 top-2 right-2 sm:top-3 sm:right-3 z-20 max-[768px]:w-6 max-[768px]:h-6 w-7 h-7 sm:w-9 sm:h-9 bg-white/90 backdrop-blur-sm rounded-full items-center justify-center hover:bg-white hover:scale-110 transition-all duration-200 shadow-[0_2px_8px_rgba(0,0,0,0.12)]"
               aria-label={isInWishlist ? 'Remove from wishlist' : 'Add to wishlist'}
             >
               <svg
@@ -642,6 +612,22 @@ export default function ProductCard({ product, view = 'grid' }) {
                 </button>
               </div>
             )}
+
+            {/* Compare Button — bottom-left of image, clearly separate from wishlist */}
+            <button
+              onClick={handleCompare}
+              className={`absolute bottom-2 left-2 sm:bottom-3 sm:left-3 z-20 flex items-center gap-1 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-lg text-[10px] sm:text-xs font-medium transition-all duration-200 shadow-md ${
+                isComparing
+                  ? 'bg-konkan-green-primary text-white'
+                  : 'bg-white/95 backdrop-blur-sm text-gray-600 hover:bg-konkan-green-primary hover:text-white'
+              }`}
+              aria-label={isComparing ? 'Remove from compare' : 'Add to compare'}
+            >
+              <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill={isComparing ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+              </svg>
+              <span className="hidden sm:inline">Compare</span>
+            </button>
 
             {/* Bottom Overlay Gradient — enhances on hover */}
             <div className="absolute inset-x-0 bottom-0 h-20 sm:h-28 bg-gradient-to-t from-black/40 via-black/10 to-transparent pointer-events-none z-[1] opacity-60 group-hover:opacity-100 transition-opacity duration-300" />
