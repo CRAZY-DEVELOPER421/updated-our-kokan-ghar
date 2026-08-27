@@ -106,6 +106,10 @@ app.use('/api/push', pushAdvancedRoutes);
 app.use('/api/ga4', ga4Routes);
 app.use('/api/subscribers', subscriberRoutes);
 
+// CSV Export / Import (admin)
+const exportRoutes = require('./routes/export.routes');
+app.use('/api/admin', exportRoutes);
+
 // CMS (Team, Blog, Video, Media)
 const cmsRoutes = require('./routes/cms.routes');
 app.use('/api/cms', cmsRoutes);

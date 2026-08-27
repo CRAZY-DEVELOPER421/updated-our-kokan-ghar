@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import api from '@/lib/api';
 import Button from '@/components/ui/Button';
+import { downloadCSV } from '@/lib/csv';
 
 const PER_PAGE = 25;
 
@@ -142,6 +143,33 @@ export default function AdminProductsPage() {
     return pages;
   }, [totalPages, safePage]);
 
+  const [importing, setImporting] = useState(false);
+
+  const handleImportCSV = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await api.post('/import/products', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      if (res.data.success) {
+        const d = res.data.data;
+        alert(`Import complete!\n\nCreated: ${d.created}\nUpdated: ${d.updated}\nSkipped: ${d.skipped}\nTotal rows: ${d.total_rows}` + (d.errors?.length ? `\n\nErrors:\n${d.errors.join('\n')}` : ''));
+        refetch();
+      } else {
+        alert('Import failed: ' + (res.data.message || 'Unknown error'));
+      }
+    } catch (err) {
+      alert('Import failed: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setImporting(false);
+      e.target.value = '';
+    }
+  };
+
   const activeFilterCount = [selectedCategory, searchTerm, imageStatus, productStatus].filter(Boolean).length;
 
   // ── Render ──
@@ -228,6 +256,18 @@ export default function AdminProductsPage() {
             <option value="active">Active</option>
             <option value="inactive">Inactive</option>
           </select>
+          <button
+            onClick={() => downloadCSV('/export/products', 'products.csv')}
+            className="flex items-center gap-1.5 px-3 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 hover:border-emerald-300 transition-all"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+            Export
+          </button>
+          <label className="flex items-center gap-1.5 px-3 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 hover:border-emerald-300 transition-all cursor-pointer">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+            Import CSV
+            <input type="file" accept=".csv" className="hidden" onChange={handleImportCSV} />
+          </label>
           <Link href="/products/new"><Button size="sm">+ Add Product</Button></Link>
         </div>
       </div>
