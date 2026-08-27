@@ -15,13 +15,13 @@ export default function NewsletterSection() {
 
     setLoading(true);
     try {
-      // Simulate subscription — backend should have /api/subscribers endpoint
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      toast.success('Welcome! Use code FRESH100 for ₹100 off your first order!');
+      await api.post('/subscribers', { email, name: name || undefined });
+      toast.success('Subscribed! Check your inbox for ₹100 off code.');
       setEmail('');
       setName('');
     } catch (error) {
-      toast.error('Something went wrong. Please try again.');
+      const msg = error.response?.data?.message || 'Something went wrong. Please try again.';
+      toast.error(msg);
     } finally {
       setLoading(false);
     }

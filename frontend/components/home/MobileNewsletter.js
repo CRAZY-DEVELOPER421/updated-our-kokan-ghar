@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import toast from 'react-hot-toast';
+import api from '@/lib/api';
 
 export default function MobileNewsletter() {
   const [email, setEmail] = useState('');
@@ -14,11 +15,16 @@ export default function MobileNewsletter() {
       return;
     }
     setIsSubscribing(true);
-    // Simulate subscription — replace with actual API call
-    await new Promise((r) => setTimeout(r, 1000));
-    toast.success('Subscribed! Check your inbox for 10% off.');
-    setEmail('');
-    setIsSubscribing(false);
+    try {
+      await api.post('/subscribers', { email });
+      toast.success('Subscribed! Check your inbox for ₹100 off code.');
+      setEmail('');
+    } catch (error) {
+      const msg = error.response?.data?.message || 'Something went wrong. Please try again.';
+      toast.error(msg);
+    } finally {
+      setIsSubscribing(false);
+    }
   };
 
   return (
