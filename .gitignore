@@ -45,6 +45,10 @@ desktop.ini
 *.swo
 *~
 
+# ---- Images (large files, not for repo) ----
+images/
+images.zip
+
 # ---- Misc / temp ----
 .turbo/
 .vercel/
