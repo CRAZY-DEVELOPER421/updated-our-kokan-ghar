@@ -269,7 +269,7 @@ export default function ProductCard({ product, view = 'grid' }) {
     return (
       <Link
         href={`/products/${product.slug}`}
-        className="block bg-white"
+        className="block bg-white dark:bg-[#1a1a2e]"
       >
         {/* Fixed card height (120px) + overflow-hidden: every card stays this exact height regardless of title/content length; ~104px usable area = 95px image + 8px breathing room each side + slack for the ~95px text block */}
         <div className="flex gap-2.5 px-3 py-2 h-[120px] overflow-hidden">
@@ -483,11 +483,11 @@ export default function ProductCard({ product, view = 'grid' }) {
         href={`/products/${product.slug}`}
         className="block h-full max-[768px]:h-auto"
       >
-        <div className={`relative bg-white rounded-[20px] overflow-hidden shadow-card hover:shadow-card-hover hover:scale-[1.02] transition-all duration-300 ease-out flex flex-col h-full max-[768px]:h-auto border border-transparent hover:border-konkan-green-primary/20 hover:ring-1 hover:ring-konkan-green-primary/10 ${
+        <div className={`relative bg-white dark:bg-[#1a1a2e] rounded-[20px] overflow-hidden shadow-card hover:shadow-card-hover hover:scale-[1.02] transition-all duration-300 ease-out flex flex-col h-full max-[768px]:h-auto border border-transparent hover:border-konkan-green-primary/20 hover:ring-1 hover:ring-konkan-green-primary/10 ${
           isInCart ? 'max-[768px]:border-green-500/30 max-[768px]:ring-2 max-[768px]:ring-green-500/30' : ''
         }`}>
           {/* Image Section - fixed height */}
-          <div className="relative max-[768px]:h-[135px] h-40 sm:h-48 md:h-56 shrink-0 overflow-hidden bg-[#f5f0eb]">
+          <div className="relative max-[768px]:h-[135px] h-40 sm:h-48 md:h-56 shrink-0 overflow-hidden bg-[#f5f0eb] dark:bg-[#12121f]">
             {product.primary_image && !imageError ? (
               <div className="relative w-full h-full">
                 {!imageLoaded && (
@@ -634,7 +634,7 @@ export default function ProductCard({ product, view = 'grid' }) {
           </div>
 
           {/* Content Section - flex column that pushes buttons to bottom */}
-          <div className="max-[768px]:px-2 max-[768px]:pt-1.5 max-[768px]:pb-1.5 max-[768px]:flex-none sm:px-4 sm:pt-3 sm:pb-4 bg-white flex flex-col flex-1">
+          <div className="max-[768px]:px-2 max-[768px]:pt-1.5 max-[768px]:pb-1.5 max-[768px]:flex-none sm:px-4 sm:pt-3 sm:pb-4 bg-white dark:bg-[#1a1a2e] flex flex-col flex-1">
             {/* Location Badge — always same height, empty if missing */}
             <div className="min-h-[20px] sm:min-h-[24px] max-[768px]:mb-0.5 mb-1 sm:mb-2">
               {product.region_origin && (
@@ -649,7 +649,7 @@ export default function ProductCard({ product, view = 'grid' }) {
             </div>
 
             {/* Product Title - fixed 2-line height */}
-            <h3 className="text-konkan-text-primary font-bold max-[768px]:text-[12px] max-[768px]:leading-[1.2] text-[13px] sm:text-sm md:text-base leading-snug line-clamp-2 max-[768px]:mb-0.5 mb-1 sm:mb-2 min-h-[2rem] sm:min-h-[2.5rem] group-hover:text-konkan-green-primary transition-colors duration-200">
+            <h3 className="text-konkan-text-primary dark:text-gray-100 font-bold max-[768px]:text-[12px] max-[768px]:leading-[1.2] text-[13px] sm:text-sm md:text-base leading-snug line-clamp-2 max-[768px]:mb-0.5 mb-1 sm:mb-2 min-h-[2rem] sm:min-h-[2.5rem] group-hover:text-konkan-green-primary transition-colors duration-200">
               {product.name}
             </h3>
 

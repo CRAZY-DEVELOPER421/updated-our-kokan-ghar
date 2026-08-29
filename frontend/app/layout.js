@@ -4,6 +4,7 @@ import './globals.css';
 import dynamicLib from 'next/dynamic';
 import { QueryProviders } from '@/lib/providers/QueryProviders';
 import { I18nProvider } from '@/lib/i18n/I18nProvider';
+import ThemeProvider from '@/lib/providers/ThemeProvider';
 import Navbar from '@/components/layout/Navbar';
 import DeliveryAddressBar from '@/components/layout/DeliveryAddressBar';
 import MobileHeader from '@/components/layout/MobileHeader';
@@ -124,6 +125,13 @@ const searchActionLd = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" data-scroll-behavior="smooth" className={`${playfair.variable} ${inter.variable} ${poppins.variable}`} suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('kokan-ghar-theme');if(t==='dark'||(!t&&matchMedia('(prefers-color-scheme:dark)').matches))document.documentElement.classList.add('dark')}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body className="min-h-screen flex flex-col" suppressHydrationWarning>
         {/* Structured data (JSON-LD) — rendered in body; Next.js manages <head> metadata itself */}
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
@@ -175,6 +183,7 @@ gtag('config', '${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}', {
         )}
 
         <QueryProviders>
+          <ThemeProvider>
           <I18nProvider>
             <ToastProvider />
             <PwaInstallPopup />
@@ -197,6 +206,7 @@ gtag('config', '${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}', {
             <div className="hidden lg:block"><Footer /></div>
             <CompareBar />
           </I18nProvider>
+          </ThemeProvider>
         </QueryProviders>
       </body>
     </html>

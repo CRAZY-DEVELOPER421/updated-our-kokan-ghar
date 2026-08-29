@@ -13,7 +13,7 @@ export default function Input({
   return (
     <div className="w-full">
       {label && (
-        <label htmlFor={inputId} className="block text-sm font-medium text-konkan-text-primary mb-1.5">
+        <label htmlFor={inputId} className="block text-sm font-medium text-konkan-text-primary dark:text-gray-200 mb-1.5">
           {label}
         </label>
       )}

@@ -57,14 +57,14 @@ export default function MobileProductCard({ product }) {
     <div className="group w-[155px] shrink-0">
       <Link
         href={`/products/${product.slug}`}
-        className="block bg-white overflow-hidden"
+        className="block bg-white dark:bg-[#1a1a2e] overflow-hidden"
         style={{
           borderRadius: '12px',
           boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
         }}
       >
         {/* ── Image Section — square (1:1) ── */}
-        <div className="relative aspect-square overflow-hidden" style={{ backgroundColor: '#E8F0EC' }}>
+        <div className="relative aspect-square overflow-hidden bg-[#E8F0EC] dark:bg-[#12121f]">
           {product.primary_image && !imageError ? (
             <Image
               src={getImageUrl(product.primary_image)}

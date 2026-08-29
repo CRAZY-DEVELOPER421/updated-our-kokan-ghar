@@ -19,7 +19,7 @@ export function PincodeChecker() {
         onChange={(e) => { setPincode(e.target.value.replace(/\D/g, '').slice(0, 6)); setChecked(false); }}
         placeholder="Check delivery pincode"
         maxLength={6}
-        className="flex-1 px-3 py-1.5 text-sm rounded-lg border border-konkan-sand bg-white focus:ring-2 focus:ring-konkan-green-primary/30 focus:border-konkan-green-primary outline-none"
+        className="flex-1 px-3 py-1.5 text-sm rounded-lg border border-konkan-sand dark:border-[#2a2a40] bg-white dark:bg-[#1a1a2e] dark:text-gray-100 focus:ring-2 focus:ring-konkan-green-primary/30 focus:border-konkan-green-primary outline-none"
       />
       <button
         onClick={() => pincode.length === 6 && setChecked(true)}

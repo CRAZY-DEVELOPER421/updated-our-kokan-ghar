@@ -37,8 +37,8 @@ export default function MobileFooter() {
 
   return (
     <footer
+      className="bg-[#3D2B1F] dark:bg-[#0a0a12]"
       style={{
-        backgroundColor: '#3D2B1F',
         backgroundImage: 'none',
         padding: '32px 16px 24px',
       }}

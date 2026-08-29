@@ -67,11 +67,8 @@ export default function MobileBottomNav() {
 
   return (
     <nav
-      className="bg-white flex items-center justify-around"
+      className="bg-white dark:bg-[#0f0f1a] dark:border-[#2a2a40] flex items-center justify-around"
       style={{
-        // Explicit inline fixed positioning — immune to any ancestor transform,
-        // Tailwind purge, or class-override edge case that could push the bar
-        // mid-page. Stays pinned to the viewport bottom regardless of scroll.
         position: 'fixed',
         bottom: 0,
         left: 0,
@@ -88,7 +85,9 @@ export default function MobileBottomNav() {
           <Link
             key={item.href}
             href={item.href}
-            className="flex flex-col items-center justify-center gap-1 min-w-[48px] min-h-[44px]"
+            className={`flex flex-col items-center justify-center gap-1 min-w-[48px] min-h-[44px] ${
+              active ? 'dark:!text-[#52B788]' : 'dark:!text-gray-400'
+            }`}
             style={{ color: active ? '#1B3B2F' : '#8A8A8A' }}
           >
             {item.icon}

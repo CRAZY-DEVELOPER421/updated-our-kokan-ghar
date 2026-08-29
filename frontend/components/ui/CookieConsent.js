@@ -51,7 +51,7 @@ export default function CookieConsent() {
       aria-label="Cookie Consent"
     >
       <div className="container-custom">
-        <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-konkan-sand/50 p-5 md:p-6 max-w-3xl mx-auto">
+        <div className="bg-white/95 dark:bg-[#0f0f1a]/95 backdrop-blur-md rounded-2xl shadow-2xl border border-konkan-sand/50 dark:border-[#2a2a40] p-5 md:p-6 max-w-3xl mx-auto">
           <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
             {/* Icon */}
             <div className="shrink-0 w-10 h-10 rounded-full bg-konkan-green-primary/10 flex items-center justify-center">

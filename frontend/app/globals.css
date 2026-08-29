@@ -11,7 +11,12 @@
   }
 
   body {
-    @apply font-body text-[#1C1C1E];
+    @apply font-body text-[#1C1C1E] bg-white;
+  }
+
+  .dark body,
+  .dark {
+    @apply text-gray-100;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -52,6 +57,36 @@
     --chart-5: #1B4332;
     --radius: 0.75rem;
   }
+
+  .dark {
+    --color-primary: #52B788;
+    --color-secondary: #40916C;
+    --color-accent: #F4A261;
+    --color-cream: #1a1a2e;
+    --background: #0f0f1a;
+    --foreground: #e8e8f0;
+    --card: #1a1a2e;
+    --card-foreground: #e8e8f0;
+    --popover: #1a1a2e;
+    --popover-foreground: #e8e8f0;
+    --primary: #52B788;
+    --primary-foreground: #0f0f1a;
+    --secondary: #1a1a2e;
+    --secondary-foreground: #e8e8f0;
+    --muted: #1e1e30;
+    --muted-foreground: #9ca3af;
+    --accent: #F4A261;
+    --accent-foreground: #0f0f1a;
+    --destructive: #f87171;
+    --border: #2a2a40;
+    --input: #2a2a40;
+    --ring: #52B788;
+    --chart-1: #52B788;
+    --chart-2: #40916C;
+    --chart-3: #F4A261;
+    --chart-4: #E87722;
+    --chart-5: #95D5B2;
+  }
 }
 
 @layer components {
@@ -68,6 +103,10 @@
            hover:bg-konkan-green-primary hover:text-white
            active:scale-[0.98]
            transition-all duration-200 ease-out;
+  }
+  .dark .btn-secondary {
+    @apply bg-[#1a1a2e] text-konkan-green-light border-konkan-green-light/40
+           hover:bg-konkan-green-primary hover:text-white;
   }
 
   .btn-accent {
@@ -89,11 +128,19 @@
            focus:outline-none focus:ring-2 focus:ring-konkan-green-primary/30 focus:border-konkan-green-primary
            transition-all duration-200;
   }
+  .dark .input-field {
+    @apply bg-[#1a1a2e] border-[#2a2a40] text-gray-100
+           placeholder:text-gray-500;
+  }
 
   .card {
     @apply bg-white rounded-2xl shadow-card
            hover:shadow-card-hover
            transition-all duration-300;
+  }
+  .dark .card {
+    @apply bg-[#1a1a2e] shadow-none
+           hover:shadow-[0_8px_24px_rgba(0,0,0,0.4)];
   }
 
   .badge {
@@ -102,6 +149,9 @@
 
   .section-title {
     @apply font-display text-2xl md:text-3xl lg:text-4xl font-bold text-konkan-text-primary;
+  }
+  .dark .section-title {
+    @apply text-gray-100;
   }
 
   .section-subtitle {
@@ -114,6 +164,9 @@
 
   .skeleton {
     @apply bg-gradient-to-r from-konkan-sand via-white to-konkan-sand bg-[length:200%_100%] animate-shimmer rounded;
+  }
+  .dark .skeleton {
+    @apply from-[#1e1e30] via-[#2a2a40] to-[#1e1e30];
   }
 
   /* Admin-written rich text on campaign story / overview sections */

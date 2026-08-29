@@ -38,7 +38,7 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' })
 
       {/* Modal Content */}
       <div
-        className={`relative w-full ${sizes[size]} bg-white rounded-2xl shadow-modal animate-slide-up z-10 max-h-[90vh] flex flex-col`}
+        className={`relative w-full ${sizes[size]} bg-white dark:bg-[#1a1a2e] rounded-2xl shadow-modal animate-slide-up z-10 max-h-[90vh] flex flex-col`}
       >
         {/* Close button - always visible */}
         <button

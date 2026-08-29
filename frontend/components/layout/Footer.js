@@ -105,7 +105,7 @@ export default function Footer() {
   const customLogo = getImageUrl(s.site_logo);
 
   return (
-    <footer className="text-konkan-cream" style={{ backgroundColor: '#3D2B1F', backgroundImage: 'none' }}>
+    <footer className="text-konkan-cream dark:text-gray-200 bg-[#3D2B1F] dark:bg-[#0a0a12]" style={{ backgroundImage: 'none' }}>
       {/* Main Footer */}
       <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-16">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">

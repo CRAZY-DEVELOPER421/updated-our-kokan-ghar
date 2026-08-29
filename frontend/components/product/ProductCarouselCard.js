@@ -111,7 +111,7 @@ export default function ProductCarouselCard({ product, simplified = false }) {
   };
 
   return (
-    <div className="group relative flex flex-col w-full h-full bg-white rounded-xl border border-gray-200/70 overflow-hidden shadow-sm hover:shadow-lg hover:shadow-gray-900/10 hover:scale-[1.02] hover:border-gray-300 transition-all duration-150 ease-out">
+    <div className="group relative flex flex-col w-full h-full bg-white dark:bg-[#1a1a2e] rounded-xl border border-gray-200/70 dark:border-[#2a2a40] overflow-hidden shadow-sm hover:shadow-lg hover:shadow-gray-900/10 hover:scale-[1.02] hover:border-gray-300 transition-all duration-150 ease-out">
       <Link href={`/products/${slug}`} className="block">
         {/* Image — square 1:1, FULL-BLEED edge-to-edge (no frame around it) */}
         <div className="relative aspect-square w-full overflow-hidden bg-[#f5f0eb]">
