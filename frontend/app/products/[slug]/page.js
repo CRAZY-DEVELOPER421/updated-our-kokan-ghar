@@ -19,6 +19,7 @@ const NotifyMeButton = dynamic(() => import('@/components/product/NotifyMeButton
 const BuyBarProvider = dynamic(() => import('@/components/product/BuyBarContext').then(m => m.BuyBarProvider));
 const ProductActionsWrapper = dynamic(() => import('@/components/product/ProductActionsWrapper'));
 const MobileBuyBar = dynamic(() => import('@/components/product/MobileBuyBar'));
+const BackToResults = dynamic(() => import('@/components/product/BackToResults'));
 
 async function getProduct(slug, lang = 'en') {
   try {
@@ -124,6 +125,7 @@ export default async function ProductDetailPage({ params, searchParams }) {
 
   return (
     <BuyBarProvider>
+    <BackToResults />
     <div className="container-custom py-6 md:py-8 animate-fade-in">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }} />
       <GtagViewItem product={product} />

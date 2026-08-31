@@ -13,6 +13,7 @@ import { getImageUrl } from '@/lib/utils';
 import { PRODUCT_BLUR } from '@/lib/blur';
 import FlashSaleProgressBar from '@/components/ui/FlashSaleProgressBar';
 import ProductQuickViewModal from '@/components/product/ProductQuickViewModal';
+import { usePlpReferrer } from '@/lib/providers/PlpReferrerProvider';
 
 const WEIGHT_OPTIONS = [
   { label: '3kg', value: 3 },
@@ -21,6 +22,7 @@ const WEIGHT_OPTIONS = [
 ];
 
 export default function ProductCard({ product, view = 'grid' }) {
+  const plpRef = usePlpReferrer();
   const [selectedWeight, setSelectedWeight] = useState(null);
   const [isAdding, setIsAdding] = useState(false);
   const [added, setAdded] = useState(false);
@@ -276,6 +278,7 @@ export default function ProductCard({ product, view = 'grid' }) {
       <Link
         href={`/products/${product.slug}`}
         className="block bg-white dark:bg-[#1a1a2e]"
+        onClick={() => plpRef?.save?.()}
       >
         {/* Fixed card height (120px) + overflow-hidden: every card stays this exact height regardless of title/content length; ~104px usable area = 95px image + 8px breathing room each side + slack for the ~95px text block */}
         <div className="flex gap-2.5 px-3 py-2 h-[120px] overflow-hidden">
@@ -509,6 +512,7 @@ export default function ProductCard({ product, view = 'grid' }) {
       <Link
         href={`/products/${product.slug}`}
         className="block h-full max-[768px]:h-auto"
+        onClick={() => plpRef?.save?.()}
       >
         <div className={`relative bg-white dark:bg-[#1a1a2e] rounded-[20px] overflow-hidden shadow-card hover:shadow-card-hover transition-all duration-300 ease-out flex flex-col h-full max-[768px]:h-auto border ${
           isOutOfStock ? 'opacity-60 grayscale hover:scale-100 hover:shadow-card border-gray-200' : 'hover:scale-[1.02] hover:border-konkan-green-primary/20 hover:ring-1 hover:ring-konkan-green-primary/10 border-transparent'

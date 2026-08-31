@@ -8,9 +8,11 @@ import useWishlistStore from '@/lib/store/wishlistStore';
 import useCartStore from '@/lib/store/cartStore';
 import FlashSaleProgressBar from '@/components/ui/FlashSaleProgressBar';
 import { getImageUrl } from '@/lib/utils';
+import { usePlpReferrer } from '@/lib/providers/PlpReferrerProvider';
 import { PRODUCT_BLUR } from '@/lib/blur';
 
 export default function MobileProductCard({ product }) {
+  const plpRef = usePlpReferrer();
   const [isAdding, setIsAdding] = useState(false);
   const [imageError, setImageError] = useState(false);
 
@@ -64,6 +66,7 @@ export default function MobileProductCard({ product }) {
       <Link
         href={`/products/${product.slug}`}
         className="block bg-white dark:bg-[#1a1a2e] overflow-hidden"
+        onClick={() => plpRef?.save?.()}
         style={{
           borderRadius: '12px',
           boxShadow: '0 2px 8px rgba(0,0,0,0.06)',

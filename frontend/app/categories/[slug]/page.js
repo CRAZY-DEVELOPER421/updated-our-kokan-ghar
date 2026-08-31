@@ -4,6 +4,8 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import Breadcrumb from '@/components/ui/Breadcrumb';
 
+const PlpScrollWrapper = dynamic(() => import('@/components/product/PlpScrollWrapper'));
+
 const ProductFilters = dynamic(() => import('@/components/product/ProductFilters'), {
   loading: () => <div className="w-64 skeleton h-96 rounded-xl shrink-0" />,
 });
@@ -175,6 +177,7 @@ export default async function CategoryPage({ params, searchParams }) {
   }
 
   return (
+    <PlpScrollWrapper totalProducts={productCount || 0}>
     <div className="min-h-screen">
       {/* Hero Section */}
       <div className={`relative ${categoryImage ? 'h-48 md:h-64' : 'bg-gradient-to-r from-konkan-green-dark via-konkan-green-primary to-konkan-green-secondary'}`}>
@@ -266,5 +269,6 @@ export default async function CategoryPage({ params, searchParams }) {
         </div>
       </div>
     </div>
+    </PlpScrollWrapper>
   );
 }

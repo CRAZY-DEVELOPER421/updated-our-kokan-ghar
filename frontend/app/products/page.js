@@ -2,6 +2,8 @@ import { Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import Breadcrumb from '@/components/ui/Breadcrumb';
 
+const PlpScrollWrapper = dynamic(() => import('@/components/product/PlpScrollWrapper'));
+
 const ProductFilters = dynamic(() => import('@/components/product/ProductFilters'), {
   loading: () => <div className="w-64 skeleton h-96 rounded-xl shrink-0" />,
 });
@@ -61,6 +63,7 @@ export default async function ProductsPage({ searchParams }) {
   const inStock = sp.in_stock || '';
 
   return (
+    <PlpScrollWrapper totalProducts={0}>
     <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8 animate-fade-in">
       <Breadcrumb items={[{ label: 'All Products', href: '/products' }]} />
 
@@ -127,5 +130,6 @@ export default async function ProductsPage({ searchParams }) {
         </div>
       </div>
     </div>
+    </PlpScrollWrapper>
   );
 }
