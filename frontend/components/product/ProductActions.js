@@ -9,9 +9,12 @@ import useAuthStore from '@/lib/store/authStore';
 import useWishlistStore from '@/lib/store/wishlistStore';
 import { getImageUrl } from '@/lib/utils';
 import { trackAddToCart } from '@/lib/gtag';
+import { useFlyToCart } from '@/components/ui/FlyToCart';
 
-export default function ProductActions({ product, stockQuantity = 0, variants = [] }) {
+export default function ProductActions({ product, stockQuantity = 0, variants = [], flyToCart: flyToCartProp }) {
   const router = useRouter();
+  const flyToCartCtx = useFlyToCart();
+  const flyToCart = flyToCartProp || flyToCartCtx;
   const { isAuthenticated } = useAuthStore();
   const items = useCartStore((s) => s.items);
   const addToCart = useCartStore((s) => s.addToCart);
@@ -87,14 +90,24 @@ export default function ProductActions({ product, stockQuantity = 0, variants = 
     }
   };
 
+  // ── Product image for fly-to-cart animation ──
+  const productImageUrl = getImageUrl(product.images?.[0]?.image_url || product.primary_image);
+
   // ── Add to Cart ─────────────────────────────────────
   // Guests can add to cart WITHOUT an account (guest cart). They only need
   // to login/signup at checkout — that's when the guest cart is merged.
-  const handleAddToCart = useCallback(async () => {
+  const handleAddToCart = useCallback(async (e) => {
+    // Capture button rect BEFORE await — after API success, isInCart becomes
+    // true and the <button> gets replaced by a <Link>, making e.currentTarget stale.
+    const startRect = e?.currentTarget?.getBoundingClientRect?.();
     setIsAdding(true);
     const res = await addToCart(productId, selectedVariant?.id || null, qty);
     setIsAdding(false);
     if (res.success) {
+      // Fly-to-cart animation — rect captured before await to avoid stale DOM ref
+      if (flyToCart && productImageUrl && startRect) {
+        flyToCart(productImageUrl, startRect.left + startRect.width / 2, startRect.top + startRect.height / 2);
+      }
       // Fire GA4 add_to_cart event
       trackAddToCart(
         {
@@ -114,7 +127,7 @@ export default function ProductActions({ product, stockQuantity = 0, variants = 
       // DURING the request, so the render-time value would be stale.
       toast.error(res.message || 'Failed to add to cart');
     }
-  }, [productId, selectedVariant, qty, addToCart]);
+  }, [productId, selectedVariant, qty, addToCart, flyToCart, productImageUrl]);
 
   // ── Buy Now ─────────────────────────────────────────
   // Adds to the cart first (guest carts included), then heads to checkout.
@@ -383,6 +396,7 @@ export default function ProductActions({ product, stockQuantity = 0, variants = 
           Buy Now
         </button>
       )}
+
     </div>
   );
 }

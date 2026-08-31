@@ -42,6 +42,7 @@ export default function ZoomImage({
   roundedClass = 'rounded-xl',
   bordered = true,
   objectFit = 'contain',
+  onClick,
   children,
 }) {
   const [zoomPos, setZoomPos] = useState({ x: 50, y: 50 });
@@ -97,6 +98,7 @@ export default function ZoomImage({
       onMouseMove={handleMouseMove}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      onClick={onClick}
     >
       {src ? (
         <Image

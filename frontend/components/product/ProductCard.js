@@ -10,6 +10,7 @@ import useAuthStore from '@/lib/store/authStore';
 import useCartStore from '@/lib/store/cartStore';
 import useCompareStore from '@/lib/store/compareStore';
 import { getImageUrl } from '@/lib/utils';
+import { PRODUCT_BLUR } from '@/lib/blur';
 import FlashSaleProgressBar from '@/components/ui/FlashSaleProgressBar';
 import ProductQuickViewModal from '@/components/product/ProductQuickViewModal';
 
@@ -186,6 +187,11 @@ export default function ProductCard({ product, view = 'grid' }) {
     ? discountPercent
     : (mrp > price ? Math.round(((mrp - price) / mrp) * 100) : 0);
 
+  // ── Stock urgency ──
+  const stockQty = parseInt(product?.stock_quantity, 10) || 0;
+  const isOutOfStock = stockQty === 0;
+  const isLowStock = stockQty > 0 && stockQty <= 5;
+
   const savings = mrp - price;
   const hasDiscount = discount > 0 && mrp > price && price > 0;
   const rating = parseFloat(product?.average_rating || 0);
@@ -283,6 +289,8 @@ export default function ProductCard({ product, view = 'grid' }) {
                 sizes="95px"
                 className="object-cover"
                 loading="lazy"
+                placeholder="blur"
+                blurDataURL={PRODUCT_BLUR}
                 onError={() => setImageError(true)}
               />
             ) : (
@@ -316,6 +324,25 @@ export default function ProductCard({ product, view = 'grid' }) {
               >
                 -{discount}%
               </span>
+            )}
+
+            {/* Low stock badge */}
+            {isLowStock && (
+              <span
+                className="absolute bottom-1 left-1 z-10 text-[8px] font-bold text-white px-1.5 py-[2px] rounded-[3px] leading-none shadow-sm flex items-center gap-0.5"
+                style={{ backgroundColor: '#DC2626' }}
+              >
+                Only {stockQty} left
+              </span>
+            )}
+
+            {/* Out of stock overlay */}
+            {isOutOfStock && (
+              <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-[2] rounded-lg">
+                <span className="bg-black/70 text-white text-[9px] font-bold px-2 py-1 rounded-full">
+                  Out of Stock
+                </span>
+              </div>
             )}
 
             {/* Wishlist heart — top-right corner, white circle outline */}
@@ -446,10 +473,10 @@ export default function ProductCard({ product, view = 'grid' }) {
                 ) : (
                   <button
                     onClick={handleListAddToCart}
-                    disabled={isAdding}
+                    disabled={isAdding || isOutOfStock}
                     className="text-white font-semibold rounded-lg transition-colors active:scale-[0.97] disabled:opacity-50"
                     style={{
-                      backgroundColor: '#1B3B2F',
+                      backgroundColor: isOutOfStock ? '#9CA3AF' : '#1B3B2F',
                       padding: '5px 12px',
                       fontSize: '11px',
                       borderRadius: '6px',
@@ -461,7 +488,7 @@ export default function ProductCard({ product, view = 'grid' }) {
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                       </svg>
                     ) : (
-                      'Add to Cart'
+                      isOutOfStock ? 'Out of Stock' : 'Add to Cart'
                     )}
                   </button>
                 )}
@@ -483,9 +510,9 @@ export default function ProductCard({ product, view = 'grid' }) {
         href={`/products/${product.slug}`}
         className="block h-full max-[768px]:h-auto"
       >
-        <div className={`relative bg-white dark:bg-[#1a1a2e] rounded-[20px] overflow-hidden shadow-card hover:shadow-card-hover hover:scale-[1.02] transition-all duration-300 ease-out flex flex-col h-full max-[768px]:h-auto border border-transparent hover:border-konkan-green-primary/20 hover:ring-1 hover:ring-konkan-green-primary/10 ${
-          isInCart ? 'max-[768px]:border-green-500/30 max-[768px]:ring-2 max-[768px]:ring-green-500/30' : ''
-        }`}>
+        <div className={`relative bg-white dark:bg-[#1a1a2e] rounded-[20px] overflow-hidden shadow-card hover:shadow-card-hover transition-all duration-300 ease-out flex flex-col h-full max-[768px]:h-auto border ${
+          isOutOfStock ? 'opacity-60 grayscale hover:scale-100 hover:shadow-card border-gray-200' : 'hover:scale-[1.02] hover:border-konkan-green-primary/20 hover:ring-1 hover:ring-konkan-green-primary/10 border-transparent'
+        } ${isInCart && !isOutOfStock ? 'max-[768px]:border-green-500/30 max-[768px]:ring-2 max-[768px]:ring-green-500/30' : ''}`}>
           {/* Image Section - fixed height */}
           <div className="relative max-[768px]:h-[135px] h-40 sm:h-48 md:h-56 shrink-0 overflow-hidden bg-[#f5f0eb] dark:bg-[#12121f]">
             {product.primary_image && !imageError ? (
@@ -502,6 +529,8 @@ export default function ProductCard({ product, view = 'grid' }) {
                     imageLoaded ? 'opacity-100' : 'opacity-0'
                   }`}
                   loading="lazy"
+                  placeholder="blur"
+                  blurDataURL={PRODUCT_BLUR}
                   onLoad={() => setImageLoaded(true)}
                   onError={() => setImageError(true)}
                 />
@@ -540,6 +569,14 @@ export default function ProductCard({ product, view = 'grid' }) {
               {product.is_seasonal && (
                 <span className="text-[9px] sm:text-[10px] font-semibold bg-gradient-to-r from-[#7c3aed] to-[#6d28d9] text-white px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full shadow-[0_2px_6px_rgba(124,58,237,0.3)]">
                   Seasonal
+                </span>
+              )}
+              {isLowStock && (
+                <span className="text-[9px] sm:text-[10px] font-bold bg-gradient-to-r from-[#DC2626] to-[#b91c1c] text-white px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full shadow-[0_2px_6px_rgba(220,38,38,0.4)] flex items-center gap-1 whitespace-nowrap animate-pulse">
+                  <svg className="w-2.5 h-2.5 sm:w-3 sm:h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  Only {stockQty} left
                 </span>
               )}
             </div>
@@ -631,6 +668,15 @@ export default function ProductCard({ product, view = 'grid' }) {
 
             {/* Bottom Overlay Gradient — enhances on hover */}
             <div className="absolute inset-x-0 bottom-0 h-20 sm:h-28 bg-gradient-to-t from-black/40 via-black/10 to-transparent pointer-events-none z-[1] opacity-60 group-hover:opacity-100 transition-opacity duration-300" />
+
+            {/* Out of Stock overlay */}
+            {isOutOfStock && (
+              <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-[3]">
+                <span className="bg-black/70 text-white text-xs sm:text-sm font-bold px-4 py-2 rounded-full backdrop-blur-sm">
+                  Out of Stock
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Content Section - flex column that pushes buttons to bottom */}
@@ -734,16 +780,16 @@ export default function ProductCard({ product, view = 'grid' }) {
                     </svg>
                     <span className="hidden sm:inline">Go to Cart</span>
                   </button>
-                ) : (
-                  <button
+                ) : (                  <button
                     onClick={handleAddToCart}
-                    disabled={isAdding}
+                    disabled={isAdding || isOutOfStock}
                     className={`flex-1 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold rounded-xl transition-all duration-200 ${
-                      added
-                        ? 'bg-green-600 text-white'
-                        : 'bg-gradient-to-r from-konkan-green-primary to-konkan-green-secondary text-white hover:from-konkan-green-dark hover:to-konkan-green-primary active:scale-[0.98] shadow-[0_4px_12px_rgba(45,106,79,0.25)]'
-                    }`}
-                  >
+                      isOutOfStock
+                        ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                        : added
+                          ? 'bg-green-600 text-white'
+                          : 'bg-gradient-to-r from-konkan-green-primary to-konkan-green-secondary text-white hover:from-konkan-green-dark hover:to-konkan-green-primary active:scale-[0.98] shadow-[0_4px_12px_rgba(45,106,79,0.25)]'
+                    }`}>
                     {isAdding ? (
                       <span className="flex items-center justify-center gap-1">
                         <svg className="w-3 h-3 sm:w-4 sm:h-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -756,7 +802,7 @@ export default function ProductCard({ product, view = 'grid' }) {
                         <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z" />
                         </svg>
-                        Add
+                        {isOutOfStock ? 'Out of Stock' : 'Add'}
                       </span>
                     )}
                   </button>

@@ -8,7 +8,6 @@ import useAuthStore from '@/lib/store/authStore';
 import api from '@/lib/api';
 import { useSiteSettings } from '@/lib/hooks/useSiteSettings';
 import { getImageUrl } from '@/lib/utils';
-import { useTheme } from '@/lib/providers/ThemeProvider';
 import SuspensionTimer from '@/components/ui/SuspensionTimer';
 
 export default function MobileHeader() {
@@ -16,7 +15,6 @@ export default function MobileHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
   const cartCount = useCartStore((s) => s.itemCount);
   const { isAuthenticated, suspended, suspension, clearSuspended, fetchProfile, logout } = useAuthStore();
-  const { theme, toggleTheme } = useTheme();
   const { data: settingsData } = useSiteSettings();
 
   // Admin-managed navbar links (same source as the desktop navbar).
@@ -120,23 +118,6 @@ export default function MobileHeader() {
 
           {/* Right: Theme Toggle + Search + Bell + Cart */}
           <div className="flex items-center gap-1 sm:gap-2">
-            {/* Dark Mode Toggle */}
-            <button
-              onClick={toggleTheme}
-              className="flex items-center justify-center min-w-[44px] min-h-[44px] dark:text-gray-200"
-              style={{ color: '#1A1A1A' }}
-              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-            >
-              {theme === 'dark' ? (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-              ) : (
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                </svg>
-              )}
-            </button>
             {/* Search */}
             <Link
               href="/search"              className="flex items-center justify-center min-w-[44px] min-h-[44px] dark:text-gray-200"
@@ -191,6 +172,7 @@ export default function MobileHeader() {
 
             {/* Cart */}
             <Link
+              id="fly-cart-target"
               href="/cart"
               className="relative flex items-center justify-center min-w-[44px] min-h-[44px] -mr-2"
               style={{ color: '#1A1A1A' }}

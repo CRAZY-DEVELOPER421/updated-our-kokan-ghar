@@ -13,12 +13,12 @@ const SimilarProducts = dynamic(() => import('@/components/product/SimilarProduc
   loading: () => <div className="skeleton h-64 rounded-xl" />,
 });
 const ProductTabs = dynamic(() => import('@/components/product/ProductDetailClient').then(m => m.ProductTabs));
-const ProductActions = dynamic(() => import('@/components/product/ProductActions'), {
-  loading: () => <div className="skeleton h-12 w-full rounded-xl" />,
-});
 const PincodeChecker = dynamic(() => import('@/components/product/ProductDetailClient').then(m => m.PincodeChecker));
 const RecentlyViewed = dynamic(() => import('@/components/product/ProductDetailClient').then(m => m.RecentlyViewed));
 const NotifyMeButton = dynamic(() => import('@/components/product/NotifyMeButton'));
+const BuyBarProvider = dynamic(() => import('@/components/product/BuyBarContext').then(m => m.BuyBarProvider));
+const ProductActionsWrapper = dynamic(() => import('@/components/product/ProductActionsWrapper'));
+const MobileBuyBar = dynamic(() => import('@/components/product/MobileBuyBar'));
 
 async function getProduct(slug, lang = 'en') {
   try {
@@ -123,6 +123,7 @@ export default async function ProductDetailPage({ params, searchParams }) {
   };
 
   return (
+    <BuyBarProvider>
     <div className="container-custom py-6 md:py-8 animate-fade-in">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }} />
       <GtagViewItem product={product} />
@@ -140,9 +141,7 @@ export default async function ProductDetailPage({ params, searchParams }) {
           <Suspense fallback={<div className="aspect-square skeleton rounded-2xl" />}>
             <ProductImages images={product.images || []} name={product.name} />
           </Suspense>
-        </div>
-
-        {/* Right: Product Info */}
+        </div>        {/* Right: Product Info */}
         <div className="space-y-5">
           <div>
             {product.brand && (
@@ -190,13 +189,11 @@ export default async function ProductDetailPage({ params, searchParams }) {
 
           {/* Buy box: dynamic price (incl. selected variant) + variant selector +
               quantity + Add to Cart / Buy Now — one connected component */}
-          <Suspense fallback={<div className="skeleton h-40 w-full rounded-xl" />}>
-            <ProductActions
-              product={product}
-              stockQuantity={product.stock_quantity}
-              variants={product.variants || []}
-            />
-          </Suspense>
+          <ProductActionsWrapper
+            product={product}
+            stockQuantity={product.stock_quantity}
+            variants={product.variants || []}
+          />
 
           {/* Notify Me — out-of-stock products */}
           {product.stock_quantity <= 0 && (
@@ -263,6 +260,14 @@ export default async function ProductDetailPage({ params, searchParams }) {
       {/* Recently Viewed */}
       <RecentlyViewed />
     </div>
+
+      {/* Mobile sticky buy bar — appears when user scrolls past ProductActions */}
+      <MobileBuyBar
+        product={product}
+        variants={product.variants || []}
+        effectiveStock={product.stock_quantity}
+      />
+    </BuyBarProvider>
   );
 }
 

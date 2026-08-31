@@ -17,6 +17,7 @@ import FloatingNotifPrompt from '@/components/pwa/FloatingNotifPrompt';
 import IosPwaBanner from '@/components/pwa/IosPwaBanner';
 import CookieConsent from '@/components/ui/CookieConsent';
 import CompareBar from '@/components/ui/CompareBar';
+import { FlyToCartProvider } from '@/components/ui/FlyToCart';
 
 // Dynamically import below-the-fold components to reduce initial JS payload
 const PageTransition = dynamicLib(() => import('@/components/layout/PageTransition'));
@@ -185,6 +186,7 @@ gtag('config', '${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}', {
         <QueryProviders>
           <ThemeProvider>
           <I18nProvider>
+            <FlyToCartProvider>
             <ToastProvider />
             <PwaInstallPopup />
             <FloatingNotifPrompt />
@@ -205,6 +207,7 @@ gtag('config', '${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}', {
             <div className="lg:hidden"><MobileBottomNav /></div>
             <div className="hidden lg:block"><Footer /></div>
             <CompareBar />
+            </FlyToCartProvider>
           </I18nProvider>
           </ThemeProvider>
         </QueryProviders>

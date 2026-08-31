@@ -7,6 +7,7 @@ import { Truck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { getImageUrl } from '@/lib/utils';
+import { PRODUCT_BLUR } from '@/lib/blur';
 import StarRating from '@/components/ui/StarRating';
 import FlashSaleProgressBar from '@/components/ui/FlashSaleProgressBar';
 import useWishlistStore from '@/lib/store/wishlistStore';
@@ -123,6 +124,8 @@ export default function ProductCarouselCard({ product, simplified = false }) {
               sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
               className="object-cover group-hover:scale-105 transition-transform duration-300"
               loading="lazy"
+              placeholder="blur"
+              blurDataURL={PRODUCT_BLUR}
               onError={() => setImageError(true)}
             />
           ) : (

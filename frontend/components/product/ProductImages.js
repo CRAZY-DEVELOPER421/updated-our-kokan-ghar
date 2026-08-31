@@ -2,11 +2,21 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
+import dynamic from 'next/dynamic';
 import { getImageUrl } from '@/lib/utils';
 import ZoomImage from '@/components/ui/ZoomImage';
 
+const ProductLightbox = dynamic(() => import('./ProductLightbox'));
+
 export default function ProductImages({ images = [], name = 'Product' }) {
   const [selected, setSelected] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+
+  const openLightbox = (idx) => {
+    setLightboxIndex(idx);
+    setLightboxOpen(true);
+  };
 
   const displayImages = images.length > 0
     ? images
@@ -16,7 +26,7 @@ export default function ProductImages({ images = [], name = 'Product' }) {
 
   return (
     <div className="space-y-3 w-full max-w-[500px] mx-auto md:mx-0">
-      {/* Main Image with Zoom */}
+      {/* Main Image with Zoom — tap opens fullscreen lightbox */}
       <ZoomImage
         src={current?.image_url ? getImageUrl(current.image_url) : null}
         alt={current?.alt_text || name}
@@ -25,6 +35,7 @@ export default function ProductImages({ images = [], name = 'Product' }) {
         roundedClass="rounded-2xl"
         zoomScale={2.2}
         containerClassName="bg-gray-50"
+        onClick={() => openLightbox(selected)}
       >
         {/* Navigation arrows */}
         {displayImages.length > 1 && (
@@ -83,6 +94,16 @@ export default function ProductImages({ images = [], name = 'Product' }) {
         <p className="text-center text-xs text-konkan-text-secondary">
           {selected + 1} / {displayImages.length}
         </p>
+      )}
+
+      {/* Fullscreen Lightbox */}
+      {lightboxOpen && (
+        <ProductLightbox
+          images={displayImages}
+          initialIndex={lightboxIndex}
+          name={name}
+          onClose={() => setLightboxOpen(false)}
+        />
       )}
     </div>
   );

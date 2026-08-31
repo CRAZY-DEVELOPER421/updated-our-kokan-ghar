@@ -8,6 +8,7 @@ import useWishlistStore from '@/lib/store/wishlistStore';
 import useCartStore from '@/lib/store/cartStore';
 import FlashSaleProgressBar from '@/components/ui/FlashSaleProgressBar';
 import { getImageUrl } from '@/lib/utils';
+import { PRODUCT_BLUR } from '@/lib/blur';
 
 export default function MobileProductCard({ product }) {
   const [isAdding, setIsAdding] = useState(false);
@@ -29,6 +30,11 @@ export default function MobileProductCard({ product }) {
   const reviewCount = product?.review_count || 0;
   const flashSold = Number(product?.sold_count) || 0;
   const flashLimit = Number(product?.quantity_limit) || 0;
+
+  // ── Stock urgency ──
+  const stockQty = parseInt(product?.stock_quantity, 10) || 0;
+  const isOutOfStock = stockQty === 0;
+  const isLowStock = stockQty > 0 && stockQty <= 5;
 
   // ── Handlers ──
   const handleWishlist = (e) => {
@@ -73,6 +79,8 @@ export default function MobileProductCard({ product }) {
               sizes="155px"
               className="object-cover group-hover:scale-105 transition-transform duration-300"
               loading="lazy"
+              placeholder="blur"
+              blurDataURL={PRODUCT_BLUR}
               onError={() => setImageError(true)}
             />
           ) : (
@@ -97,6 +105,25 @@ export default function MobileProductCard({ product }) {
             >
               {discount}% OFF
             </span>
+          )}
+
+          {/* Low stock badge */}
+          {isLowStock && (
+            <span
+              className="absolute bottom-1.5 left-1.5 z-10 text-[8px] font-bold text-white px-1.5 py-[2px] rounded-[3px] leading-none shadow-sm flex items-center gap-0.5"
+              style={{ backgroundColor: '#DC2626' }}
+            >
+              Only {stockQty} left
+            </span>
+          )}
+
+          {/* Out of stock overlay */}
+          {isOutOfStock && (
+            <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-[2]">
+              <span className="bg-black/70 text-white text-[9px] font-bold px-2 py-1 rounded-full">
+                Out of Stock
+              </span>
+            </div>
           )}
 
           {/* Wishlist heart — compact, top-right */}
@@ -168,11 +195,11 @@ export default function MobileProductCard({ product }) {
           {/* Add to Cart Button — compact, 32px height */}
           <button
             onClick={handleAddToCart}
-            disabled={isAdding}
+            disabled={isAdding || isOutOfStock}
             className="w-full mt-1.5 text-white font-semibold flex items-center justify-center gap-1 transition-colors active:scale-[0.98] disabled:opacity-50"
             style={{
               height: '32px',
-              backgroundColor: '#1B3B2F',
+              backgroundColor: isOutOfStock ? '#9CA3AF' : '#1B3B2F',
               borderRadius: '8px',
               fontSize: '12px',
             }}
@@ -184,10 +211,16 @@ export default function MobileProductCard({ product }) {
               </svg>
             ) : (
               <>
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                </svg>
-                <span>Add</span>
+                {isOutOfStock ? (
+                  <span>Out of Stock</span>
+                ) : (
+                  <>
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                    </svg>
+                    <span>Add</span>
+                  </>
+                )}
               </>
             )}
           </button>
