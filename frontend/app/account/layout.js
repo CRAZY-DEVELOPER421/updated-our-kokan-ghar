@@ -24,14 +24,19 @@ export default function AccountLayout({ children }) {
   const { t } = useTranslation();
   const pathname = usePathname();
   const router = useRouter();
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, _hasHydrated } = useAuthStore();
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    // Only redirect AFTER zustand has rehydrated from localStorage —
+    // otherwise isAuthenticated is always false on first render.
+    if (_hasHydrated && !isAuthenticated) {
       router.push('/login?redirect=/account');
     }
-  }, [isAuthenticated, router]);
+  }, [_hasHydrated, isAuthenticated, router]);
 
+  // Show nothing (spinner/blank) until hydration completes — prevents
+  // the flash-redirect-to-login bug that blanked every /account page.
+  if (!_hasHydrated) return null;
   if (!isAuthenticated) return null;
 
   const isDashboard = pathname === '/account';

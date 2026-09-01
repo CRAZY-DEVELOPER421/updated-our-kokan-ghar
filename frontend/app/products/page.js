@@ -19,6 +19,7 @@ const ProductGridInner = dynamic(() => import('@/components/product/ProductGridI
 const SortDropdown = dynamic(() => import('@/components/product/SortDropdown'));
 
 const ActiveFilterChips = dynamic(() => import('@/components/product/ActiveFilterChips'));
+const SubcategoryChips = dynamic(() => import('@/components/product/SubcategoryChips'));
 
 const MobileFilterToolbar = dynamic(() => import('@/components/product/MobileFilterToolbar'), {
   loading: () => <div className="lg:hidden skeleton h-10 rounded-xl mb-3" />,
@@ -61,6 +62,7 @@ export default async function ProductsPage({ searchParams }) {
   const region = sp.region || '';
   const brand = sp.brand || '';
   const inStock = sp.in_stock || '';
+  const sub = sp.sub || '';
 
   return (
     <PlpScrollWrapper totalProducts={0}>
@@ -103,6 +105,9 @@ export default async function ProductsPage({ searchParams }) {
             </div>
           </div>
 
+          {/* Subcategory Quick-Filter Chips (only when a category is active) */}
+          {category && <SubcategoryChips categorySlug={category} />}
+
           {/* Active Filter Chips */}
           <Suspense fallback={null}>
             <ActiveFilterChips />
@@ -114,6 +119,7 @@ export default async function ProductsPage({ searchParams }) {
               page={page}
               sort={sort}
               category={category}
+              sub={sub}
               q={q}
               minPrice={minPrice}
               maxPrice={maxPrice}

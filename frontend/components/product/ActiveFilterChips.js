@@ -1,11 +1,12 @@
 'use client';
 
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 
 export default function ActiveFilterChips() {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
 
   // Same dynamic price range as the slider (real DB max, rounded up)
@@ -22,6 +23,7 @@ export default function ActiveFilterChips() {
 
   const chips = [];
   if (searchParams.get('category')) chips.push({ label: `Category: ${searchParams.get('category')}`, key: 'category' });
+  if (searchParams.get('sub')) chips.push({ label: `Sub: ${searchParams.get('sub')}`, key: 'sub' });
   if (searchParams.get('rating')) chips.push({ label: `${searchParams.get('rating')}★ & above`, key: 'rating' });
   if (searchParams.get('min_price') || searchParams.get('max_price')) chips.push({ label: `₹${searchParams.get('min_price') || 0} – ₹${searchParams.get('max_price') || PRICE_MAX}`, key: 'range' });
   if (searchParams.get('discount')) chips.push({ label: `${searchParams.get('discount')}%+ off`, key: 'discount' });
@@ -49,11 +51,12 @@ export default function ActiveFilterChips() {
       params.delete(key);
     }
     params.set('page', '1');
-    router.push(`/products?${params.toString()}`);
+    const qs = params.toString();
+    router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   };
 
   const clearAll = () => {
-    router.push('/products');
+    router.push(pathname, { scroll: false });
   };
 
   if (chips.length === 0) return null;

@@ -5,7 +5,7 @@
 // whole Konkan Bazaar stack:
 //
 //   /admin/*                  -> admin panel   (Next.js :3001)
-//   /api/* /uploads/* /images/* /api-docs*  -> backend (Express :5000)
+//   /api/* /uploads/* /api-docs*  -> backend (Express :5000)
 //   everything else           -> storefront    (Next.js :3000)
 //
 // Zero external dependencies — plain Node http module.
@@ -21,11 +21,13 @@
 //   FRONTEND_TARGET     - frontend URL (default http://localhost:3000)
 //   ADMIN_TARGET        - admin panel URL (default http://localhost:3001)
 //   BACKEND_TARGET      - backend API URL (default http://localhost:5000)
+//   PROXY_TIMEOUT_MS    - upstream timeout in ms (default 30000)
 // ============================================================
 
 const http = require('http');
 
 const PORT = parseInt(process.env.GATEWAY_PORT || '8080', 10);
+const PROXY_TIMEOUT = parseInt(process.env.PROXY_TIMEOUT_MS || '30000', 10);
 const TARGETS = {
   frontend: process.env.FRONTEND_TARGET || 'http://localhost:3000',
   admin: process.env.ADMIN_TARGET || 'http://localhost:3001',
@@ -36,8 +38,7 @@ const TARGETS = {
 const isAdmin = (p) => p === '/admin' || p.startsWith('/admin/');
 const isBackend = (p) =>
   p === '/api' || p.startsWith('/api/') ||
-  p.startsWith('/api-docs') || p.startsWith('/uploads/') ||
-  p.startsWith('/images/');
+  p.startsWith('/api-docs') || p.startsWith('/uploads/');
 
 function routeFor(pathname) {
   if (isAdmin(pathname)) return TARGETS.admin;
@@ -62,9 +63,10 @@ const server = http.createServer((req, res) => {
   const targetUrl = new URL(target);
   const logLine = `[gateway] ${req.method} ${req.url} -> ${targetUrl.host}`;
 
-  // Build forwarded headers
+  // Build forwarded headers — strip hop-by-hop from requests too
   const forwardHeaders = { ...req.headers, host: targetUrl.host };
   for (const h of STRIP_REQ) delete forwardHeaders[h];
+  for (const h of HOP_BY_HOP) delete forwardHeaders[h];
 
   const proxyReq = http.request(
     {
@@ -73,6 +75,7 @@ const server = http.createServer((req, res) => {
       method: req.method,
       path: req.url,
       headers: forwardHeaders,
+      timeout: PROXY_TIMEOUT,
     },
     (proxyRes) => {
       // Rewrite absolute localhost redirects to relative paths so the browser
@@ -93,7 +96,7 @@ const server = http.createServer((req, res) => {
         );
       }
 
-      // Strip hop-by-hop headers
+      // Strip hop-by-hop headers from response
       const headers = { ...proxyRes.headers };
       for (const h of HOP_BY_HOP) delete headers[h];
 
@@ -102,6 +105,18 @@ const server = http.createServer((req, res) => {
     }
   );
 
+  // Timeout handler — if upstream doesn't respond in time, abort
+  proxyReq.on('timeout', () => {
+    console.error(`${logLine} TIMEOUT after ${PROXY_TIMEOUT}ms`);
+    proxyReq.destroy();
+    if (!res.headersSent) {
+      res.writeHead(504, { 'Content-Type': 'text/plain' });
+      res.end('504 Gateway Timeout');
+    } else {
+      res.destroy();
+    }
+  });
+
   proxyReq.on('error', (err) => {
     console.error(`${logLine} FAILED: ${err.message}`);
     if (!res.headersSent) {
@@ -109,6 +124,16 @@ const server = http.createServer((req, res) => {
       res.end(`502 Bad Gateway — ${targetUrl.host} is not running`);
     } else {
       res.destroy();
+    }
+  });
+
+  // If the client aborts mid-request, cancel the upstream request.
+  // NOTE: req 'close' fires when the request body is consumed (not on
+  // client disconnect), so we must NOT destroy proxyReq there — it
+  // would kill the connection before the response arrives.
+  req.on('aborted', () => {
+    if (!proxyReq.destroyed) {
+      proxyReq.destroy();
     }
   });
 
@@ -125,6 +150,7 @@ server.listen(PORT, '127.0.0.1', () => {
   console.log(`  │  Storefront -> ${TARGETS.frontend}          │`);
   console.log(`  │  Admin      -> ${TARGETS.admin}             │`);
   console.log(`  │  Backend    -> ${TARGETS.backend}             │`);
+  console.log(`  │  Timeout    ${PROXY_TIMEOUT}ms                      │`);
   console.log('  ├──────────────────────────────────────────────────┤');
   console.log('  │  Now start ngrok:  ngrok http 8080               │');
   console.log('  └──────────────────────────────────────────────────┘');

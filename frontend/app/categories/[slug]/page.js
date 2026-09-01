@@ -25,6 +25,7 @@ const ProductGridInner = dynamic(() => import('@/components/product/ProductGridI
 const SortDropdown = dynamic(() => import('@/components/product/SortDropdown'));
 
 const ActiveFilterChips = dynamic(() => import('@/components/product/ActiveFilterChips'));
+const SubcategoryChips = dynamic(() => import('@/components/product/SubcategoryChips'));
 
 // Runtime-resolved API base — works on localhost dev AND behind the tunnel/gateway.
 function resolveApiBase() {
@@ -148,6 +149,7 @@ export default async function CategoryPage({ params, searchParams }) {
   const seasonal = sp.seasonal || '';
   const bestseller = sp.bestseller || '';
   const discount = sp.discount || '';
+  const sub = sp.sub || '';
 
   // Fetch category data from API (with fallback)
   const category = await getCategory(slug);
@@ -238,6 +240,9 @@ export default async function CategoryPage({ params, searchParams }) {
               </Suspense>
             </div>
 
+            {/* Subcategory Quick-Filter Chips */}
+            <SubcategoryChips categorySlug={slug} />
+
             {/* Active Filter Chips */}
             <Suspense fallback={null}>
               <ActiveFilterChips />
@@ -255,6 +260,7 @@ export default async function CategoryPage({ params, searchParams }) {
                 page={page}
                 sort={sort}
                 category={slug}
+                sub={sub}
                 q=""
                 minPrice={minPrice}
                 maxPrice={maxPrice}

@@ -4,7 +4,7 @@ const asyncHandler = require('../utils/asyncHandler');  const getProducts = asyn
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 24;
     const offset = (page - 1) * limit;
-    const { category, min_price, max_price, rating, sort, q, organic, seasonal, featured, region, brand, in_stock, discount, bestseller, lang } = req.query;
+    const { category, sub, min_price, max_price, rating, sort, q, organic, seasonal, featured, region, brand, in_stock, discount, bestseller, lang } = req.query;
 
   let whereClause = 'WHERE p.is_active = 1';
   const params = [];
@@ -23,17 +23,34 @@ const asyncHandler = require('../utils/asyncHandler');  const getProducts = asyn
     }
 
     if (categoryId) {
-      // Find child category IDs (subcategories)
-      const [childRows] = await pool.query(
-        'SELECT id FROM categories WHERE parent_id = ? AND is_active = 1',
-        [categoryId]
-      );
+      // If `sub` is set, filter to that specific subcategory only.
+      // Otherwise include the parent + all children.
+      if (sub) {
+        let subId = isNaN(sub) ? null : parseInt(sub);
+        if (subId === null) {
+          const [subRows] = await pool.query(
+            'SELECT id FROM categories WHERE slug = ? AND is_active = 1',
+            [sub]
+          );
+          if (subRows.length > 0) subId = subRows[0].id;
+        }
+        if (subId) {
+          whereClause += ' AND p.category_id = ?';
+          params.push(subId);
+        }
+      } else {
+        // Find child category IDs (subcategories)
+        const [childRows] = await pool.query(
+          'SELECT id FROM categories WHERE parent_id = ? AND is_active = 1',
+          [categoryId]
+        );
 
-      // Build list of category IDs: the category itself + its children
-      const catIds = [categoryId, ...childRows.map(c => c.id)];
-      const placeholders = catIds.map(() => '?').join(',');
-      whereClause += ` AND p.category_id IN (${placeholders})`;
-      params.push(...catIds);
+        // Build list of category IDs: the category itself + its children
+        const catIds = [categoryId, ...childRows.map(c => c.id)];
+        const placeholders = catIds.map(() => '?').join(',');
+        whereClause += ` AND p.category_id IN (${placeholders})`;
+        params.push(...catIds);
+      }
     }
   }
 
