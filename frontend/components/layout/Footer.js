@@ -238,15 +238,15 @@ export default function Footer() {
             <span className="text-konkan-sand/60 text-xs">We Accept:</span>
             {/* Razorpay */}
             <span className="flex items-center justify-center" style={{ height: '28px', padding: '0 10px', backgroundColor: '#FFFFFF', borderRadius: '6px' }}>
-              <Image src="/images/payments/razorpay.svg" alt="Razorpay" width={60} height={20} className="h-5 w-auto" unoptimized />
+              <Image src="/images/payments/razorpay.svg" alt="Razorpay" width={60} height={20} className="h-5 w-auto" unoptimized style={{ width: 'auto', height: 'auto' }} />
             </span>
             {/* UPI */}
             <span className="flex items-center justify-center" style={{ height: '28px', padding: '0 10px', backgroundColor: '#FFFFFF', borderRadius: '6px' }}>
-              <Image src="/images/payments/upi.svg" alt="UPI" width={60} height={20} className="h-5 w-auto" unoptimized />
+              <Image src="/images/payments/upi.svg" alt="UPI" width={60} height={20} className="h-5 w-auto" unoptimized style={{ width: 'auto', height: 'auto' }} />
             </span>
             {/* Visa */}
             <span className="flex items-center justify-center" style={{ height: '28px', padding: '0 10px', backgroundColor: '#FFFFFF', borderRadius: '6px' }}>
-              <Image src="/images/payments/visa.svg" alt="Visa" width={56} height={18} className="h-5 w-auto" unoptimized />
+              <Image src="/images/payments/visa.svg" alt="Visa" width={56} height={18} className="h-5 w-auto" unoptimized style={{ width: 'auto', height: 'auto' }} />
             </span>
             {/* Mastercard */}
             <span className="flex items-center justify-center" style={{ height: '28px', padding: '0 10px', backgroundColor: '#FFFFFF', borderRadius: '6px' }}>
@@ -258,7 +258,7 @@ export default function Footer() {
             </span>
             {/* Net Banking */}
             <span className="flex items-center justify-center" style={{ height: '28px', padding: '0 10px', backgroundColor: '#FFFFFF', borderRadius: '6px' }}>
-              <Image src="/images/payments/netbanking.svg" alt="Net Banking" width={90} height={20} className="h-5 w-auto" unoptimized />
+              <Image src="/images/payments/netbanking.svg" alt="Net Banking" width={90} height={20} className="h-5 w-auto" unoptimized style={{ width: 'auto', height: 'auto' }} />
             </span>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-5">

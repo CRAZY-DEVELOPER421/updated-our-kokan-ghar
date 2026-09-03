@@ -201,6 +201,8 @@ CREATE TABLE orders (
   discount_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   coupon_code VARCHAR(50),
   coupon_discount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+  slab_percent TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  slab_discount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   points_used INT NOT NULL DEFAULT 0,
   points_discount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
   shipping_charge DECIMAL(10,2) NOT NULL DEFAULT 0.00,

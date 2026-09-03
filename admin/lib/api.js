@@ -14,11 +14,13 @@ function resolveApiBase() {
 }
 const API_URL = resolveApiBase();
 
+// ⚠️ Do NOT set a default Content-Type header here — axios auto-detects
+// FormData vs JSON and sets the correct Content-Type + boundary
+// automatically. Setting 'application/json' as default breaks multipart
+// uploads (hero images, product images, CSV imports, etc.) because
+// the browser sends JSON Content-Type instead of multipart/form-data.
 const api = axios.create({
   baseURL: API_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
   withCredentials: true,
 });
 

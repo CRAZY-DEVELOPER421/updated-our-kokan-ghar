@@ -9,7 +9,6 @@ import api from '@/lib/api';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import Skeleton from '@/components/ui/Skeleton';
-import StarRating from '@/components/ui/StarRating';
 import toast from 'react-hot-toast';
 import Breadcrumb from '@/components/ui/Breadcrumb';
 
@@ -219,6 +218,7 @@ export default function OrderDetailPage() {
           <div className="flex justify-between"><span className="text-konkan-text-secondary">Subtotal</span><span>₹{order.subtotal || 0}</span></div>
           {order.discount > 0 && <div className="flex justify-between"><span className="text-konkan-text-secondary">Discount</span><span className="text-konkan-success">-₹{order.discount}</span></div>}
           {order.coupon_discount > 0 && <div className="flex justify-between"><span className="text-konkan-text-secondary">Coupon</span><span className="text-konkan-success">-₹{order.coupon_discount}</span></div>}
+          {order.slab_discount > 0 && <div className="flex justify-between"><span className="text-konkan-text-secondary">Slab Discount{order.slab_percent > 0 ? ` (${order.slab_percent}%)` : ''}</span><span className="text-konkan-success">-₹{order.slab_discount}</span></div>}
           <div className="flex justify-between"><span className="text-konkan-text-secondary">Shipping</span><span className={order.shipping_charge === 0 ? 'text-konkan-success' : ''}>{order.shipping_charge === 0 ? 'FREE' : `₹${order.shipping_charge}`}</span></div>
           <div className="flex justify-between"><span className="text-konkan-text-secondary">GST</span><span>₹{order.tax_amount || 0}</span></div>
           <hr className="border-konkan-sand/50" />

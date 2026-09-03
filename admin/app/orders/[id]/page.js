@@ -81,6 +81,7 @@ export default function AdminOrderDetailPage({ params }) {
               )}
               {order.subtotal > 0 && <div><p className="text-xs text-gray-500">Subtotal</p><p className="text-gray-900">₹{order.subtotal}</p></div>}
               {order.coupon_discount > 0 && <div><p className="text-xs text-gray-500">Coupon</p><p className="text-green-600">-₹{order.coupon_discount}</p></div>}
+              {order.slab_discount > 0 && <div><p className="text-xs text-gray-500">Slab Discount</p><p className="text-green-600">-₹{order.slab_discount}{order.slab_percent > 0 ? ` (${order.slab_percent}%)` : ''}</p></div>}
               {order.coupon_code && <div><p className="text-xs text-gray-500">Coupon Code</p><p className="font-mono text-gray-900">{order.coupon_code}</p></div>}
               {order.estimated_delivery && <div><p className="text-xs text-gray-500">Est. Delivery</p><p className="text-gray-900">{new Date(order.estimated_delivery).toLocaleDateString('en-IN')}</p></div>}
             </div>

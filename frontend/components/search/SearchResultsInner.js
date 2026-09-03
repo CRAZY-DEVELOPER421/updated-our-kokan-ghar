@@ -19,6 +19,17 @@ export default function SearchResultsInner() {
   const seasonal = searchParams.get('seasonal') || '';
   const bestseller = searchParams.get('bestseller') || '';
   const discount = searchParams.get('discount') || '';
+  const brand = searchParams.get('brand') || '';
+  const region = searchParams.get('region') || '';
+  const inStock = searchParams.get('in_stock') || '';
+
+  // Voice search can arrive with filters but NO text query (e.g.
+  // "cashew under 500" → category + max_price). Fetch results for those too.
+  const hasActiveSearch = !!(
+    query || category || minPrice || maxPrice || rating || discount ||
+    organic === 'true' || seasonal === 'true' || bestseller === 'true' ||
+    inStock === 'true' || brand || region
+  );
 
   const [allProducts, setAllProducts] = useState([]);
   const [total, setTotal] = useState(0);
@@ -32,11 +43,11 @@ export default function SearchResultsInner() {
 
   // Stable filter key — changes when filters change (triggers reset)
   const filterKey = useMemo(() =>
-    JSON.stringify({ query, sort, category, minPrice, maxPrice, rating, organic, seasonal, bestseller, discount }),
-    [query, sort, category, minPrice, maxPrice, rating, organic, seasonal, bestseller, discount]
+    JSON.stringify({ query, sort, category, minPrice, maxPrice, rating, organic, seasonal, bestseller, discount, brand, region, inStock }),
+    [query, sort, category, minPrice, maxPrice, rating, organic, seasonal, bestseller, discount, brand, region, inStock]
   );
 
-  // Fire GA4 search events when results first load
+  // Fire GA4 search events when results first load (text searches only)
   const ga4TrackedRef = useRef(false);
   useEffect(() => {
     ga4TrackedRef.current = false;
@@ -62,7 +73,7 @@ export default function SearchResultsInner() {
 
   // Fetch a specific page
   const fetchPage = useCallback(async (pageNum, append = false) => {
-    if (!query) return;
+    if (!hasActiveSearch) return;
 
     if (append) {
       setLoadingMore(true);
@@ -88,6 +99,9 @@ export default function SearchResultsInner() {
       if (seasonal === 'true') params.seasonal = 'true';
       if (bestseller === 'true') params.bestseller = 'true';
       if (discount) params.discount = discount;
+      if (brand) params.brand = brand;
+      if (region) params.region = region;
+      if (inStock === 'true') params.in_stock = 'true';
 
       const qs = new URLSearchParams(params).toString();
       const res = await api.get(`/search?${qs}`, { signal: controller.signal });
@@ -112,21 +126,21 @@ export default function SearchResultsInner() {
       setLoadingMore(false);
       setInitialLoadDone(true);
     }
-  }, [query, sort, category, minPrice, maxPrice, rating, organic, seasonal, bestseller, discount]);
+  }, [query, sort, category, minPrice, maxPrice, rating, organic, seasonal, bestseller, discount, brand, region, inStock, hasActiveSearch]);
 
   // Initial fetch when query/filters change
   useEffect(() => {
-    if (query) {
+    if (hasActiveSearch) {
       fetchPage(1, false);
     }
     return () => {
       if (abortRef.current) abortRef.current.abort();
     };
-  }, [fetchPage, query]);
+  }, [fetchPage, hasActiveSearch]);
 
   // IntersectionObserver for infinite scroll
   useEffect(() => {
-    if (!query || !initialLoadDone) return;
+    if (!hasActiveSearch || !initialLoadDone) return;
     if (currentPage >= totalPages) return;
 
     const sentinel = sentinelRef.current;
@@ -144,9 +158,9 @@ export default function SearchResultsInner() {
 
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [query, initialLoadDone, currentPage, totalPages, loadingMore, fetchPage]);
+  }, [hasActiveSearch, initialLoadDone, currentPage, totalPages, loadingMore, fetchPage]);
 
-  if (!query) return null;
+  if (!hasActiveSearch) return null;
 
   if (loading) {
     return (
@@ -176,8 +190,12 @@ export default function SearchResultsInner() {
         <div className="flex items-center justify-between mb-4">
           <p className="text-sm text-konkan-text-secondary">
             Showing <strong className="text-konkan-text-primary">{allProducts.length}</strong> of{' '}
-            <strong className="text-konkan-text-primary">{total}</strong> results for{' '}
-            <strong className="text-konkan-green-primary">&ldquo;{query}&rdquo;</strong>
+            <strong className="text-konkan-text-primary">{total}</strong>{' '}
+            {query ? (
+              <>results for <strong className="text-konkan-green-primary">&ldquo;{query}&rdquo;</strong></>
+            ) : (
+              <>matching products</>
+            )}
           </p>
         </div>
       )}
@@ -238,29 +256,48 @@ export default function SearchResultsInner() {
       ) : (
         <div className="text-center py-16 bg-white rounded-2xl card">
           <div className="mb-4 flex justify-center">
-            <svg className="w-12 h-12 text-konkan-text-secondary/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
+            <div className="w-20 h-20 bg-konkan-sand/20 rounded-full flex items-center justify-center">
+              <svg className="w-10 h-10 text-konkan-text-secondary/30" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
           </div>
           <h3 className="font-display text-xl font-bold text-konkan-text-primary mb-2">
-            No results found
+            Koi product nahi mila
           </h3>
-          <p className="text-konkan-text-secondary mb-2">
-            We couldn&apos;t find any products matching &ldquo;{query}&rdquo;
+          <p className="text-konkan-text-secondary mb-1">
+            {query ? (
+              <>Is &ldquo;{query}&rdquo; se koi product match nahi hua.</>
+            ) : (
+              <>In filters se koi product match nahi hua.</>
+            )}
           </p>
-          <p className="text-sm text-konkan-text-secondary mb-6">
-            Try adjusting your search terms or filters
+          <p className="text-sm text-konkan-text-secondary/60 mb-6">
+            Search term badal ke dekhein ya filters hata dein
           </p>
-          <div className="flex flex-wrap justify-center gap-2 text-sm text-konkan-text-secondary">
-            {['Alphonso', 'Cashew', 'Spice', 'Mango', 'Coconut', 'Rice', 'Seafood', 'Honey'].map((term) => (
-              <a
-                key={term}
-                href={`/search?q=${term.toLowerCase()}`}
-                className="px-3 py-1.5 bg-konkan-cream rounded-full hover:bg-konkan-green-primary hover:text-white transition-colors"
-              >
-                {term}
-              </a>
-            ))}
+
+          {/* Quick suggestions */}
+          <div className="mb-6">
+            <p className="text-xs text-konkan-text-secondary/50 uppercase tracking-wider font-medium mb-3">Popular searches</p>
+            <div className="flex flex-wrap justify-center gap-2">
+              {['Alphonso Mango', 'Cashew', 'Spices', 'Coconut Oil', 'Seafood', 'Honey', 'Pickles', 'Rice'].map((term) => (
+                <a
+                  key={term}
+                  href={`/search?q=${encodeURIComponent(term.toLowerCase())}`}
+                  className="px-3 py-1.5 bg-konkan-cream rounded-full text-sm text-konkan-text-secondary hover:bg-konkan-green-primary hover:text-white transition-colors"
+                >
+                  {term}
+                </a>
+              ))}
+            </div>
+          </div>
+
+          {/* Voice search suggestion */}
+          <div className="bg-konkan-cream/50 rounded-xl px-5 py-4 inline-block">
+            <p className="text-xs text-konkan-text-secondary/60 mb-1">Try voice search</p>
+            <p className="text-sm text-konkan-text-primary font-medium">
+              🎙️ &ldquo;आम&rdquo; ya &ldquo;cashew under 500&rdquo; bolo
+            </p>
           </div>
         </div>
       )}

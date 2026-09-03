@@ -49,6 +49,10 @@ desktop.ini
 images/
 images.zip
 
+# ---- Local UI test screenshots (browser test artifacts) ----
+frontend/frontend/
+frontend/test-*.png
+
 # ---- Misc / temp ----
 .turbo/
 .vercel/

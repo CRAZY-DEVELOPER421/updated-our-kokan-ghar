@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import api from '@/lib/api';
 import { SlidersHorizontal, X, ChevronDown, Star } from 'lucide-react';
@@ -10,6 +10,12 @@ import PriceRangeSlider from '@/components/ui/PriceRangeSlider';
 export default function ProductFilters({ categories = [] }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
+
+  // These filters are shared by the product listing page (/products) and the
+  // search page (/search). Apply them IN PLACE — a filter clicked on the
+  // search page must stay on /search (preserving ?q=), not jump to /products.
+  const filterBase = pathname?.startsWith('/search') ? '/search' : '/products';
 
   const activeCategory = searchParams.get('category') || '';
   const activeRating = searchParams.get('rating') || '';
@@ -66,7 +72,7 @@ export default function ProductFilters({ categories = [] }) {
     if (next.length > 0) params.set(key, next.join(','));
     else params.delete(key);
     params.set('page', '1');
-    router.push(`/products?${params.toString()}`);
+    router.push(`${filterBase}?${params.toString()}`);
   };
 
   const toggleSection = (section) => {
@@ -83,7 +89,7 @@ export default function ProductFilters({ categories = [] }) {
       params.delete(key);
     }
     params.set('page', '1');
-    router.push(`/products?${params.toString()}`);
+    router.push(`${filterBase}?${params.toString()}`);
     setCatDropdownOpen(false);
   };
 
@@ -98,7 +104,7 @@ export default function ProductFilters({ categories = [] }) {
       if (range.max < PRICE_MAX) params.set('max_price', String(range.max));
       else params.delete('max_price');
       params.set('page', '1');
-      router.push(`/products?${params.toString()}`);
+      router.push(`${filterBase}?${params.toString()}`);
     }, 800);
   };
 
@@ -126,7 +132,17 @@ export default function ProductFilters({ categories = [] }) {
   }, []);
 
   const clearAllFilters = () => {
-    router.push('/products');
+    if (filterBase === '/search') {
+      // Keep the search phrase, clear every filter chip.
+      const params = new URLSearchParams(searchParams.toString());
+      for (const key of [...params.keys()]) {
+        if (key !== 'q') params.delete(key);
+      }
+      const qs = params.toString();
+      router.push(qs ? `/search?${qs}` : '/search');
+    } else {
+      router.push('/products');
+    }
   };
 
   const activeFilterCountValue = [

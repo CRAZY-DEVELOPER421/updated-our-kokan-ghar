@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import useCartStore from '@/lib/store/cartStore';
 import Button from '@/components/ui/Button';
+import SwipeableCartItem from './SwipeableCartItem';
 
 export default function CartDrawer({ isOpen, onClose }) {
   const { items, summary, updateQuantity, removeItem, fetchCart } = useCartStore();
@@ -97,63 +97,14 @@ export default function CartDrawer({ isOpen, onClose }) {
             </div>
           ) : (
             items.map((item) => (
-              <div key={item.id} className="flex gap-3 p-3 bg-konkan-cream/50 rounded-xl hover:bg-konkan-cream transition-colors group/item">
-                {/* Image */}
-                <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-white shrink-0 shadow-sm">
-                  {item.image ? (
-                    <Image src={item.image} alt={item.name} fill sizes="80px" className="object-cover" loading="lazy" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <svg className="w-6 h-6 text-konkan-text-secondary/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                    </div>
-                  )}
-                </div>
-
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <Link href={`/products/${item.slug}`} onClick={onClose} className="text-sm font-semibold text-konkan-text-primary hover:text-konkan-green-primary transition-colors line-clamp-1">
-                    {item.name}
-                  </Link>
-                  <p className="text-xs text-konkan-text-secondary mt-0.5">₹{item.price} each</p>
-
-                  <div className="flex items-center gap-2 mt-2">
-                    <button
-                      onClick={() => removeItem(item.id)}
-                      className="px-2 py-0.5 text-xs font-medium rounded-lg border border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 transition-colors opacity-0 group-hover/item:opacity-100 flex items-center gap-1"
-                    >
-                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                      Remove
-                    </button>
-                    {/* Quantity */}
-                    <div className="flex items-center border border-konkan-sand rounded-lg bg-white">
-                      <button
-                        onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                        className="px-2 py-0.5 text-xs text-konkan-text-secondary hover:text-konkan-text-primary hover:bg-konkan-cream transition-colors rounded-l-lg"
-                        aria-label="Decrease quantity"
-                      >
-                        −
-                      </button>
-                      <span className="px-2.5 py-0.5 text-xs font-medium border-x border-konkan-sand tabular-nums">
-                        {item.quantity}
-                      </span>
-                      <button
-                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                        className="px-2 py-0.5 text-xs text-konkan-text-secondary hover:text-konkan-text-primary hover:bg-konkan-cream transition-colors rounded-r-lg"
-                        aria-label="Increase quantity"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Total Price */}
-                <div className="text-right shrink-0">
-                  <p className="text-sm font-bold text-konkan-saffron">₹{item.price * item.quantity}</p>
-                </div>
-              </div>
+              <SwipeableCartItem
+                key={item.id}
+                item={item}
+                onRemove={removeItem}
+                updateQuantity={updateQuantity}
+                onClose={onClose}
+                variant="drawer"
+              />
             ))
           )}
         </div>
