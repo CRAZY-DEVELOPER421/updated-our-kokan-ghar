@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import useAuthStore from '@/lib/store/authStore';
 import SuspensionTimer from '@/components/ui/SuspensionTimer';
+import useBottomNavVisibility from '@/lib/hooks/useBottomNavVisibility';
 
 const items = [
   {
@@ -56,6 +57,7 @@ const items = [
 export default function MobileBottomNav() {
   const pathname = usePathname();
   const { suspended, suspension, clearSuspended, fetchProfile } = useAuthStore();
+  const { navVisible } = useBottomNavVisibility();
 
   const isActive = (href) => {
     if (href === '/') return pathname === '/';
@@ -67,16 +69,15 @@ export default function MobileBottomNav() {
 
   return (
     <nav
-      className="bg-white dark:bg-[#0f0f1a] dark:border-[#2a2a40] flex items-center justify-around"
+      className={`bg-white dark:bg-[#0f0f1a] dark:border-[#2a2a40] flex items-center justify-around fixed inset-x-0 z-[100] transition-transform duration-300 ease-out ${
+        navVisible ? 'translate-y-0 visible' : 'translate-y-full invisible'
+      }`}
       style={{
-        position: 'fixed',
         bottom: 0,
-        left: 0,
-        right: 0,
-        zIndex: 100,
         height: '60px',
         borderTop: '1px solid #E5E5E5',
         paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+        zIndex: 100,
       }}
     >
       {visibleItems.map((item) => {

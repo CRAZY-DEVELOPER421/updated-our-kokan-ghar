@@ -13,6 +13,7 @@ import { getImageUrl } from '@/lib/utils';
 import { PRODUCT_BLUR } from '@/lib/blur';
 import FlashSaleProgressBar from '@/components/ui/FlashSaleProgressBar';
 import ProductQuickViewModal from '@/components/product/ProductQuickViewModal';
+import ShareModal from '@/components/ui/ShareModal';
 import { usePlpReferrer } from '@/lib/providers/PlpReferrerProvider';
 
 const WEIGHT_OPTIONS = [
@@ -33,50 +34,9 @@ export default function ProductCard({ product, view = 'grid' }) {
   const [showGoToCart, setShowGoToCart] = useState(false);
   const inactivityTimerRef = useRef(null);
 
-  const handleShare = async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const url = `${window.location.origin}/products/${product.slug}`;
-    const imageUrl = getImageUrl(product.primary_image || product.images?.[0]?.image_url);
-
-    if (typeof navigator !== 'undefined' && navigator.share) {
-      try {
-        const shareData = {
-          title: product.name,
-          text: product.short_description || `Check out ${product.name} from Konkan Ghar!`,
-          url,
-        };
-        // Try to include product image (supported on mobile browsers)
-        if (imageUrl && navigator.canShare) {
-          try {
-            const response = await fetch(imageUrl);
-            const blob = await response.blob();
-            const ext = blob.type.split('/')[1] || 'jpg';
-            const imageFile = new File([blob], `product-${product.id}.${ext}`, { type: blob.type });
-            const withImage = { ...shareData, files: [imageFile] };
-            if (navigator.canShare(withImage)) {
-              await navigator.share(withImage);
-              return;
-            }
-          } catch {
-            // image sharing failed — fall through to text-only share
-          }
-        }
-        await navigator.share(shareData);
-      } catch (err) {
-        if (err.name !== 'AbortError') {
-          toast.error('Could not share');
-        }
-      }
-    } else {
-      try {
-        await navigator.clipboard.writeText(url);
-        toast.success('Product link copied to clipboard!');
-      } catch {
-        toast.error('Could not copy link');
-      }
-    }
-  };
+  // Share — opens the share modal (QR Code + Link tabs)
+  const [showShare, setShowShare] = useState(false);
+  const productUrl = typeof window !== 'undefined' ? `${window.location.origin}/products/${product.slug}` : '';
 
   const router = useRouter();
   const { isAuthenticated } = useAuthStore();
@@ -219,7 +179,7 @@ export default function ProductCard({ product, view = 'grid' }) {
       }
       setAdded(true);
       setTimeout(() => setAdded(false), 2500);
-    } catch (err) {
+    } catch {
       toast.error('Failed to add to cart');
     }
     setIsAdding(false);
@@ -268,7 +228,7 @@ export default function ProductCard({ product, view = 'grid' }) {
         }
         setAdded(true);
         setTimeout(() => setAdded(false), 2500);
-      } catch (err) {
+      } catch {
         toast.error('Failed to add to cart');
       }
       setIsAdding(false);
@@ -771,28 +731,43 @@ export default function ProductCard({ product, view = 'grid' }) {
               {/* Desktop Add to Cart / Go to Cart — hidden on mobile (replaced by floating + button) */}
               <div className="max-[768px]:hidden flex-1 flex">
                 {isInCart || added ? (
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      router.push('/cart');
-                    }}
-                    className="flex-1 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold rounded-xl bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 hover:border-green-300 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-1"
+                  <div
+                    className="flex-1 flex items-center rounded-xl border overflow-hidden h-10 sm:h-11"
+                    style={{ borderColor: '#22C55E', backgroundColor: '#F0FDF4' }}
                   >
-                    <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                    <span className="hidden sm:inline">Go to Cart</span>
-                  </button>
-                ) : (                  <button
+                    <button
+                      onClick={handleStepperDecrement}
+                      className="w-9 sm:w-10 h-full flex items-center justify-center text-[#16A34A] hover:bg-green-100 active:bg-green-200 transition-colors"
+                      aria-label="Decrease quantity"
+                    >
+                      <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M20 12H4" />
+                      </svg>
+                    </button>
+                    <span
+                      className="flex-1 min-w-[28px] text-center font-bold tabular-nums h-full flex items-center justify-center text-[#166534]"
+                      style={{ borderLeft: '1px solid #BBF7D0', borderRight: '1px solid #BBF7D0', fontSize: '13px' }}
+                    >
+                      {stepperQty || 1}
+                    </span>
+                    <button
+                      onClick={handleStepperIncrement}
+                      className="w-9 sm:w-10 h-full flex items-center justify-center text-[#16A34A] hover:bg-green-100 active:bg-green-200 transition-colors"
+                      aria-label="Increase quantity"
+                    >
+                      <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+                      </svg>
+                    </button>
+                  </div>
+                ) : (
+                  <button
                     onClick={handleAddToCart}
                     disabled={isAdding || isOutOfStock}
                     className={`flex-1 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold rounded-xl transition-all duration-200 ${
                       isOutOfStock
                         ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                        : added
-                          ? 'bg-green-600 text-white'
-                          : 'bg-gradient-to-r from-konkan-green-primary to-konkan-green-secondary text-white hover:from-konkan-green-dark hover:to-konkan-green-primary active:scale-[0.98] shadow-[0_4px_12px_rgba(45,106,79,0.25)]'
+                        : 'bg-gradient-to-r from-konkan-green-primary to-konkan-green-secondary text-white hover:from-konkan-green-dark hover:to-konkan-green-primary active:scale-[0.98] shadow-[0_4px_12px_rgba(45,106,79,0.25)]'
                     }`}>
                     {isAdding ? (
                       <span className="flex items-center justify-center gap-1">
@@ -815,7 +790,7 @@ export default function ProductCard({ product, view = 'grid' }) {
 
               {/* Share — only in product details, hidden from card on mobile */}
               <button
-                onClick={handleShare}
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowShare(true); }}
                 className="max-[768px]:hidden shrink-0 w-9 h-9 sm:w-11 sm:h-11 flex items-center justify-center rounded-xl bg-konkan-cream border border-[#e5e0db] text-gray-400 hover:text-konkan-green-primary hover:border-konkan-green-primary/30 hover:bg-green-50 transition-all duration-200"
                 aria-label="Share product"
               >
@@ -841,6 +816,15 @@ export default function ProductCard({ product, view = 'grid' }) {
       </Link>
 
       <ProductQuickViewModal product={product} isOpen={quickViewOpen} onClose={() => setQuickViewOpen(false)} />
+
+      {/* Share modal — QR code + link (scan with another phone to open) */}
+      <ShareModal
+        isOpen={showShare}
+        onClose={() => setShowShare(false)}
+        title={product.name}
+        description={product.short_description || `Check out ${product.name} from Konkan Ghar!`}
+        url={productUrl}
+      />
     </div>
   );
 }

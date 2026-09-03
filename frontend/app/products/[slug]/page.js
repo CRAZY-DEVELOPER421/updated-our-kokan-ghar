@@ -4,6 +4,7 @@ import api from '@/lib/api';
 import Breadcrumb from '@/components/ui/Breadcrumb';
 import FlashSaleProgressBar from '@/components/ui/FlashSaleProgressBar';
 import GtagViewItem from '@/components/product/GtagViewItem';
+import SocialProofTicker from '@/components/product/SocialProofTicker';
 
 const ProductImages = dynamic(() => import('@/components/product/ProductImages'));
 const ProductReviews = dynamic(() => import('@/components/product/ProductReviews'), {
@@ -19,6 +20,7 @@ const NotifyMeButton = dynamic(() => import('@/components/product/NotifyMeButton
 const BuyBarProvider = dynamic(() => import('@/components/product/BuyBarContext').then(m => m.BuyBarProvider));
 const ProductActionsWrapper = dynamic(() => import('@/components/product/ProductActionsWrapper'));
 const MobileBuyBar = dynamic(() => import('@/components/product/MobileBuyBar'));
+const StickyProductBar = dynamic(() => import('@/components/product/StickyProductBar'));
 const BackToResults = dynamic(() => import('@/components/product/BackToResults'));
 
 async function getProduct(slug, lang = 'en') {
@@ -39,6 +41,13 @@ function getDisplayName(product) {
 // Get display description: regional if available, else English
 function getDisplayDescription(product) {
   return product?.regional_short_description || product?.short_description || '';
+}
+
+// "1,200+ bought" style count — real units, rounded down to the nearest
+// hundred once past 100 ("245 bought" reads better than "245+").
+function formatBoughtCount(n) {
+  if (n >= 100) return `${Math.floor(n / 100) * 100}+`;
+  return String(n);
 }
 
 export async function generateMetadata({ params, searchParams }) {
@@ -169,7 +178,21 @@ export default async function ProductDetailPage({ params, searchParams }) {
             <span className="text-sm text-konkan-text-secondary">({product.review_count || 0} reviews)</span>
             <span className="text-sm text-konkan-text-secondary">|</span>
             <span className="text-sm text-konkan-success">{product.total_sold || 0} sold</span>
+            {product.social_proof?.bought_last_30_days > 0 && (
+              <span className="inline-flex items-center gap-1 text-xs font-semibold text-konkan-green-primary bg-green-50 dark:bg-green-900/20 px-2 py-0.5 rounded-full">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                </svg>
+                {formatBoughtCount(product.social_proof.bought_last_30_days)} bought in last 30 days
+              </span>
+            )}
           </div>
+
+          {/* Live purchase ticker — subtle, once per day (real recent order) */}
+          <SocialProofTicker
+            city={product.social_proof?.recent_purchase?.city}
+            purchasedAt={product.social_proof?.recent_purchase?.at}
+          />
 
           {/* Short Description */}
           {getDisplayDescription(product) && (
@@ -265,6 +288,13 @@ export default async function ProductDetailPage({ params, searchParams }) {
 
       {/* Mobile sticky buy bar — appears when user scrolls past ProductActions */}
       <MobileBuyBar
+        product={product}
+        variants={product.variants || []}
+        effectiveStock={product.stock_quantity}
+      />
+
+      {/* Desktop sticky compact bar — slides in below the navbar after 600px scroll */}
+      <StickyProductBar
         product={product}
         variants={product.variants || []}
         effectiveStock={product.stock_quantity}

@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import api from '@/lib/api';
 import Button from '@/components/ui/Button';
+import { QRCodeSVG } from 'qrcode.react';
 
 const STATUS_OPTIONS = ['pending', 'confirmed', 'processing', 'shipped', 'out_for_delivery', 'delivered', 'cancelled'];
 const STATUS_COLORS = {
@@ -48,6 +49,13 @@ export default function AdminOrderDetailPage({ params }) {
   if (isLoading) return <div className="flex items-center justify-center py-20"><div className="w-8 h-8 border-2 border-konkan-green-primary border-t-transparent rounded-full animate-spin" /></div>;
   if (!order) return <div className="text-center py-12 text-gray-500">Order not found.</div>;
 
+  // Public storefront order URL — NEXT_PUBLIC_SITE_URL from .env, else this origin
+  const siteBase = (process.env.NEXT_PUBLIC_SITE_URL || '').replace(/\/+$/, '');
+  const qrOrigin = siteBase || (typeof window !== 'undefined' ? window.location.origin : '');
+  const orderQrUrl = qrOrigin
+    ? `${qrOrigin}/order-success?order=${encodeURIComponent(order.order_number)}`
+    : '';
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -85,6 +93,19 @@ export default function AdminOrderDetailPage({ params }) {
               {order.coupon_code && <div><p className="text-xs text-gray-500">Coupon Code</p><p className="font-mono text-gray-900">{order.coupon_code}</p></div>}
               {order.estimated_delivery && <div><p className="text-xs text-gray-500">Est. Delivery</p><p className="text-gray-900">{new Date(order.estimated_delivery).toLocaleDateString('en-IN')}</p></div>}
             </div>
+
+            {/* Order QR — public link for delivery/pickup verification */}
+            {orderQrUrl && (
+              <div className="mt-4 pt-4 border-t border-konkan-sand/40 flex items-center gap-3">
+                <div className="bg-white p-1.5 rounded-lg border border-konkan-sand/50 shrink-0">
+                  <QRCodeSVG value={orderQrUrl} size={64} />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-gray-900">Order QR</p>
+                  <p className="text-[11px] text-gray-500">Scan for the public order page — useful at delivery or pickup</p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Order Items */}

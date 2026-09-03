@@ -17,6 +17,8 @@ import FloatingNotifPrompt from '@/components/pwa/FloatingNotifPrompt';
 import IosPwaBanner from '@/components/pwa/IosPwaBanner';
 import CookieConsent from '@/components/ui/CookieConsent';
 import CompareBar from '@/components/ui/CompareBar';
+import SplashScreen from '@/components/ui/SplashScreen';
+import CartSync from '@/components/cart/CartSync';
 import { FlyToCartProvider } from '@/components/ui/FlyToCart';
 
 // Dynamically import below-the-fold components to reduce initial JS payload
@@ -183,10 +185,15 @@ gtag('config', '${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}', {
           </>
         )}
 
+        {/* Branded entry splash — once per session (sessionStorage-gated) */}
+        <SplashScreen />
+
         <QueryProviders>
           <ThemeProvider>
           <I18nProvider>
             <FlyToCartProvider>
+            {/* Loads the cart once on first paint — keeps badges + card steppers correct everywhere */}
+            <CartSync />
             <ToastProvider />
             <PwaInstallPopup />
             <FloatingNotifPrompt />

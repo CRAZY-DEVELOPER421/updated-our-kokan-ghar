@@ -256,6 +256,29 @@ const getProductBySlug = asyncHandler(async (req, res) => {
     [product.id]
   );
 
+  // ── Social proof — real purchase data (trust + urgency) ──
+  // Only genuine non-cancelled orders count; nothing is fabricated.
+  const [boughtRows] = await pool.query(
+    `SELECT COALESCE(SUM(oi.quantity), 0) AS units
+     FROM order_items oi
+     JOIN orders o ON o.id = oi.order_id
+     WHERE oi.product_id = ?
+       AND o.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+       AND o.status NOT IN ('cancelled','returned','return_requested','refund_initiated','refunded')`,
+    [product.id]
+  );
+  const [recentRows] = await pool.query(
+    `SELECT a.city, o.created_at
+     FROM order_items oi
+     JOIN orders o ON o.id = oi.order_id
+     JOIN addresses a ON a.id = o.address_id
+     WHERE oi.product_id = ?
+       AND o.status NOT IN ('cancelled','returned','return_requested','refund_initiated','refunded')
+     ORDER BY o.created_at DESC
+     LIMIT 1`,
+    [product.id]
+  );
+
   await pool.query(
     'UPDATE products SET views_count = views_count + 1 WHERE id = ?',
     [product.id]
@@ -266,6 +289,13 @@ const getProductBySlug = asyncHandler(async (req, res) => {
   product.tags = tags.map(t => t.tag);
   product.flash_sale = flashSale.length > 0 ? flashSale[0] : null;
   product.tags_list = tags.map(t => t.tag);
+
+  product.social_proof = {
+    bought_last_30_days: Number(boughtRows[0]?.units) || 0,
+    recent_purchase: recentRows.length > 0
+      ? { city: recentRows[0].city, at: new Date(recentRows[0].created_at).toISOString() }
+      : null,
+  };
 
   // Apply regional content based on ?lang= param
   resolveRegional(product, lang);

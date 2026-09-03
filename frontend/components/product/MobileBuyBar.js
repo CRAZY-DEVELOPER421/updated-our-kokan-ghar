@@ -6,6 +6,7 @@ import Image from 'next/image';
 import toast from 'react-hot-toast';
 import useCartStore from '@/lib/store/cartStore';
 import useAuthStore from '@/lib/store/authStore';
+import useBottomNavVisibility from '@/lib/hooks/useBottomNavVisibility';
 import { getImageUrl } from '@/lib/utils';
 import { trackAddToCart } from '@/lib/gtag';
 import { useBuyBar } from './BuyBarContext';
@@ -23,6 +24,7 @@ import { useFlyToCart } from '@/components/ui/FlyToCart';
 export default function MobileBuyBar({ product, selectedVariant, variants = [], effectiveStock = 0 }) {
   const router = useRouter();
   const { visible } = useBuyBar();
+  const { navVisible } = useBottomNavVisibility();
   const flyToCart = useFlyToCart();
   const items = useCartStore((s) => s.items);
   const addToCart = useCartStore((s) => s.addToCart);
@@ -129,8 +131,9 @@ export default function MobileBuyBar({ product, selectedVariant, variants = [], 
 
   return (
     <div
-      className="lg:hidden fixed bottom-[60px] left-0 right-0 z-[99] transition-transform duration-300 ease-out"
+      className="lg:hidden fixed left-0 right-0 z-[99] transition-[transform,bottom] duration-300 ease-out"
       style={{
+        bottom: navVisible ? '60px' : '0px', // sits above the bottom nav — drops to the floor when the nav hides
         transform: visible ? 'translateY(0)' : 'translateY(100%)',
         paddingBottom: 'env(safe-area-inset-bottom, 0px)',
         boxShadow: visible ? '0 -2px 12px rgba(0,0,0,0.08)' : 'none',

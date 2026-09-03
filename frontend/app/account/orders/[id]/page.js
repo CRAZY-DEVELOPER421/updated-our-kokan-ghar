@@ -11,6 +11,7 @@ import Badge from '@/components/ui/Badge';
 import Skeleton from '@/components/ui/Skeleton';
 import toast from 'react-hot-toast';
 import Breadcrumb from '@/components/ui/Breadcrumb';
+import { QRCodeSVG } from 'qrcode.react';
 
 const STATUS_VARIANTS = {
   pending: 'default',
@@ -85,6 +86,12 @@ export default function OrderDetailPage() {
   const timelineStatuses = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
   const currentIdx = timelineStatuses.indexOf(order.status);
   const isCancelled = order.status === 'cancelled';
+
+  // Public order URL — scanning opens the order summary even on a logged-out phone
+  const orderQrUrl =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}/order-success?order=${encodeURIComponent(order.order_number)}`
+      : '';
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -180,6 +187,21 @@ export default function OrderDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Order QR — scan for order details at delivery/pickup */}
+      {orderQrUrl && (
+        <div className="bg-white rounded-2xl card p-4 flex items-center gap-4">
+          <div className="bg-white p-2 rounded-xl border border-konkan-sand/40 shrink-0">
+            <QRCodeSVG value={orderQrUrl} size={76} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-display font-bold text-konkan-text-primary text-sm">Order QR</h3>
+            <p className="text-xs text-konkan-text-secondary mt-0.5">
+              Scan to view order details — handy at delivery or pickup
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Order Items */}
       <div className="bg-white rounded-2xl card p-6">

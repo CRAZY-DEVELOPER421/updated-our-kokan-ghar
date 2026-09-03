@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Swiper, SwiperSlide } from 'swiper/react';
-import { Autoplay, EffectFade, Pagination, Navigation } from 'swiper/modules';
+import { Autoplay, EffectFade, Pagination, Navigation, Keyboard } from 'swiper/modules';
 import 'swiper/css';
 import 'swiper/css/effect-fade';
 import 'swiper/css/pagination';
@@ -124,6 +124,14 @@ const handleSlideChange = (swiper) => {
 
 export default function HeroSlider() {
   const [slides, setSlides] = useState(staticSlides);
+  // Current slide for the "01 / 05" counter — realIndex stays correct even in
+  // loop mode (where swiper.activeIndex counts duplicated slides).
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  const onSlideChange = (swiper) => {
+    handleSlideChange(swiper);
+    setActiveIndex(swiper.realIndex ?? swiper.activeIndex);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -150,7 +158,7 @@ export default function HeroSlider() {
             display: none !important;
           }
         }
-        /* White pagination + arrows over the background media */
+        /* White pagination over the background media */
         .hero-image-swiper .swiper-pagination-bullet {
           background: rgba(255, 255, 255, 0.6);
           opacity: 1;
@@ -158,26 +166,52 @@ export default function HeroSlider() {
         .hero-image-swiper .swiper-pagination-bullet-active {
           background: #ffffff;
         }
+        /* Arrows — ghost style, no background (white arrow + soft shadow for
+           readability over any hero media; hidden on mobile, see above) */
         .hero-image-swiper .swiper-button-next,
         .hero-image-swiper .swiper-button-prev {
+          width: 42px;
+          height: 42px;
+          border-radius: 9999px;
+          background-color: transparent;
           color: #ffffff;
+          filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35));
+          transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+        .hero-image-swiper .swiper-button-next:hover,
+        .hero-image-swiper .swiper-button-prev:hover {
+          opacity: 0.8;
+          transform: scale(1.08);
+        }
+        .hero-image-swiper .swiper-button-next::after,
+        .hero-image-swiper .swiper-button-prev::after {
+          font-size: 16px;
+          font-weight: 700;
         }
       `}</style>
 
       {slides.length === 0 ? (
         <div className="hidden" />
       ) : (
+      <div className="relative">
       <Swiper
-        modules={[Autoplay, EffectFade, Pagination, Navigation]}
+        modules={[Autoplay, EffectFade, Pagination, Navigation, Keyboard]}
         effect="fade"
         fadeEffect={{ crossFade: true }}
-        autoplay={{ delay: 5000, disableOnInteraction: false }}
+        autoplay={{ delay: 5000, disableOnInteraction: true, pauseOnMouseEnter: true }}
         pagination={{ clickable: true }}
         navigation
+        keyboard={{ enabled: true }}
+        // Fade effect makes snapGrid length 1, so Swiper marks the slider
+        // "locked" and the keyboard module's direction-lock silently blocks
+        // arrow keys — explicitly allow both directions (loop handles the wrap).
+        allowSlideNext
+        allowSlidePrev
+        watchOverflow={false}
         loop={slides.length > 1}
         className="hero-image-swiper rounded-[10px] overflow-hidden"
-        onSlideChange={handleSlideChange}
-        onInit={(swiper) => handleSlideChange(swiper)}
+        onSlideChange={onSlideChange}
+        onInit={(swiper) => onSlideChange(swiper)}
       >
         {slides.map((slide, idx) => (
           <SwiperSlide key={slide.id || idx}>
@@ -233,6 +267,14 @@ export default function HeroSlider() {
           </SwiperSlide>
         ))}
       </Swiper>
+
+      {/* Slide counter badge — "01 / 05" bottom-right, progress transparency */}
+      {slides.length > 1 && (
+        <div className="absolute bottom-3 right-3 z-20 pointer-events-none rounded-full bg-black/45 backdrop-blur-sm text-white text-[11px] font-semibold tracking-wider px-2.5 py-1 tabular-nums">
+          {String(activeIndex + 1).padStart(2, '0')} / {String(slides.length).padStart(2, '0')}
+        </div>
+      )}
+      </div>
       )}
     </section>
   );
