@@ -13,7 +13,7 @@ export default function CompareBar() {
   const compareUrl = `/compare?${selectedIds.map((id) => `p=${id}`).join('&')}`;
 
   return (
-    <div className="fixed bottom-0 inset-x-0 z-50 bg-white border-t border-gray-200 shadow-[0_-4px_20px_rgba(0,0,0,0.1)] px-4 py-3 sm:px-6">
+    <div className="fixed bottom-0 inset-x-0 z-50 bg-white dark:bg-[#0f0f1a] border-t border-gray-200 dark:border-[#2a2a40] shadow-[0_-4px_20px_rgba(0,0,0,0.1)] px-4 py-3 sm:px-6">
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
         {/* Left: selected count */}
         <div className="flex items-center gap-2 min-w-0">

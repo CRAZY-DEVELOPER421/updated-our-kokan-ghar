@@ -43,6 +43,24 @@ const nextConfig = {
       },
     ];
   },
+  // Proxy image requests to the storefront's public folder or backend uploads
+  // so product/category/banner images render in the admin panel.
+  // basePath: false ensures these match the raw URL (without /admin prefix)
+  // since <img src="/images/..."> requests hit the root, not /admin/images/.
+  async rewrites() {
+    return [
+      {
+        source: '/images/:path*',
+        destination: 'http://localhost:3000/images/:path*',
+        basePath: false,
+      },
+      {
+        source: '/uploads/:path*',
+        destination: 'http://localhost:5000/uploads/:path*',
+        basePath: false,
+      },
+    ];
+  },
   turbopack: {
     root: __dirname,
   },

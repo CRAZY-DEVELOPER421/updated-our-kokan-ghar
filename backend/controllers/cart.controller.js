@@ -2,6 +2,7 @@ const pool = require('../config/db');
 const ApiResponse = require('../utils/apiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const couponService = require('../services/coupon.service');
+const { computeSlabDiscount } = require('../services/slabDiscount.service');
 
 // A cart belongs to either a user (user_id) or a guest device (guest_id).
 const getOrCreateCart = async (userId, guestId) => {
@@ -50,7 +51,12 @@ const getCart = asyncHandler(async (req, res) => {
   const totalDiscount = totalMrp - subtotal;
   const shippingCharge = subtotal >= 499 ? 0 : 49;
   const taxAmount = Math.round(subtotal * 0.05 * 100) / 100;
-  const finalTotal = subtotal - (cart.coupon_discount || 0) + shippingCharge + taxAmount;
+  const couponDiscount = cart.coupon_discount || 0;
+  // Buy More, Save More slab — same calculation as order creation
+  // (backend/services/slabDiscount.service.js) so the cart total is ALWAYS
+  // the amount that will be charged at checkout.
+  const { percent: slabPercent, discount: slabDiscount } = computeSlabDiscount(subtotal, couponDiscount);
+  const finalTotal = Math.max(subtotal - couponDiscount - slabDiscount, 0) + shippingCharge + taxAmount;
 
   const freeShippingRemaining = subtotal >= 499 ? 0 : 499 - subtotal;
 
@@ -65,11 +71,13 @@ const getCart = asyncHandler(async (req, res) => {
       subtotal: Math.round(subtotal * 100) / 100,
       total_mrp: Math.round(totalMrp * 100) / 100,
       total_discount: Math.round(totalDiscount * 100) / 100,
-      coupon_discount: cart.coupon_discount || 0,
+      coupon_discount: couponDiscount,
+      slab_discount: slabDiscount,
+      slab_percent: slabPercent,
       shipping_charge: shippingCharge,
       free_shipping_remaining: freeShippingRemaining,
       tax_amount: taxAmount,
-      total: Math.round(Math.max(finalTotal, 0) * 100) / 100,
+      total: Math.round(finalTotal * 100) / 100,
       item_count: items.reduce((sum, item) => sum + item.quantity, 0)
     }
   });

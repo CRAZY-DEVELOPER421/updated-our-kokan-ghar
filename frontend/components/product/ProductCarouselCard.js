@@ -1,14 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Truck } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { getImageUrl } from '@/lib/utils';
+import { PRODUCT_BLUR } from '@/lib/blur';
 import StarRating from '@/components/ui/StarRating';
 import FlashSaleProgressBar from '@/components/ui/FlashSaleProgressBar';
+import ShareModal from '@/components/ui/ShareModal';
 import useWishlistStore from '@/lib/store/wishlistStore';
 import useCartStore from '@/lib/store/cartStore';
 
@@ -27,12 +28,14 @@ import useCartStore from '@/lib/store/cartStore';
 // rating and price. Hides discount badge, wishlist heart, bought/delivery meta
 // and the Add-to-Cart + Share actions row (used by the All Under ₹499 section).
 export default function ProductCarouselCard({ product, simplified = false }) {
-  const router = useRouter();
   const toggleWishlist = useWishlistStore((s) => s.toggleWishlist);
   const addToCart = useCartStore((s) => s.addToCart);
+  const updateQuantity = useCartStore((s) => s.updateQuantity);
+  const removeItem = useCartStore((s) => s.removeItem);
   const cartItems = useCartStore((s) => s.items);
   const [isAdding, setIsAdding] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [stepperQty, setStepperQty] = useState(0);
 
   // Normalize both raw-product and flash-sale shapes
   const id = product?.id ?? product?.product_id;
@@ -56,41 +59,12 @@ export default function ProductCarouselCard({ product, simplified = false }) {
   const discount = mrp > price && price > 0 ? Math.round(((mrp - price) / mrp) * 100) : 0;
   const isInCart = cartItems.some((i) => parseInt(i.product_id) === parseInt(id));
   const isInWishlist = useWishlistStore((s) => (id ? s.isInWishlist(id) : false));
+  const cartItem = cartItems.find((i) => parseInt(i.product_id) === parseInt(id));
+  const cartItemId = cartItem?.id;
 
-  // Share — Web Share API → clipboard fallback (same logic as ProductCard)
-  const handleShare = async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const url = `${window.location.origin}/products/${slug}`;
-    const imageUrl = getImageUrl(image);
-    if (typeof navigator !== 'undefined' && navigator.share) {
-      try {
-        const shareData = { title: name, text: `Check out ${name} from Konkan Ghar!`, url };
-        if (imageUrl && navigator.canShare) {
-          try {
-            const response = await fetch(imageUrl);
-            const blob = await response.blob();
-            const ext = blob.type.split('/')[1] || 'jpg';
-            const imageFile = new File([blob], `product-${id}.${ext}`, { type: blob.type });
-            const withImage = { ...shareData, files: [imageFile] };
-            if (navigator.canShare(withImage)) { await navigator.share(withImage); return; }
-          } catch {
-            // image sharing failed — fall through to text-only share
-          }
-        }
-        await navigator.share(shareData);
-      } catch (err) {
-        if (err.name !== 'AbortError') toast.error('Could not share');
-      }
-    } else {
-      try {
-        await navigator.clipboard.writeText(url);
-        toast.success('Product link copied to clipboard!');
-      } catch {
-        toast.error('Could not copy link');
-      }
-    }
-  };
+  // Share — opens the share modal (QR Code + Link tabs)
+  const [showShare, setShowShare] = useState(false);
+  const productUrl = typeof window !== 'undefined' ? `${window.location.origin}/products/${slug}` : '';
 
   const handleAddToCart = async (e) => {
     e.preventDefault();
@@ -110,8 +84,41 @@ export default function ProductCarouselCard({ product, simplified = false }) {
     toggleWishlist(id);
   };
 
+  // Sync stepper quantity with cart item
+  useEffect(() => {
+    if (isInCart && cartItem) {
+      setStepperQty(cartItem.quantity);
+    } else {
+      setStepperQty(0);
+    }
+  }, [isInCart, cartItem?.id, cartItem?.quantity]);
+
+  const handleStepperIncrement = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!cartItemId) return;
+    const newQty = stepperQty + 1;
+    setStepperQty(newQty);
+    await updateQuantity(cartItemId, newQty);
+  };
+
+  const handleStepperDecrement = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!cartItemId) return;
+    if (stepperQty <= 1) {
+      // Undo — removing the last unit removes the item from the cart
+      await removeItem(cartItemId);
+      setStepperQty(0);
+    } else {
+      const newQty = stepperQty - 1;
+      setStepperQty(newQty);
+      await updateQuantity(cartItemId, newQty);
+    }
+  };
+
   return (
-    <div className="group relative flex flex-col w-full h-full bg-white rounded-xl border border-gray-200/70 overflow-hidden shadow-sm hover:shadow-lg hover:shadow-gray-900/10 hover:scale-[1.02] hover:border-gray-300 transition-all duration-150 ease-out">
+    <div className="group relative flex flex-col w-full h-full bg-white dark:bg-[#1a1a2e] rounded-xl border border-gray-200/70 dark:border-[#2a2a40] overflow-hidden shadow-sm hover:shadow-lg hover:shadow-gray-900/10 hover:scale-[1.02] hover:border-gray-300 transition-all duration-150 ease-out">
       <Link href={`/products/${slug}`} className="block">
         {/* Image — square 1:1, FULL-BLEED edge-to-edge (no frame around it) */}
         <div className="relative aspect-square w-full overflow-hidden bg-[#f5f0eb]">
@@ -123,6 +130,8 @@ export default function ProductCarouselCard({ product, simplified = false }) {
               sizes="(min-width: 1024px) 25vw, (min-width: 640px) 33vw, 50vw"
               className="object-cover group-hover:scale-105 transition-transform duration-300"
               loading="lazy"
+              placeholder="blur"
+              blurDataURL={PRODUCT_BLUR}
               onError={() => setImageError(true)}
             />
           ) : (
@@ -225,19 +234,47 @@ export default function ProductCarouselCard({ product, simplified = false }) {
       {/* Actions row — Add to Cart (3 parts) + Share (1 part) = 3:1 (hidden in simplified mode) */}
       {!simplified && (
       <div className="mt-auto flex items-center gap-1.5 px-3 pb-3">
-        <button
-          onClick={isInCart ? () => router.push('/cart') : handleAddToCart}
-          disabled={!isInCart && isAdding}
-          className={`flex-[3] py-2 rounded-lg text-[11px] min-[640px]:text-sm font-semibold text-white transition-all duration-150 active:scale-[0.98] disabled:opacity-50 ${
-            isInCart ? 'bg-[#16A34A] hover:bg-[#15803D]' : 'bg-[#1B3B2F] hover:bg-[#2D6A4F]'
-          }`}
-        >
-          {isInCart ? 'Go to Cart' : isAdding ? 'Adding…' : 'Add to Cart'}
-        </button>
+        {isInCart ? (
+          <div
+            className="flex-[3] flex items-center rounded-lg overflow-hidden"
+            style={{ border: '1px solid #22C55E', backgroundColor: '#F0FDF4', height: '36px' }}
+          >
+            <button
+              onClick={handleStepperDecrement}
+              className="w-8 h-full flex items-center justify-center font-bold text-[#16A34A] hover:bg-green-100 active:bg-green-200 transition-colors"
+              style={{ fontSize: '15px' }}
+              aria-label="Decrease quantity"
+            >
+              −
+            </button>
+            <span
+              className="flex-1 min-w-[20px] text-center font-bold tabular-nums h-full flex items-center justify-center text-[#166534]"
+              style={{ borderLeft: '1px solid #BBF7D0', borderRight: '1px solid #BBF7D0', fontSize: '12px' }}
+            >
+              {stepperQty || 1}
+            </span>
+            <button
+              onClick={handleStepperIncrement}
+              className="w-8 h-full flex items-center justify-center font-bold text-[#16A34A] hover:bg-green-100 active:bg-green-200 transition-colors"
+              style={{ fontSize: '15px' }}
+              aria-label="Increase quantity"
+            >
+              +
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={handleAddToCart}
+            disabled={isAdding}
+            className="flex-[3] py-2 rounded-lg text-[11px] min-[640px]:text-sm font-semibold text-white transition-all duration-150 active:scale-[0.98] disabled:opacity-50 bg-[#1B3B2F] hover:bg-[#2D6A4F]"
+          >
+            {isAdding ? 'Adding…' : 'Add to Cart'}
+          </button>
+        )}
 
         {/* Share — small icon button, 1 part of the 3:1 row */}
         <button
-          onClick={handleShare}
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowShare(true); }}
           className="flex-1 h-9 flex items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-500 hover:text-[#1B3B2F] hover:border-[#1B3B2F]/30 hover:bg-[#1B3B2F]/5 active:scale-95 transition-all duration-150"
           aria-label="Share product"
         >
@@ -247,6 +284,15 @@ export default function ProductCarouselCard({ product, simplified = false }) {
         </button>
       </div>
       )}
+
+      {/* Share modal — QR code + link (scan with another phone to open) */}
+      <ShareModal
+        isOpen={showShare}
+        onClose={() => setShowShare(false)}
+        title={name}
+        description={`Check out ${name} from Konkan Ghar!`}
+        url={productUrl}
+      />
     </div>
   );
 }

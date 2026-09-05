@@ -4,6 +4,7 @@ import './globals.css';
 import dynamicLib from 'next/dynamic';
 import { QueryProviders } from '@/lib/providers/QueryProviders';
 import { I18nProvider } from '@/lib/i18n/I18nProvider';
+import ThemeProvider from '@/lib/providers/ThemeProvider';
 import Navbar from '@/components/layout/Navbar';
 import DeliveryAddressBar from '@/components/layout/DeliveryAddressBar';
 import MobileHeader from '@/components/layout/MobileHeader';
@@ -16,6 +17,9 @@ import FloatingNotifPrompt from '@/components/pwa/FloatingNotifPrompt';
 import IosPwaBanner from '@/components/pwa/IosPwaBanner';
 import CookieConsent from '@/components/ui/CookieConsent';
 import CompareBar from '@/components/ui/CompareBar';
+import SplashScreen from '@/components/ui/SplashScreen';
+import CartSync from '@/components/cart/CartSync';
+import { FlyToCartProvider } from '@/components/ui/FlyToCart';
 
 // Dynamically import below-the-fold components to reduce initial JS payload
 const PageTransition = dynamicLib(() => import('@/components/layout/PageTransition'));
@@ -124,6 +128,13 @@ const searchActionLd = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" data-scroll-behavior="smooth" className={`${playfair.variable} ${inter.variable} ${poppins.variable}`} suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('kokan-ghar-theme');if(t==='dark'||(!t&&matchMedia('(prefers-color-scheme:dark)').matches))document.documentElement.classList.add('dark')}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body className="min-h-screen flex flex-col" suppressHydrationWarning>
         {/* Structured data (JSON-LD) — rendered in body; Next.js manages <head> metadata itself */}
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
@@ -174,8 +185,15 @@ gtag('config', '${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}', {
           </>
         )}
 
+        {/* Branded entry splash — once per session (sessionStorage-gated) */}
+        <SplashScreen />
+
         <QueryProviders>
+          <ThemeProvider>
           <I18nProvider>
+            <FlyToCartProvider>
+            {/* Loads the cart once on first paint — keeps badges + card steppers correct everywhere */}
+            <CartSync />
             <ToastProvider />
             <PwaInstallPopup />
             <FloatingNotifPrompt />
@@ -196,7 +214,9 @@ gtag('config', '${process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID}', {
             <div className="lg:hidden"><MobileBottomNav /></div>
             <div className="hidden lg:block"><Footer /></div>
             <CompareBar />
+            </FlyToCartProvider>
           </I18nProvider>
+          </ThemeProvider>
         </QueryProviders>
       </body>
     </html>

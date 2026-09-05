@@ -24,7 +24,7 @@ const STEPS = [
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { isAuthenticated, user } = useAuthStore();
+  const { isAuthenticated } = useAuthStore();
   const { items, summary, coupon, fetchCart } = useCartStore();
 
   const [step, setStep] = useState(0);
@@ -298,8 +298,12 @@ export default function CheckoutPage() {
   // ── Loyalty points math (100 pts = ₹10) ─────────────────────────────────
   const availablePoints = loyalty?.total_points || 0;
   const pointsValue = Math.floor(availablePoints / 100) * 10; // ₹ value of full balance
-  // Can't redeem more than the item cost (subtotal − coupon) — shipping & GST stay payable.
-  const maxDiscountByOrder = Math.max((summary?.subtotal || 0) - (summary?.coupon_discount || 0), 0);
+  // Can't redeem more than the item cost (subtotal − coupon − slab) —
+  // shipping & GST stay payable. Mirrors the backend order cap exactly.
+  const maxDiscountByOrder = Math.max(
+    (summary?.subtotal || 0) - (summary?.coupon_discount || 0) - (summary?.slab_discount || 0),
+    0
+  );
   const maxPointsByOrder = Math.floor(maxDiscountByOrder / 10) * 100;
   const maxRedeemablePoints = Math.max(Math.min(Math.floor(availablePoints / 100) * 100, maxPointsByOrder), 0);
   const pointsDiscount = Math.floor(pointsToRedeem / 100) * 10; // ₹ saved with selected points
@@ -571,6 +575,9 @@ export default function CheckoutPage() {
               <div className="flex justify-between"><span className="text-konkan-text-secondary">Subtotal</span><span>₹{summary?.subtotal || 0}</span></div>
               {summary?.coupon_discount > 0 && (
                 <div className="flex justify-between"><span className="text-konkan-text-secondary">Coupon</span><span className="text-konkan-success">-₹{summary.coupon_discount}</span></div>
+              )}
+              {summary?.slab_discount > 0 && (
+                <div className="flex justify-between"><span className="text-konkan-text-secondary">Slab Discount ({summary.slab_percent}%)</span><span className="text-konkan-success">-₹{summary.slab_discount}</span></div>
               )}
               {pointsDiscount > 0 && (
                 <div className="flex justify-between"><span className="text-konkan-text-secondary">Konkan Points</span><span className="text-konkan-success">-₹{pointsDiscount}</span></div>

@@ -65,6 +65,15 @@ const nextConfig = {
       },
     ];
   },
+  async rewrites() {
+    return [
+      // Proxy admin-uploaded product images from the backend
+      {
+        source: '/uploads/:path*',
+        destination: `${process.env.BACKEND_URL || 'http://localhost:5000'}/uploads/:path*`,
+      },
+    ];
+  },
   poweredByHeader: false,
   reactStrictMode: true,
   compress: true,

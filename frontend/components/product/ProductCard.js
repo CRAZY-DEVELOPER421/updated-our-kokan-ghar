@@ -10,8 +10,11 @@ import useAuthStore from '@/lib/store/authStore';
 import useCartStore from '@/lib/store/cartStore';
 import useCompareStore from '@/lib/store/compareStore';
 import { getImageUrl } from '@/lib/utils';
+import { PRODUCT_BLUR } from '@/lib/blur';
 import FlashSaleProgressBar from '@/components/ui/FlashSaleProgressBar';
 import ProductQuickViewModal from '@/components/product/ProductQuickViewModal';
+import ShareModal from '@/components/ui/ShareModal';
+import { usePlpReferrer } from '@/lib/providers/PlpReferrerProvider';
 
 const WEIGHT_OPTIONS = [
   { label: '3kg', value: 3 },
@@ -20,6 +23,7 @@ const WEIGHT_OPTIONS = [
 ];
 
 export default function ProductCard({ product, view = 'grid' }) {
+  const plpRef = usePlpReferrer();
   const [selectedWeight, setSelectedWeight] = useState(null);
   const [isAdding, setIsAdding] = useState(false);
   const [added, setAdded] = useState(false);
@@ -30,50 +34,9 @@ export default function ProductCard({ product, view = 'grid' }) {
   const [showGoToCart, setShowGoToCart] = useState(false);
   const inactivityTimerRef = useRef(null);
 
-  const handleShare = async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const url = `${window.location.origin}/products/${product.slug}`;
-    const imageUrl = getImageUrl(product.primary_image || product.images?.[0]?.image_url);
-
-    if (typeof navigator !== 'undefined' && navigator.share) {
-      try {
-        const shareData = {
-          title: product.name,
-          text: product.short_description || `Check out ${product.name} from Konkan Ghar!`,
-          url,
-        };
-        // Try to include product image (supported on mobile browsers)
-        if (imageUrl && navigator.canShare) {
-          try {
-            const response = await fetch(imageUrl);
-            const blob = await response.blob();
-            const ext = blob.type.split('/')[1] || 'jpg';
-            const imageFile = new File([blob], `product-${product.id}.${ext}`, { type: blob.type });
-            const withImage = { ...shareData, files: [imageFile] };
-            if (navigator.canShare(withImage)) {
-              await navigator.share(withImage);
-              return;
-            }
-          } catch {
-            // image sharing failed — fall through to text-only share
-          }
-        }
-        await navigator.share(shareData);
-      } catch (err) {
-        if (err.name !== 'AbortError') {
-          toast.error('Could not share');
-        }
-      }
-    } else {
-      try {
-        await navigator.clipboard.writeText(url);
-        toast.success('Product link copied to clipboard!');
-      } catch {
-        toast.error('Could not copy link');
-      }
-    }
-  };
+  // Share — opens the share modal (QR Code + Link tabs)
+  const [showShare, setShowShare] = useState(false);
+  const productUrl = typeof window !== 'undefined' ? `${window.location.origin}/products/${product.slug}` : '';
 
   const router = useRouter();
   const { isAuthenticated } = useAuthStore();
@@ -186,6 +149,11 @@ export default function ProductCard({ product, view = 'grid' }) {
     ? discountPercent
     : (mrp > price ? Math.round(((mrp - price) / mrp) * 100) : 0);
 
+  // ── Stock urgency ──
+  const stockQty = parseInt(product?.stock_quantity, 10) || 0;
+  const isOutOfStock = stockQty === 0;
+  const isLowStock = stockQty > 0 && stockQty <= 5;
+
   const savings = mrp - price;
   const hasDiscount = discount > 0 && mrp > price && price > 0;
   const rating = parseFloat(product?.average_rating || 0);
@@ -211,7 +179,7 @@ export default function ProductCard({ product, view = 'grid' }) {
       }
       setAdded(true);
       setTimeout(() => setAdded(false), 2500);
-    } catch (err) {
+    } catch {
       toast.error('Failed to add to cart');
     }
     setIsAdding(false);
@@ -260,7 +228,7 @@ export default function ProductCard({ product, view = 'grid' }) {
         }
         setAdded(true);
         setTimeout(() => setAdded(false), 2500);
-      } catch (err) {
+      } catch {
         toast.error('Failed to add to cart');
       }
       setIsAdding(false);
@@ -269,7 +237,8 @@ export default function ProductCard({ product, view = 'grid' }) {
     return (
       <Link
         href={`/products/${product.slug}`}
-        className="block bg-white"
+        className="block bg-white dark:bg-[#1a1a2e]"
+        onClick={() => plpRef?.save?.()}
       >
         {/* Fixed card height (120px) + overflow-hidden: every card stays this exact height regardless of title/content length; ~104px usable area = 95px image + 8px breathing room each side + slack for the ~95px text block */}
         <div className="flex gap-2.5 px-3 py-2 h-[120px] overflow-hidden">
@@ -283,6 +252,8 @@ export default function ProductCard({ product, view = 'grid' }) {
                 sizes="95px"
                 className="object-cover"
                 loading="lazy"
+                placeholder="blur"
+                blurDataURL={PRODUCT_BLUR}
                 onError={() => setImageError(true)}
               />
             ) : (
@@ -316,6 +287,25 @@ export default function ProductCard({ product, view = 'grid' }) {
               >
                 -{discount}%
               </span>
+            )}
+
+            {/* Low stock badge */}
+            {isLowStock && (
+              <span
+                className="absolute bottom-1 left-1 z-10 text-[8px] font-bold text-white px-1.5 py-[2px] rounded-[3px] leading-none shadow-sm flex items-center gap-0.5"
+                style={{ backgroundColor: '#DC2626' }}
+              >
+                Only {stockQty} left
+              </span>
+            )}
+
+            {/* Out of stock overlay */}
+            {isOutOfStock && (
+              <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-[2] rounded-lg">
+                <span className="bg-black/70 text-white text-[9px] font-bold px-2 py-1 rounded-full">
+                  Out of Stock
+                </span>
+              </div>
             )}
 
             {/* Wishlist heart — top-right corner, white circle outline */}
@@ -446,10 +436,10 @@ export default function ProductCard({ product, view = 'grid' }) {
                 ) : (
                   <button
                     onClick={handleListAddToCart}
-                    disabled={isAdding}
+                    disabled={isAdding || isOutOfStock}
                     className="text-white font-semibold rounded-lg transition-colors active:scale-[0.97] disabled:opacity-50"
                     style={{
-                      backgroundColor: '#1B3B2F',
+                      backgroundColor: isOutOfStock ? '#9CA3AF' : '#1B3B2F',
                       padding: '5px 12px',
                       fontSize: '11px',
                       borderRadius: '6px',
@@ -461,7 +451,7 @@ export default function ProductCard({ product, view = 'grid' }) {
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                       </svg>
                     ) : (
-                      'Add to Cart'
+                      isOutOfStock ? 'Out of Stock' : 'Add to Cart'
                     )}
                   </button>
                 )}
@@ -482,12 +472,13 @@ export default function ProductCard({ product, view = 'grid' }) {
       <Link
         href={`/products/${product.slug}`}
         className="block h-full max-[768px]:h-auto"
+        onClick={() => plpRef?.save?.()}
       >
-        <div className={`relative bg-white rounded-[20px] overflow-hidden shadow-card hover:shadow-card-hover hover:scale-[1.02] transition-all duration-300 ease-out flex flex-col h-full max-[768px]:h-auto border border-transparent hover:border-konkan-green-primary/20 hover:ring-1 hover:ring-konkan-green-primary/10 ${
-          isInCart ? 'max-[768px]:border-green-500/30 max-[768px]:ring-2 max-[768px]:ring-green-500/30' : ''
-        }`}>
+        <div className={`relative bg-white dark:bg-[#1a1a2e] rounded-[20px] overflow-hidden shadow-card hover:shadow-card-hover transition-all duration-300 ease-out flex flex-col h-full max-[768px]:h-auto border ${
+          isOutOfStock ? 'opacity-60 grayscale hover:scale-100 hover:shadow-card border-gray-200' : 'hover:scale-[1.02] hover:border-konkan-green-primary/20 hover:ring-1 hover:ring-konkan-green-primary/10 border-transparent'
+        } ${isInCart && !isOutOfStock ? 'max-[768px]:border-green-500/30 max-[768px]:ring-2 max-[768px]:ring-green-500/30' : ''}`}>
           {/* Image Section - fixed height */}
-          <div className="relative max-[768px]:h-[135px] h-40 sm:h-48 md:h-56 shrink-0 overflow-hidden bg-[#f5f0eb]">
+          <div className="relative max-[768px]:h-[135px] h-40 sm:h-48 md:h-56 shrink-0 overflow-hidden bg-[#f5f0eb] dark:bg-[#12121f]">
             {product.primary_image && !imageError ? (
               <div className="relative w-full h-full">
                 {!imageLoaded && (
@@ -502,6 +493,8 @@ export default function ProductCard({ product, view = 'grid' }) {
                     imageLoaded ? 'opacity-100' : 'opacity-0'
                   }`}
                   loading="lazy"
+                  placeholder="blur"
+                  blurDataURL={PRODUCT_BLUR}
                   onLoad={() => setImageLoaded(true)}
                   onError={() => setImageError(true)}
                 />
@@ -540,6 +533,14 @@ export default function ProductCard({ product, view = 'grid' }) {
               {product.is_seasonal && (
                 <span className="text-[9px] sm:text-[10px] font-semibold bg-gradient-to-r from-[#7c3aed] to-[#6d28d9] text-white px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full shadow-[0_2px_6px_rgba(124,58,237,0.3)]">
                   Seasonal
+                </span>
+              )}
+              {isLowStock && (
+                <span className="text-[9px] sm:text-[10px] font-bold bg-gradient-to-r from-[#DC2626] to-[#b91c1c] text-white px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full shadow-[0_2px_6px_rgba(220,38,38,0.4)] flex items-center gap-1 whitespace-nowrap animate-pulse">
+                  <svg className="w-2.5 h-2.5 sm:w-3 sm:h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  Only {stockQty} left
                 </span>
               )}
             </div>
@@ -631,10 +632,19 @@ export default function ProductCard({ product, view = 'grid' }) {
 
             {/* Bottom Overlay Gradient — enhances on hover */}
             <div className="absolute inset-x-0 bottom-0 h-20 sm:h-28 bg-gradient-to-t from-black/40 via-black/10 to-transparent pointer-events-none z-[1] opacity-60 group-hover:opacity-100 transition-opacity duration-300" />
+
+            {/* Out of Stock overlay */}
+            {isOutOfStock && (
+              <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-[3]">
+                <span className="bg-black/70 text-white text-xs sm:text-sm font-bold px-4 py-2 rounded-full backdrop-blur-sm">
+                  Out of Stock
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Content Section - flex column that pushes buttons to bottom */}
-          <div className="max-[768px]:px-2 max-[768px]:pt-1.5 max-[768px]:pb-1.5 max-[768px]:flex-none sm:px-4 sm:pt-3 sm:pb-4 bg-white flex flex-col flex-1">
+          <div className="max-[768px]:px-2 max-[768px]:pt-1.5 max-[768px]:pb-1.5 max-[768px]:flex-none sm:px-4 sm:pt-3 sm:pb-4 bg-white dark:bg-[#1a1a2e] flex flex-col flex-1">
             {/* Location Badge — always same height, empty if missing */}
             <div className="min-h-[20px] sm:min-h-[24px] max-[768px]:mb-0.5 mb-1 sm:mb-2">
               {product.region_origin && (
@@ -649,7 +659,7 @@ export default function ProductCard({ product, view = 'grid' }) {
             </div>
 
             {/* Product Title - fixed 2-line height */}
-            <h3 className="text-konkan-text-primary font-bold max-[768px]:text-[12px] max-[768px]:leading-[1.2] text-[13px] sm:text-sm md:text-base leading-snug line-clamp-2 max-[768px]:mb-0.5 mb-1 sm:mb-2 min-h-[2rem] sm:min-h-[2.5rem] group-hover:text-konkan-green-primary transition-colors duration-200">
+            <h3 className="text-konkan-text-primary dark:text-gray-100 font-bold max-[768px]:text-[12px] max-[768px]:leading-[1.2] text-[13px] sm:text-sm md:text-base leading-snug line-clamp-2 max-[768px]:mb-0.5 mb-1 sm:mb-2 min-h-[2rem] sm:min-h-[2.5rem] group-hover:text-konkan-green-primary transition-colors duration-200">
               {product.name}
             </h3>
 
@@ -721,29 +731,44 @@ export default function ProductCard({ product, view = 'grid' }) {
               {/* Desktop Add to Cart / Go to Cart — hidden on mobile (replaced by floating + button) */}
               <div className="max-[768px]:hidden flex-1 flex">
                 {isInCart || added ? (
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      router.push('/cart');
-                    }}
-                    className="flex-1 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold rounded-xl bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 hover:border-green-300 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-1"
+                  <div
+                    className="flex-1 flex items-center rounded-xl border overflow-hidden h-10 sm:h-11"
+                    style={{ borderColor: '#22C55E', backgroundColor: '#F0FDF4' }}
                   >
-                    <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                    <span className="hidden sm:inline">Go to Cart</span>
-                  </button>
+                    <button
+                      onClick={handleStepperDecrement}
+                      className="w-9 sm:w-10 h-full flex items-center justify-center text-[#16A34A] hover:bg-green-100 active:bg-green-200 transition-colors"
+                      aria-label="Decrease quantity"
+                    >
+                      <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M20 12H4" />
+                      </svg>
+                    </button>
+                    <span
+                      className="flex-1 min-w-[28px] text-center font-bold tabular-nums h-full flex items-center justify-center text-[#166534]"
+                      style={{ borderLeft: '1px solid #BBF7D0', borderRight: '1px solid #BBF7D0', fontSize: '13px' }}
+                    >
+                      {stepperQty || 1}
+                    </span>
+                    <button
+                      onClick={handleStepperIncrement}
+                      className="w-9 sm:w-10 h-full flex items-center justify-center text-[#16A34A] hover:bg-green-100 active:bg-green-200 transition-colors"
+                      aria-label="Increase quantity"
+                    >
+                      <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+                      </svg>
+                    </button>
+                  </div>
                 ) : (
                   <button
                     onClick={handleAddToCart}
-                    disabled={isAdding}
+                    disabled={isAdding || isOutOfStock}
                     className={`flex-1 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold rounded-xl transition-all duration-200 ${
-                      added
-                        ? 'bg-green-600 text-white'
+                      isOutOfStock
+                        ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
                         : 'bg-gradient-to-r from-konkan-green-primary to-konkan-green-secondary text-white hover:from-konkan-green-dark hover:to-konkan-green-primary active:scale-[0.98] shadow-[0_4px_12px_rgba(45,106,79,0.25)]'
-                    }`}
-                  >
+                    }`}>
                     {isAdding ? (
                       <span className="flex items-center justify-center gap-1">
                         <svg className="w-3 h-3 sm:w-4 sm:h-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -756,7 +781,7 @@ export default function ProductCard({ product, view = 'grid' }) {
                         <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 100 4 2 2 0 000-4z" />
                         </svg>
-                        Add
+                        {isOutOfStock ? 'Out of Stock' : 'Add'}
                       </span>
                     )}
                   </button>
@@ -765,7 +790,7 @@ export default function ProductCard({ product, view = 'grid' }) {
 
               {/* Share — only in product details, hidden from card on mobile */}
               <button
-                onClick={handleShare}
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowShare(true); }}
                 className="max-[768px]:hidden shrink-0 w-9 h-9 sm:w-11 sm:h-11 flex items-center justify-center rounded-xl bg-konkan-cream border border-[#e5e0db] text-gray-400 hover:text-konkan-green-primary hover:border-konkan-green-primary/30 hover:bg-green-50 transition-all duration-200"
                 aria-label="Share product"
               >
@@ -791,6 +816,15 @@ export default function ProductCard({ product, view = 'grid' }) {
       </Link>
 
       <ProductQuickViewModal product={product} isOpen={quickViewOpen} onClose={() => setQuickViewOpen(false)} />
+
+      {/* Share modal — QR code + link (scan with another phone to open) */}
+      <ShareModal
+        isOpen={showShare}
+        onClose={() => setShowShare(false)}
+        title={product.name}
+        description={product.short_description || `Check out ${product.name} from Konkan Ghar!`}
+        url={productUrl}
+      />
     </div>
   );
 }

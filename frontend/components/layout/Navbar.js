@@ -44,7 +44,9 @@ export default function Navbar() {
   const { isScrolled } = useScrollDirection({ threshold: 5 });
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [activeCat, setActiveCat] = useState(null);
+  const [menuEverOpened, setMenuEverOpened] = useState(false);
   const closeCategoryMenu = () => { setIsCategoryOpen(false); setActiveCat(null); };
+  const openCategoryMenu = () => { setIsCategoryOpen(true); setMenuEverOpened(true); };
   const pathname = usePathname();
   const router = useRouter();
 
@@ -80,6 +82,19 @@ export default function Navbar() {
   };
   const { data: settingsData } = useSiteSettings();
   const categoryRef = useRef(null);
+
+  // Promo banners for the mega-menu (fetched once, cached)
+  const { data: bannersData } = useQuery({
+    queryKey: ['banners-mega-menu'],
+    queryFn: async () => {
+      const res = await api.get('/banners');
+      return res.data?.data?.banners || [];
+    },
+    staleTime: 10 * 60 * 1000,
+    retry: 1,
+  });
+  // Pick the first active sidebar/promo banner for the mega-menu
+  const megaBanner = (bannersData || []).find((b) => b.position === 'sidebar' || b.position === 'mega_menu') || bannersData?.[0] || null;
 
   // Unread notification count — same real data the mobile header uses
   // (GET /notifications returns unread_count). Keeps desktop/mobile badges in sync.
@@ -150,7 +165,7 @@ export default function Navbar() {
   }, [isMobileOpen]);
 
   return (
-    <header className={`sticky top-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-white/95 backdrop-blur-md shadow-nav' : 'bg-white'}`}>
+    <header className={`sticky top-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-white/95 dark:bg-[#0f0f1a]/95 backdrop-blur-md shadow-nav' : 'bg-white dark:bg-[#0f0f1a]'}`}>
       {/* Main Navbar */}
       <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 lg:h-[72px]">
@@ -211,6 +226,7 @@ export default function Navbar() {
 
             {/* Cart — orange badge, same as mobile header */}
             <Link
+              id="fly-cart-target"
               href="/cart"
               className="relative text-konkan-text-secondary hover:text-konkan-green-primary transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
               aria-label={`Shopping cart${cartCount > 0 ? ` (${cartCount} items)` : ''}`}
@@ -265,14 +281,14 @@ export default function Navbar() {
                       <span className="text-sm">{user?.name?.split(' ')[0]}</span>
                       <ChevronDown className="w-3 h-3" />
                     </button>
-                    <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-2xl shadow-modal border border-konkan-sand opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 py-2 z-50">
-                      <Link href="/account/profile" className="block px-4 py-2.5 text-sm text-konkan-text-primary hover:bg-konkan-cream">{t('account.my_profile')}</Link>
-                      <Link href="/account/settings" className="block px-4 py-2.5 text-sm text-konkan-text-primary hover:bg-konkan-cream">Settings</Link>
-                      <Link href="/account/orders" className="block px-4 py-2.5 text-sm text-konkan-text-primary hover:bg-konkan-cream">{t('account.orders')}</Link>
-                      <Link href="/account/wishlist" className="block px-4 py-2.5 text-sm text-konkan-text-primary hover:bg-konkan-cream">{t('nav.wishlist')}</Link>
-                      <Link href="/account/loyalty" className="block px-4 py-2.5 text-sm text-konkan-text-primary hover:bg-konkan-cream">{t('account.loyalty_points')}</Link>
-                      <Link href="/account/referrals" className="block px-4 py-2.5 text-sm font-medium text-konkan-green-primary hover:bg-konkan-cream">{t('account.refer_earn')}</Link>
-                      <hr className="my-2 border-konkan-sand" />
+                    <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-2xl shadow-modal border border-konkan-sand opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 py-2 z-50">                  <Link
+                    href="/account/profile" className="block px-4 py-2.5 text-sm text-konkan-text-primary dark:text-gray-200 hover:bg-konkan-cream dark:hover:bg-[#1e1e30]">{t('account.my_profile')}</Link>
+                      <Link href="/account/settings" className="block px-4 py-2.5 text-sm text-konkan-text-primary dark:text-gray-200 hover:bg-konkan-cream dark:hover:bg-[#1e1e30]">Settings</Link>
+                      <Link href="/account/orders" className="block px-4 py-2.5 text-sm text-konkan-text-primary dark:text-gray-200 hover:bg-konkan-cream dark:hover:bg-[#1e1e30]">{t('account.orders')}</Link>
+                      <Link href="/account/wishlist" className="block px-4 py-2.5 text-sm text-konkan-text-primary dark:text-gray-200 hover:bg-konkan-cream dark:hover:bg-[#1e1e30]">{t('nav.wishlist')}</Link>
+                      <Link href="/account/loyalty" className="block px-4 py-2.5 text-sm text-konkan-text-primary dark:text-gray-200 hover:bg-konkan-cream dark:hover:bg-[#1e1e30]">{t('account.loyalty_points')}</Link>
+                      <Link href="/account/referrals" className="block px-4 py-2.5 text-sm font-medium text-konkan-green-primary hover:bg-konkan-cream dark:hover:bg-[#1e1e30]">{t('account.refer_earn')}</Link>
+                      <hr className="my-2 border-konkan-sand dark:border-[#2a2a40]" />
                       <button onClick={logout} className="block w-full text-left px-4 py-2.5 text-sm text-konkan-error hover:bg-konkan-cream">{t('nav.sign_out')}</button>
                     </div>
                   </div>
@@ -287,7 +303,7 @@ export default function Navbar() {
 
             {/* Hamburger - right end on mobile */}
             <button
-              className="lg:hidden min-w-[44px] min-h-[44px] flex items-center justify-center -mr-2 text-konkan-text-primary"
+              className="lg:hidden min-w-[44px] min-h-[44px] flex items-center justify-center -mr-2 text-konkan-text-primary dark:text-gray-200"
               onClick={() => setIsMobileOpen(!isMobileOpen)}
               aria-label="Toggle menu"
             >
@@ -306,14 +322,14 @@ export default function Navbar() {
             : 'max-h-14 opacity-100 visible pointer-events-auto motion-reduce:block'
         }`}
       >
-        <div className="border-t border-konkan-sand/50">
+        <div className="border-t border-konkan-sand/50 dark:border-[#2a2a40]">
           <div className="max-w-screen-2xl mx-auto px-6 lg:px-8 flex items-center">
             {/* All Categories Dropdown */}
             <div className="relative" ref={categoryRef}>
               <button
                 className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-white bg-konkan-green-primary hover:bg-konkan-green-dark transition-colors"
-                onMouseEnter={() => setIsCategoryOpen(true)}
-                onClick={() => (isCategoryOpen ? closeCategoryMenu() : setIsCategoryOpen(true))}
+                onMouseEnter={openCategoryMenu}
+                onClick={() => (isCategoryOpen ? closeCategoryMenu() : openCategoryMenu())}
                 aria-haspopup="menu"
                 aria-expanded={isCategoryOpen}
               >
@@ -321,55 +337,216 @@ export default function Navbar() {
                 {t('nav.all_categories')}
                 <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isCategoryOpen ? 'rotate-180' : ''}`} />
               </button>
-              {isCategoryOpen && (
+              {menuEverOpened && (
                 <div
-                  className="absolute top-full left-0 flex z-50 rounded-b-2xl shadow-modal border border-konkan-sand overflow-hidden"
+                  className={`absolute top-full left-0 z-50 rounded-b-2xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.15)] dark:shadow-[0_20px_60px_-15px_rgba(0,0,0,0.5)] border border-konkan-sand/60 dark:border-[#2a2a40] overflow-hidden bg-white dark:bg-[#0f0f1a] transition-all duration-200 ease-out ${
+                    isCategoryOpen
+                      ? 'opacity-100 translate-y-0 pointer-events-auto'
+                      : 'opacity-0 -translate-y-2 pointer-events-none'
+                  }`}
+                  style={{ width: 'min(95vw, 800px)' }}
                   onMouseLeave={closeCategoryMenu}
+                  onTransitionEnd={() => { if (!isCategoryOpen) setMenuEverOpened(false); }}
                 >
-                  {/* Left column: all categories (vertical scroll only) */}
-                  <div className="w-64 bg-white py-2 max-h-[calc(100vh-12rem)] overflow-y-auto overflow-x-hidden">
-                    {sortedCategories.map((cat) => {
-                      const catKey = cat.slug?.replace(/-/g, '_');
-                      const isActive = activeCat?.id === cat.id;
-                      return (
-                        <div
-                          key={cat.id}
-                          onMouseEnter={() => setActiveCat(cat)}
-                          className={`${isActive ? 'bg-konkan-cream' : ''} transition-colors duration-150`}
-                        >
+                  <div className="flex min-h-[340px] max-h-[calc(100vh-8rem)]">
+                    {/* ── Left: Category list ── */}
+                    <div className="w-[230px] shrink-0 border-r border-konkan-sand/30 dark:border-[#2a2a40] py-1.5 overflow-y-auto scrollbar-thin">
+                      {sortedCategories.map((cat) => {
+                        const catKey = cat.slug?.replace(/-/g, '_');
+                        const isActive = activeCat?.id === cat.id;
+                        const catImage = cat.image_url ? getImageUrl(cat.image_url) : null;
+                        return (
+                          <div
+                            key={cat.id}
+                            onMouseEnter={() => setActiveCat(cat)}
+                            className="relative"
+                          >
+                            {/* Active indicator bar */}
+                            <div
+                              className={`absolute left-0 top-1/2 -translate-y-1/2 w-[3px] rounded-r-full bg-konkan-green-primary transition-all duration-200 ${
+                                isActive ? 'h-5 opacity-100' : 'h-0 opacity-0'
+                              }`}
+                            />
+                            <Link
+                              href={`/categories/${cat.slug}`}
+                              className={`flex items-center gap-2.5 px-4 py-2.5 text-[13px] transition-all duration-150 ${
+                                isActive
+                                  ? 'text-konkan-green-primary font-semibold bg-konkan-cream/80 dark:bg-[#1a1a30]'
+                                  : 'text-konkan-text-primary/80 dark:text-gray-300 hover:text-konkan-green-primary hover:bg-konkan-cream/40 dark:hover:bg-[#1a1a30]/50'
+                              }`}
+                              onClick={closeCategoryMenu}
+                            >
+                              {catImage ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={catImage} alt="" className={`w-7 h-7 rounded-lg object-cover shrink-0 transition-transform duration-200 ${isActive ? 'scale-110' : ''}`} />
+                              ) : (
+                                <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-[11px] font-bold shrink-0 transition-all duration-200 ${
+                                  isActive
+                                    ? 'bg-konkan-green-primary text-white'
+                                    : 'bg-konkan-cream/80 dark:bg-[#1e1e30] text-konkan-green-primary/70'
+                                }`}>
+                                  {cat.name?.charAt(0)}
+                                </span>
+                              )}
+                              <span className="min-w-0 truncate flex-1">{t(`nav.${catKey}`, { _default: cat.name })}</span>
+                              {cat.children?.length > 0 && (
+                                <ChevronRight className={`w-3.5 h-3.5 shrink-0 transition-all duration-200 ${
+                                  isActive ? 'text-konkan-green-primary translate-x-0.5' : 'text-konkan-text-secondary/40'
+                                }`} />
+                              )}
+                            </Link>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* ── Middle: Subcategories + featured ── */}
+                    <div className="flex-1 overflow-y-auto p-5">
+                      {/* Featured categories — visible when no category is hovered */}
+                      <div className={activeCat ? 'hidden' : ''}>
+                        <div className="flex items-center gap-2 mb-4">
+                          <div className="w-1 h-5 bg-konkan-green-primary rounded-full" />
+                          <h3 className="text-sm font-bold text-konkan-text-primary dark:text-white">Featured Categories</h3>
+                        </div>
+                        <div className="grid grid-cols-3 gap-3">
+                          {sortedCategories.slice(0, 6).map((cat) => {
+                            const catImage = cat.image_url ? getImageUrl(cat.image_url) : null;
+                            return (
+                              <Link
+                                key={cat.id}
+                                href={`/categories/${cat.slug}`}
+                                className="group flex flex-col items-center gap-2 p-4 rounded-xl border border-transparent hover:border-konkan-green-primary/20 hover:bg-gradient-to-b hover:from-konkan-green-primary/5 hover:to-transparent dark:hover:from-konkan-green-primary/10 transition-all duration-200"
+                                onClick={closeCategoryMenu}
+                              >
+                                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-konkan-cream to-white dark:from-[#1a1a30] dark:to-[#12121f] flex items-center justify-center overflow-hidden shadow-sm group-hover:shadow-md group-hover:scale-105 transition-all duration-200">
+                                  {catImage ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={catImage} alt={cat.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" />
+                                  ) : (
+                                    <span className="text-2xl font-bold text-konkan-green-primary/50 group-hover:text-konkan-green-primary transition-colors">
+                                      {cat.name?.charAt(0)}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-center">
+                                  <span className="text-[13px] font-semibold text-konkan-text-primary dark:text-gray-200 group-hover:text-konkan-green-primary transition-colors leading-tight line-clamp-2 block">
+                                    {cat.name}
+                                  </span>
+                                  {cat.product_count > 0 && (
+                                    <span className="text-[10px] text-konkan-text-secondary/50 mt-0.5 block">
+                                      {cat.product_count} products
+                                    </span>
+                                  )}
+                                </div>
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Subcategories — visible when a category is hovered */}
+                      {activeCat && (
+                        <div key={activeCat.id} className="animate-fade-in">
                           <Link
-                            href={`/categories/${cat.slug}`}
-                            className="flex items-center justify-between px-4 py-2.5 text-sm text-konkan-text-primary hover:bg-konkan-cream transition-colors"
+                            href={`/categories/${activeCat.slug}`}
+                            className="flex items-center justify-between mb-4 pb-3 border-b border-konkan-sand/30 dark:border-[#2a2a40] group"
                             onClick={closeCategoryMenu}
                           >
-                            <span className="min-w-0 line-clamp-2">{t(`nav.${catKey}`, { _default: cat.name })}</span>
-                            {cat.children?.length > 0 && (
-                              <ChevronRight className="w-3 h-3 text-konkan-text-secondary shrink-0 ml-1" />
-                            )}
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-1 h-5 bg-konkan-green-primary rounded-full" />
+                              <h3 className="text-sm font-bold text-konkan-text-primary dark:text-white group-hover:text-konkan-green-primary transition-colors">
+                                {activeCat.name}
+                              </h3>
+                              {activeCat.product_count > 0 && (
+                                <span className="text-[10px] font-medium text-konkan-text-secondary/50 bg-konkan-cream dark:bg-[#1a1a30] px-2 py-0.5 rounded-full">
+                                  {activeCat.product_count} products
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-xs text-konkan-green-primary font-semibold group-hover:translate-x-1 transition-transform duration-200">
+                              View All →
+                            </span>
                           </Link>
+                          {activeCat.children?.length > 0 ? (
+                            <div className="grid grid-cols-2 gap-x-8 gap-y-0.5">
+                              {sortByName(activeCat.children).map((child, idx) => (
+                                <Link
+                                  key={child.id}
+                                  href={`/categories/${child.slug}`}
+                                  className="group flex items-center gap-2.5 py-2 text-sm text-konkan-text-secondary/80 dark:text-gray-400 hover:text-konkan-green-primary transition-all duration-150 rounded-lg px-2.5 -mx-2.5 hover:bg-konkan-cream/50 dark:hover:bg-[#1e1e30]"
+                                  style={{ animationDelay: `${idx * 30}ms` }}
+                                  onClick={closeCategoryMenu}
+                                >
+                                  <span className="w-1.5 h-1.5 rounded-full bg-konkan-green-primary/30 group-hover:bg-konkan-green-primary group-hover:scale-125 transition-all duration-200 shrink-0" />
+                                  <span className="truncate font-medium group-hover:translate-x-0.5 transition-transform duration-150">{child.name}</span>
+                                  {child.product_count > 0 && (
+                                    <span className="text-[10px] text-konkan-text-secondary/40 group-hover:text-konkan-green-primary/60 ml-auto shrink-0 tabular-nums">
+                                      {child.product_count}
+                                    </span>
+                                  )}
+                                </Link>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-center justify-center py-8 text-center">
+                              <div className="w-12 h-12 rounded-full bg-konkan-cream dark:bg-[#1a1a30] flex items-center justify-center mb-3">
+                                <svg className="w-6 h-6 text-konkan-text-secondary/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                                </svg>
+                              </div>
+                              <p className="text-sm text-konkan-text-secondary/60">No subcategories yet</p>
+                            </div>
+                          )}
                         </div>
-                      );
-                    })}
-                  </div>
+                      )}
+                    </div>
 
-                  {/* Right column: subcategories of the hovered category (vertical scroll only) */}
-                  {activeCat?.children?.length > 0 && (
-                    <div className="w-64 bg-white py-2 max-h-[calc(100vh-12rem)] overflow-y-auto overflow-x-hidden border-l border-konkan-sand/60">
-                      <p className="px-4 pt-1 pb-2 text-[10px] font-semibold uppercase tracking-widest text-konkan-text-secondary">
-                        {activeCat.name}
-                      </p>
-                      {sortByName(activeCat.children).map((child) => (
+                    {/* ── Right: Promo banner ── */}
+                    {megaBanner && (
+                      <div className="w-[180px] shrink-0 border-l border-konkan-sand/30 dark:border-[#2a2a40] p-3 flex flex-col gap-3">
                         <Link
-                          key={child.id}
-                          href={`/categories/${child.slug}`}
-                          className="block px-4 py-2 text-sm text-konkan-text-primary hover:bg-konkan-cream transition-colors"
+                          href={megaBanner.link || megaBanner.href || '#'}
+                          className="block rounded-2xl overflow-hidden flex-1 group/banner relative"
                           onClick={closeCategoryMenu}
                         >
-                          {child.name}
+                          {megaBanner.image_url ? (
+                            <>
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={getImageUrl(megaBanner.image_url)}
+                                alt={megaBanner.title || megaBanner.text || 'Offer'}
+                                className="w-full h-full object-cover rounded-2xl group-hover/banner:scale-105 transition-transform duration-300"
+                              />
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent rounded-2xl" />
+                              <div className="absolute bottom-3 left-3 right-3">
+                                <span className="text-white text-xs font-bold leading-tight block drop-shadow-lg">
+                                  {megaBanner.title || megaBanner.text || 'Special Offer'}
+                                </span>
+                              </div>
+                            </>
+                          ) : (
+                            <div className="w-full h-full min-h-[200px] bg-gradient-to-br from-konkan-saffron via-orange-500 to-red-500 rounded-2xl flex flex-col items-center justify-center p-4 text-center group-hover/banner:scale-[1.02] transition-transform duration-300">
+                              <span className="text-3xl mb-2">🔥</span>
+                              <span className="text-white text-sm font-bold leading-tight drop-shadow-lg">{megaBanner.title || megaBanner.text || 'Special Offer'}</span>
+                              {megaBanner.subtitle && (
+                                <span className="text-white/80 text-xs mt-1.5">{megaBanner.subtitle}</span>
+                              )}
+                            </div>
+                          )}
                         </Link>
-                      ))}
-                    </div>
-                  )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* ── Bottom: View All Categories ── */}
+                  <Link
+                    href="/categories"
+                    className="flex items-center justify-center gap-2 py-3 border-t border-konkan-sand/30 dark:border-[#2a2a40] bg-gradient-to-r from-konkan-green-primary/5 via-konkan-green-primary/10 to-konkan-green-primary/5 dark:from-konkan-green-primary/10 dark:via-konkan-green-primary/15 dark:to-konkan-green-primary/10 text-sm font-semibold text-konkan-green-primary hover:from-konkan-green-primary/10 hover:via-konkan-green-primary/15 hover:to-konkan-green-primary/10 transition-all duration-200 group"
+                    onClick={closeCategoryMenu}
+                  >
+                    View All Categories
+                    <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-200" />
+                  </Link>
                 </div>
               )}
             </div>
@@ -382,8 +559,8 @@ export default function Navbar() {
                   href={item.href}
                   className={`px-3 py-3 text-sm font-medium transition-colors rounded-lg whitespace-nowrap ${
                     pathname === item.href
-                      ? 'text-konkan-green-primary bg-konkan-green-primary/5'
-                      : 'text-konkan-text-secondary hover:text-konkan-green-primary hover:bg-konkan-green-primary/5'
+                      ? 'text-konkan-green-primary bg-konkan-green-primary/5 dark:text-konkan-green-light dark:bg-konkan-green-light/10'
+                      : 'text-konkan-text-secondary hover:text-konkan-green-primary hover:bg-konkan-green-primary/5 dark:text-gray-400 dark:hover:text-konkan-green-light dark:hover:bg-konkan-green-light/10'
                   }`}
                 >
                   {navLabel(item)}
@@ -409,14 +586,13 @@ export default function Navbar() {
           }`}
           style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
         />
-        {/* Sidebar panel slide from right */}
-        <div
-          className={`absolute right-0 top-0 h-full w-80 max-w-[85vw] bg-white shadow-xl flex flex-col transition-transform duration-300 ease-out ${
+        {/* Sidebar panel slide from right */}          <div
+          className={`absolute right-0 top-0 h-full w-80 max-w-[85vw] bg-white dark:bg-[#0f0f1a] shadow-xl flex flex-col transition-transform duration-300 ease-out ${
             isMobileOpen ? 'translate-x-0' : 'translate-x-full'
           }`}
           onClick={(e) => e.stopPropagation()}
         >
-            <div className="p-4 sm:p-6 border-b border-konkan-sand/50 shrink-0">
+            <div className="p-4 sm:p-6 border-b border-konkan-sand/50 dark:border-[#2a2a40] shrink-0">
               <div className="flex items-center justify-between mb-4">
                 <Link href="/" onClick={() => setIsMobileOpen(false)}>
                   {customLogo ? (
@@ -453,12 +629,12 @@ export default function Navbar() {
             <div className="flex-1 overflow-y-auto p-4 sm:p-6">
               <nav className="space-y-1">
                 {/* Category Links - from API */}
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-konkan-text-secondary mb-2">Categories</p>
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-konkan-text-secondary dark:text-gray-400 mb-2">Categories</p>
                 {sortedCategories.slice(0, 12).map((cat) => (
                   <Link
                     key={cat.id}
                     href={`/categories/${cat.slug}`}
-                    className="flex items-center justify-between px-3 py-2.5 text-sm rounded-xl hover:bg-konkan-cream transition-colors text-konkan-text-primary"
+                    className="flex items-center justify-between px-3 py-2.5 text-sm rounded-xl hover:bg-konkan-cream dark:hover:bg-[#1e1e30] transition-colors text-konkan-text-primary dark:text-gray-200"
                     onClick={() => setIsMobileOpen(false)}
                   >
                     <span>{cat.name}</span>
@@ -474,15 +650,15 @@ export default function Navbar() {
                   <ChevronRight className="w-3.5 h-3.5" />
                 </Link>
 
-                <hr className="my-3 border-konkan-sand" />
+                <hr className="my-3 border-konkan-sand dark:border-[#2a2a40]" />
 
                 {/* Nav Links — admin-managed via the panel */}
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-konkan-text-secondary mb-2">Pages</p>
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-konkan-text-secondary dark:text-gray-400 mb-2">Pages</p>
                 {navItems.map((item) => (
                   <Link
                     key={item.href + item.label}
                     href={item.href}
-                    className="flex items-center justify-between px-3 py-2.5 text-sm rounded-xl hover:bg-konkan-cream transition-colors text-konkan-text-primary"
+                    className="flex items-center justify-between px-3 py-2.5 text-sm rounded-xl hover:bg-konkan-cream dark:hover:bg-[#1e1e30] transition-colors text-konkan-text-primary dark:text-gray-200"
                     onClick={() => setIsMobileOpen(false)}
                   >
                     <span>{navLabel(item)}</span>
@@ -490,10 +666,10 @@ export default function Navbar() {
                   </Link>
                 ))}
 
-                <hr className="my-3 border-konkan-sand" />
+                <hr className="my-3 border-konkan-sand dark:border-[#2a2a40]" />
 
                 {/* Account Links */}
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-konkan-text-secondary mb-2">Account</p>
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-konkan-text-secondary dark:text-gray-400 mb-2">Account</p>
                 {isAuthenticated ? (
                   <>
                     <Link href="/account/profile" className="flex items-center justify-between px-3 py-2.5 text-sm rounded-xl hover:bg-konkan-cream transition-colors text-konkan-text-primary" onClick={() => setIsMobileOpen(false)}>
@@ -521,7 +697,7 @@ export default function Navbar() {
                       <ChevronRight className="w-3.5 h-3.5 text-konkan-text-secondary" />
                     </Link>
                     <hr className="my-2 border-konkan-sand" />
-                    <button onClick={() => { logout(); setIsMobileOpen(false); }} className="flex w-full items-center justify-between px-3 py-2.5 text-sm rounded-xl hover:bg-red-50 transition-colors text-konkan-error">
+                    <button onClick={() => { logout(); setIsMobileOpen(false); }} className="flex w-full items-center justify-between px-3 py-2.5 text-sm rounded-xl hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-konkan-error">
                       <span>{t('nav.sign_out')}</span>
                       <ChevronRight className="w-3.5 h-3.5" />
                     </button>

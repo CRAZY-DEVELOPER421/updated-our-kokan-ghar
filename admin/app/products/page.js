@@ -78,13 +78,14 @@ export default function AdminProductsPage() {
     return p.toString();
   }, [page, searchTerm, selectedCategory, imageStatus, productStatus]);
 
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data, isLoading, isFetching, isError, refetch } = useQuery({
     queryKey: ['admin-products', queryParams],
     queryFn: async () => {
       const res = await api.get(`/admin/products?${queryParams}`);
       return res.data.data;
     },
     retry: 1,
+    placeholderData: (prev) => prev,
   });
 
   useEffect(() => {
@@ -97,7 +98,9 @@ export default function AdminProductsPage() {
     setCurrentPage(1);
   }, [selectedCategory, searchTerm, imageStatus, productStatus]);
 
-  const allProducts = data?.products || [];
+  // While a new fetch is in-flight, keep showing old products so the
+  // table doesn't flash empty and the search input keeps focus.
+  const allProducts = data?.products ?? [];
 
   const sorted = useMemo(() => {
     const arr = [...allProducts];
@@ -152,7 +155,7 @@ export default function AdminProductsPage() {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      const res = await api.post('/import/products', formData, {
+      const res = await api.post('/admin/import/products', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       if (res.data.success) {
@@ -234,8 +237,21 @@ export default function AdminProductsPage() {
           {/* Search */}
           <div className="relative flex-1 sm:flex-none min-w-[180px]">
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-            <input type="text" value={searchInput} onChange={e => setSearchInput(e.target.value)} placeholder="Search products..." className="w-full pl-9 pr-8 py-2 border border-slate-200 rounded-lg text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all placeholder:text-slate-400" />
-            {searchInput && (
+            <input
+              type="text"
+              value={searchInput}
+              onChange={e => setSearchInput(e.target.value)}
+              placeholder="Search products..."
+              className="w-full pl-9 pr-8 py-2 border border-slate-200 rounded-lg text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all placeholder:text-slate-400"
+            />
+            {/* Loading spinner while fetching new results */}
+            {isFetching && !isLoading && (
+              <svg className="absolute right-8 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-emerald-500 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            )}
+            {searchInput && !isFetching && (
               <button onClick={() => { setSearchInput(''); setSearchTerm(''); }} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-600 rounded hover:bg-slate-100 transition-all">
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
               </button>
@@ -257,7 +273,7 @@ export default function AdminProductsPage() {
             <option value="inactive">Inactive</option>
           </select>
           <button
-            onClick={() => downloadCSV('/export/products', 'products.csv')}
+            onClick={() => downloadCSV('/admin/export/products', 'products.csv')}
             className="flex items-center gap-1.5 px-3 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 hover:border-emerald-300 transition-all"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>

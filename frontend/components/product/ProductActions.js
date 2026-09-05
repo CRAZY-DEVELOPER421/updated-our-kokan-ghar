@@ -9,9 +9,13 @@ import useAuthStore from '@/lib/store/authStore';
 import useWishlistStore from '@/lib/store/wishlistStore';
 import { getImageUrl } from '@/lib/utils';
 import { trackAddToCart } from '@/lib/gtag';
+import { useFlyToCart } from '@/components/ui/FlyToCart';
+import ShareModal from '@/components/ui/ShareModal';
 
-export default function ProductActions({ product, stockQuantity = 0, variants = [] }) {
+export default function ProductActions({ product, stockQuantity = 0, variants = [], flyToCart: flyToCartProp }) {
   const router = useRouter();
+  const flyToCartCtx = useFlyToCart();
+  const flyToCart = flyToCartProp || flyToCartCtx;
   const { isAuthenticated } = useAuthStore();
   const items = useCartStore((s) => s.items);
   const addToCart = useCartStore((s) => s.addToCart);
@@ -45,8 +49,9 @@ export default function ProductActions({ product, stockQuantity = 0, variants = 
   );
   const [wishlistToggling, setWishlistToggling] = useState(false);
 
-  // Share
-  const [sharing, setSharing] = useState(false);
+  // Share — opens the share modal (QR Code + Link tabs)
+  const [showShare, setShowShare] = useState(false);
+  const productUrl = typeof window !== 'undefined' ? `${window.location.origin}/products/${product.slug}` : '';
 
   const productId = product.id;
 
@@ -87,14 +92,24 @@ export default function ProductActions({ product, stockQuantity = 0, variants = 
     }
   };
 
+  // ── Product image for fly-to-cart animation ──
+  const productImageUrl = getImageUrl(product.images?.[0]?.image_url || product.primary_image);
+
   // ── Add to Cart ─────────────────────────────────────
   // Guests can add to cart WITHOUT an account (guest cart). They only need
   // to login/signup at checkout — that's when the guest cart is merged.
-  const handleAddToCart = useCallback(async () => {
+  const handleAddToCart = useCallback(async (e) => {
+    // Capture button rect BEFORE await — after API success, isInCart becomes
+    // true and the <button> gets replaced by a <Link>, making e.currentTarget stale.
+    const startRect = e?.currentTarget?.getBoundingClientRect?.();
     setIsAdding(true);
     const res = await addToCart(productId, selectedVariant?.id || null, qty);
     setIsAdding(false);
     if (res.success) {
+      // Fly-to-cart animation — rect captured before await to avoid stale DOM ref
+      if (flyToCart && productImageUrl && startRect) {
+        flyToCart(productImageUrl, startRect.left + startRect.width / 2, startRect.top + startRect.height / 2);
+      }
       // Fire GA4 add_to_cart event
       trackAddToCart(
         {
@@ -114,7 +129,7 @@ export default function ProductActions({ product, stockQuantity = 0, variants = 
       // DURING the request, so the render-time value would be stale.
       toast.error(res.message || 'Failed to add to cart');
     }
-  }, [productId, selectedVariant, qty, addToCart]);
+  }, [productId, selectedVariant, qty, addToCart, flyToCart, productImageUrl]);
 
   // ── Buy Now ─────────────────────────────────────────
   // Adds to the cart first (guest carts included), then heads to checkout.
@@ -162,54 +177,6 @@ export default function ProductActions({ product, stockQuantity = 0, variants = 
       toast.error(res.message || 'Failed to update wishlist');
     }
   }, [isAuthenticated, productId, toggleWishlist, router]);
-
-  // ── Share ────────────────────────────────────────────
-  const handleShare = useCallback(async () => {
-    if (sharing) return;
-    setSharing(true);
-
-    const url = `${window.location.origin}/products/${product.slug}`;
-    const imageUrl = getImageUrl(product.primary_image || product.images?.[0]?.image_url);
-
-    if (typeof navigator !== 'undefined' && navigator.share) {
-      try {
-        const shareData = {
-          title: product.name,
-          text: product.short_description || `Check out ${product.name} from Konkan Ghar!`,
-          url,
-        };
-        if (imageUrl && navigator.canShare) {
-          try {
-            const resp = await fetch(imageUrl);
-            const blob = await resp.blob();
-            const ext = blob.type.split('/')[1] || 'jpg';
-            const imageFile = new File([blob], `product-${product.id}.${ext}`, { type: blob.type });
-            const withImage = { ...shareData, files: [imageFile] };
-            if (navigator.canShare(withImage)) {
-              await navigator.share(withImage);
-              setSharing(false);
-              return;
-            }
-          } catch {
-            // image sharing failed — fall through to text-only share
-          }
-        }
-        await navigator.share(shareData);
-      } catch (err) {
-        if (err.name !== 'AbortError') {
-          toast.error('Could not share');
-        }
-      }
-    } else {
-      try {
-        await navigator.clipboard.writeText(url);
-        toast.success('Product link copied to clipboard!');
-      } catch {
-        toast.error('Could not copy link');
-      }
-    }
-    setSharing(false);
-  }, [product, sharing]);
 
   // ── Shared button classes ────────────────────────────
   const secondaryBtnClass =
@@ -352,20 +319,12 @@ export default function ProductActions({ product, stockQuantity = 0, variants = 
 
         {/* Share */}
         <button
-          onClick={handleShare}
-          disabled={sharing}
+          onClick={() => setShowShare(true)}
           className={secondaryBtnClass}
         >
-          {sharing ? (
-            <svg className="w-4 h-4 animate-spin shrink-0" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
-          ) : (
-            <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-            </svg>
-          )}
+          <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+          </svg>
           <span className="hidden sm:inline">Share</span>
         </button>
       </div>
@@ -383,6 +342,15 @@ export default function ProductActions({ product, stockQuantity = 0, variants = 
           Buy Now
         </button>
       )}
+
+      {/* Share modal — QR code + link (scan with another phone to open) */}
+      <ShareModal
+        isOpen={showShare}
+        onClose={() => setShowShare(false)}
+        title={product.name}
+        description={product.short_description || `Check out ${product.name} from Konkan Ghar!`}
+        url={productUrl}
+      />
     </div>
   );
 }

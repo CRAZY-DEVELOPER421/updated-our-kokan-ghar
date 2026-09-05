@@ -1,6 +1,20 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
 const searchController = require('../controllers/search.controller');
+
+// Memory storage for image search — no need to save to disk
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed.'), false);
+    }
+  },
+});
 
 /**
  * @swagger
@@ -73,5 +87,26 @@ router.get('/suggestions', searchController.getSuggestions);
  *         description: Trending search terms.
  */
 router.get('/trending', searchController.getTrending);
+
+/**
+ * @swagger
+ * /search/image:
+ *   post:
+ *     summary: Search products by image (visual similarity)
+ *     tags: [Search]
+ *     requestBody:
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Visually similar products.
+ */
+router.post('/image', upload.single('image'), searchController.searchByImage);
 
 module.exports = router;

@@ -70,7 +70,7 @@ export default function MobileHeader() {
     <>
       {/* ── Sticky Main Header Bar ── */}
       <header
-        className="bg-white"
+        className="bg-white dark:bg-[#0f0f1a]"
         style={{ boxShadow: '0 2px 6px rgba(0,0,0,0.08)' }}
       >
         <div className="flex items-center justify-between h-14 px-4">
@@ -116,15 +116,14 @@ export default function MobileHeader() {
             )}
           </Link>
 
-          {/* Right: Search + Bell + Cart */}
+          {/* Right: Theme Toggle + Search + Bell + Cart */}
           <div className="flex items-center gap-1 sm:gap-2">
             {/* Search */}
             <Link
-              href="/search"
-              className="flex items-center justify-center min-w-[44px] min-h-[44px]"
+              href="/search"              className="flex items-center justify-center min-w-[44px] min-h-[44px] dark:text-gray-200"
               style={{ color: '#1A1A1A' }}
               aria-label="Search"
-            >
+          >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
@@ -173,6 +172,7 @@ export default function MobileHeader() {
 
             {/* Cart */}
             <Link
+              id="fly-cart-target"
               href="/cart"
               className="relative flex items-center justify-center min-w-[44px] min-h-[44px] -mr-2"
               style={{ color: '#1A1A1A' }}
@@ -211,7 +211,7 @@ export default function MobileHeader() {
         />
         {/* Sidebar panel slide from left */}
         <div
-          className={`absolute left-0 top-0 h-full w-72 bg-white shadow-xl flex flex-col transition-transform duration-300 ease-out ${
+          className={`absolute left-0 top-0 h-full w-72 bg-white dark:bg-[#0f0f1a] shadow-xl flex flex-col transition-transform duration-300 ease-out ${
             menuOpen ? 'translate-x-0' : '-translate-x-full'
           }`}
           onClick={(e) => e.stopPropagation()}
@@ -247,7 +247,7 @@ export default function MobileHeader() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="flex items-center justify-between px-3 py-2.5 text-sm rounded-xl hover:bg-[#E8F0EC] transition-colors"
+                  className="flex items-center justify-between px-3 py-2.5 text-sm rounded-xl hover:bg-[#E8F0EC] dark:hover:bg-[#1e1e30] transition-colors dark:text-gray-200"
                   style={{ color: '#1A1A1A' }}
                   onClick={() => setMenuOpen(false)}
                 >
@@ -257,8 +257,8 @@ export default function MobileHeader() {
                   </svg>
                 </Link>
               ))}
-              <hr className="my-3 border-gray-100" />
-              <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#8A8A8A' }}>Pages</p>
+              <hr className="my-3 border-gray-100 dark:border-[#2a2a40]" />
+              <p className="text-[10px] font-semibold uppercase tracking-widest dark:text-gray-400" style={{ color: '#8A8A8A' }}>Pages</p>
               {(navItems.length > 0
                 ? navItems.filter((i) => !i.href.startsWith('/#') && !i.href.startsWith('/products?') && !i.href.startsWith('/categories/'))
                 : [
@@ -271,7 +271,7 @@ export default function MobileHeader() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="flex items-center justify-between px-3 py-2.5 text-sm rounded-xl hover:bg-[#E8F0EC] transition-colors"
+                  className="flex items-center justify-between px-3 py-2.5 text-sm rounded-xl hover:bg-[#E8F0EC] dark:hover:bg-[#1e1e30] transition-colors dark:text-gray-200"
                   style={{ color: '#1A1A1A' }}
                   onClick={() => setMenuOpen(false)}
                 >
@@ -281,8 +281,8 @@ export default function MobileHeader() {
                   </svg>
                 </Link>
               ))}
-              <hr className="my-3 border-gray-100" />
-              <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#8A8A8A' }}>Account</p>
+              <hr className="my-3 border-gray-100 dark:border-[#2a2a40]" />
+              <p className="text-[10px] font-semibold uppercase tracking-widest dark:text-gray-400" style={{ color: '#8A8A8A' }}>Account</p>
               {suspended ? (
                 <>
                   <div
@@ -325,7 +325,7 @@ export default function MobileHeader() {
                   <Link
                     key={item.href}
                     href={item.href}
-                    className="flex items-center justify-between px-3 py-2.5 text-sm rounded-xl hover:bg-[#E8F0EC] transition-colors"
+                    className="flex items-center justify-between px-3 py-2.5 text-sm rounded-xl hover:bg-[#E8F0EC] dark:hover:bg-[#1e1e30] transition-colors dark:text-gray-200"
                     style={{ color: '#1A1A1A' }}
                     onClick={() => setMenuOpen(false)}
                   >

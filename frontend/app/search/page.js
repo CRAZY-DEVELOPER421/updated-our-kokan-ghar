@@ -22,6 +22,10 @@ const SortDropdown = dynamic(() => import('@/components/product/SortDropdown'));
 
 const ActiveFilterChips = dynamic(() => import('@/components/product/ActiveFilterChips'));
 
+const SearchBar = dynamic(() => import('@/components/ui/SearchBar'), {
+  loading: () => <div className="skeleton h-14 rounded-[5px]" />,
+});
+
 const TRENDING_TERMS = [
   'Alphonso Mangoes', 'Cashews', 'Spices', 'Coconut Oil', 'Seafood',
   'Organic Rice', 'Honey', 'Banana Chips', 'Pickles', 'Tea',
@@ -59,13 +63,24 @@ export default async function SearchPage({ searchParams }) {
   const sp = await searchParams;
   const query = sp?.q || '';
 
+  // A search is "active" even without a text query — voice search can land
+  // here with only filters (e.g. ?category=kokan-cashew-kaju&max_price=500
+  // from "cashew under 500"). Show results for those too.
+  const hasCategory = !!sp?.category;
+  const hasPrice = !!(sp?.min_price || sp?.max_price);
+  const isSearchActive = !!(query || hasCategory || hasPrice);
+
   return (
     <div className="container-custom py-6 md:py-8 animate-fade-in">
       <Breadcrumb items={[{ label: query ? `Search: "${query}"` : 'Search' }]} />
 
       {/* Trending / No Query State */}
-      {!query && (
+      {!isSearchActive && (
         <div className="text-center mb-8">
+          {/* Search bar with voice — prominent on mobile, centered on desktop */}
+          <div className="max-w-xl mx-auto mb-8">
+            <SearchBar />
+          </div>
           <h2 className="font-display text-xl font-bold text-konkan-text-primary mb-4">
             Trending Searches
           </h2>
@@ -100,7 +115,7 @@ export default async function SearchPage({ searchParams }) {
       )}
 
       {/* Search Results */}
-      {query && (
+      {isSearchActive && (
         <div className="flex gap-6">
           {/* Filters Sidebar */}
           <Suspense fallback={<div className="w-64 skeleton h-96 rounded-xl shrink-0 hidden lg:block" />}>
@@ -112,11 +127,16 @@ export default async function SearchPage({ searchParams }) {
             {/* Header */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
               <h1 className="font-display text-xl md:text-2xl font-bold text-konkan-text-primary">
-                Results for &ldquo;{query}&rdquo;
+                {query ? `Results for “${query}”` : 'All matching products'}
               </h1>
               <Suspense fallback={<div className="skeleton h-10 w-48 rounded-lg" />}>
                 <SortDropdown />
               </Suspense>
+            </div>
+
+            {/* Mobile search bar with voice — visible only on small screens */}
+            <div className="lg:hidden mb-4">
+              <SearchBar />
             </div>
 
             {/* Active Filter Chips */}

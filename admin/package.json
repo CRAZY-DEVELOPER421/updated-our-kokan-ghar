@@ -20,6 +20,7 @@
     "lucide-react": "^1.21.0",
     "next": "^16.2.12",
     "postcss": "^8.4.35",
+    "qrcode.react": "^4.2.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-easy-crop": "^6.2.3",

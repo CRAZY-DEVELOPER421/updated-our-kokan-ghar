@@ -85,8 +85,21 @@ router.post("/", verifyToken, isAdmin, uploadImage.single("image"), asyncHandler
  *       400:
  *         description: No file uploaded or invalid file type.
  */
-router.post("/image", verifyToken, isAdmin, uploadImage.single("image"), asyncHandler(async (req, res) => {
-  if (!req.file) return ApiResponse.error(res, "No file uploaded.", 400);
+router.post("/image", verifyToken, isAdmin, (req, res, next) => {
+  uploadImage.single("image")(req, res, (err) => {
+    if (err) {
+      console.error('[Upload] multer error:', err.message, '| code:', err.code);
+      if (err.code === 'LIMIT_FILE_SIZE') return ApiResponse.error(res, 'File too large. Max 10MB.', 400);
+      return ApiResponse.error(res, err.message || 'Upload failed.', 400);
+    }
+    next();
+  });
+}, asyncHandler(async (req, res) => {
+  if (!req.file) {
+    console.error('[Upload] No file in request. Content-Type:', req.headers['content-type']);
+    return ApiResponse.error(res, "No file uploaded. Make sure the request is multipart/form-data.", 400);
+  }
+  console.log('[Upload] Image saved:', req.file.filename, '(' + req.file.size + ' bytes)');
   return ApiResponse.success(res, { url: `/uploads/${req.file.filename}` });
 }));
 

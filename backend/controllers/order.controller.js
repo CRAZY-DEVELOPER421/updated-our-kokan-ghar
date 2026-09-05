@@ -3,6 +3,7 @@ const ApiResponse = require('../utils/apiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 const { v4: uuidv4 } = require('uuid');
 const loyaltyService = require('../services/loyalty.service');
+const { computeSlabDiscount } = require('../services/slabDiscount.service');
 const { sendEmail, sendOrderConfirmation } = require('../services/email.service');
 const { sendOrderSMS } = require('../services/sms.service');
 const { createNotification } = require('../services/notification.service');
@@ -75,6 +76,11 @@ const createOrder = asyncHandler(async (req, res) => {
   const taxAmount = Math.round(subtotal * 0.05 * 100) / 100;
   const couponDiscount = cart[0].coupon_discount || 0;
 
+  // ── Buy More, Save More slab discount ───────────────────────────────────
+  // Shared calc with the cart page (backend/services/slabDiscount.service.js)
+  // so the amount shown at checkout is exactly what gets charged here.
+  const { percent: slabPercent, discount: slabDiscount } = computeSlabDiscount(subtotal, couponDiscount);
+
   // ── Loyalty points redemption ────────────────────────────────────────────
   // Optional: customer pays with Konkan Points. Points are deducted from the
   // balance and the ₹ discount is applied on top of any coupon. The discount
@@ -91,7 +97,8 @@ const createOrder = asyncHandler(async (req, res) => {
     }
 
     pointsUsed = redeem.pointsUsed;
-    pointsDiscount = Math.min(redeem.discountAmount, Math.max(subtotal - couponDiscount, 0));
+    // Points cap accounts for the slab too — item total can never go negative.
+    pointsDiscount = Math.min(redeem.discountAmount, Math.max(subtotal - couponDiscount - slabDiscount, 0));
 
     // Cap hit → give back the points that couldn't be applied.
     if (pointsDiscount < redeem.discountAmount) {
@@ -103,14 +110,14 @@ const createOrder = asyncHandler(async (req, res) => {
     }
   }
 
-  const totalAmount = Math.round(Math.max((subtotal - couponDiscount - pointsDiscount + shippingCharge + taxAmount), 0) * 100) / 100;
+  const totalAmount = Math.round(Math.max((subtotal - couponDiscount - slabDiscount - pointsDiscount + shippingCharge + taxAmount), 0) * 100) / 100;
 
   const orderNumber = generateOrderNumber();
 
   const [orderResult] = await pool.query(
-    `INSERT INTO orders (order_number, user_id, address_id, status, subtotal, discount_amount, coupon_code, coupon_discount, points_used, points_discount, shipping_charge, tax_amount, total_amount, payment_method, payment_status, notes, estimated_delivery)
-     VALUES (?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, DATE_ADD(NOW(), INTERVAL 5 DAY))`,
-    [orderNumber, req.user.id, address_id, subtotal, couponDiscount + pointsDiscount, cart[0].coupon_code, couponDiscount, pointsUsed, pointsDiscount, shippingCharge, taxAmount, totalAmount, payment_method, notes || null]
+    `INSERT INTO orders (order_number, user_id, address_id, status, subtotal, discount_amount, coupon_code, coupon_discount, slab_percent, slab_discount, points_used, points_discount, shipping_charge, tax_amount, total_amount, payment_method, payment_status, notes, estimated_delivery)
+     VALUES (?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, DATE_ADD(NOW(), INTERVAL 5 DAY))`,
+    [orderNumber, req.user.id, address_id, subtotal, couponDiscount + slabDiscount + pointsDiscount, cart[0].coupon_code, couponDiscount, slabPercent, slabDiscount, pointsUsed, pointsDiscount, shippingCharge, taxAmount, totalAmount, payment_method, notes || null]
   );
 
   // Order insert failed after points were deducted → give them back.

@@ -108,7 +108,7 @@ export default function DeliveryLocation({ className = '' }) {
         type="button"
         onClick={() => setOpen(!open)}
         className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 transition-colors text-left ${
-          open ? 'bg-konkan-cream' : 'hover:bg-konkan-cream/70'
+          open ? 'bg-konkan-cream dark:bg-[#1e1e30]' : 'hover:bg-konkan-cream/70 dark:hover:bg-[#1e1e30]/70'
         }`}
         aria-haspopup="dialog"
         aria-expanded={open}
@@ -131,12 +131,12 @@ export default function DeliveryLocation({ className = '' }) {
         <div
           role="dialog"
           aria-label="Choose your delivery location"
-          className="absolute right-0 top-full mt-2 w-72 bg-white rounded-2xl shadow-modal border border-konkan-sand overflow-hidden z-50"
+          className="absolute right-0 top-full mt-2 w-72 bg-white dark:bg-[#1a1a2e] rounded-2xl shadow-modal border border-konkan-sand dark:border-[#2a2a40] overflow-hidden z-50"
         >
           {/* Pincode entry */}
           <div className="p-4 border-b border-konkan-sand/50">
-            <p className="text-sm font-semibold text-konkan-text-primary">Choose your delivery location</p>
-            <p className="text-xs text-konkan-text-secondary mt-0.5 mb-3">Enter your pincode to see delivery options.</p>
+            <p className="text-sm font-semibold text-konkan-text-primary dark:text-gray-100">Choose your delivery location</p>
+            <p className="text-xs text-konkan-text-secondary dark:text-gray-400 mt-0.5 mb-3">Enter your pincode to see delivery options.</p>
             <form
               className="flex gap-2"
               onSubmit={(e) => {

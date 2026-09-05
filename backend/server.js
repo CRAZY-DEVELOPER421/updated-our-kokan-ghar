@@ -198,6 +198,20 @@ const ensureSuspendColumn = async () => {
 };
 
 ensureSuspendColumn().finally(async () => {
+  // Self-heal: ensure the slab-discount ledger columns exist (Buy More,
+  // Save More). createOrder INSERTs slab_percent/slab_discount, so a DB
+  // created before the feature would 500 without this.
+  try {
+    const [cols] = await pool.query(
+      "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'orders' AND COLUMN_NAME = 'slab_discount'"
+    );
+    if (cols.length === 0) {
+      await pool.query('ALTER TABLE orders ADD COLUMN slab_percent TINYINT UNSIGNED NOT NULL DEFAULT 0 AFTER coupon_discount, ADD COLUMN slab_discount DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER slab_percent');
+      console.log('[Startup] orders.slab_percent / slab_discount columns created.');
+    }
+  } catch (err) {
+    console.error('[Startup] slab columns self-heal failed:', err.message);
+  }
   // Ensure stock_alerts table + low_stock_threshold column exist
   try {
     const { ensureStockAlertSchema } = require('./services/stockAlert.service');

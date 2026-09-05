@@ -4,7 +4,7 @@ const asyncHandler = require('../utils/asyncHandler');  const getProducts = asyn
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 24;
     const offset = (page - 1) * limit;
-    const { category, min_price, max_price, rating, sort, q, organic, seasonal, featured, region, brand, in_stock, discount, bestseller, lang } = req.query;
+    const { category, sub, min_price, max_price, rating, sort, q, organic, seasonal, featured, region, brand, in_stock, discount, bestseller, lang } = req.query;
 
   let whereClause = 'WHERE p.is_active = 1';
   const params = [];
@@ -23,17 +23,34 @@ const asyncHandler = require('../utils/asyncHandler');  const getProducts = asyn
     }
 
     if (categoryId) {
-      // Find child category IDs (subcategories)
-      const [childRows] = await pool.query(
-        'SELECT id FROM categories WHERE parent_id = ? AND is_active = 1',
-        [categoryId]
-      );
+      // If `sub` is set, filter to that specific subcategory only.
+      // Otherwise include the parent + all children.
+      if (sub) {
+        let subId = isNaN(sub) ? null : parseInt(sub);
+        if (subId === null) {
+          const [subRows] = await pool.query(
+            'SELECT id FROM categories WHERE slug = ? AND is_active = 1',
+            [sub]
+          );
+          if (subRows.length > 0) subId = subRows[0].id;
+        }
+        if (subId) {
+          whereClause += ' AND p.category_id = ?';
+          params.push(subId);
+        }
+      } else {
+        // Find child category IDs (subcategories)
+        const [childRows] = await pool.query(
+          'SELECT id FROM categories WHERE parent_id = ? AND is_active = 1',
+          [categoryId]
+        );
 
-      // Build list of category IDs: the category itself + its children
-      const catIds = [categoryId, ...childRows.map(c => c.id)];
-      const placeholders = catIds.map(() => '?').join(',');
-      whereClause += ` AND p.category_id IN (${placeholders})`;
-      params.push(...catIds);
+        // Build list of category IDs: the category itself + its children
+        const catIds = [categoryId, ...childRows.map(c => c.id)];
+        const placeholders = catIds.map(() => '?').join(',');
+        whereClause += ` AND p.category_id IN (${placeholders})`;
+        params.push(...catIds);
+      }
     }
   }
 
@@ -239,6 +256,29 @@ const getProductBySlug = asyncHandler(async (req, res) => {
     [product.id]
   );
 
+  // ── Social proof — real purchase data (trust + urgency) ──
+  // Only genuine non-cancelled orders count; nothing is fabricated.
+  const [boughtRows] = await pool.query(
+    `SELECT COALESCE(SUM(oi.quantity), 0) AS units
+     FROM order_items oi
+     JOIN orders o ON o.id = oi.order_id
+     WHERE oi.product_id = ?
+       AND o.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+       AND o.status NOT IN ('cancelled','returned','return_requested','refund_initiated','refunded')`,
+    [product.id]
+  );
+  const [recentRows] = await pool.query(
+    `SELECT a.city, o.created_at
+     FROM order_items oi
+     JOIN orders o ON o.id = oi.order_id
+     JOIN addresses a ON a.id = o.address_id
+     WHERE oi.product_id = ?
+       AND o.status NOT IN ('cancelled','returned','return_requested','refund_initiated','refunded')
+     ORDER BY o.created_at DESC
+     LIMIT 1`,
+    [product.id]
+  );
+
   await pool.query(
     'UPDATE products SET views_count = views_count + 1 WHERE id = ?',
     [product.id]
@@ -249,6 +289,13 @@ const getProductBySlug = asyncHandler(async (req, res) => {
   product.tags = tags.map(t => t.tag);
   product.flash_sale = flashSale.length > 0 ? flashSale[0] : null;
   product.tags_list = tags.map(t => t.tag);
+
+  product.social_proof = {
+    bought_last_30_days: Number(boughtRows[0]?.units) || 0,
+    recent_purchase: recentRows.length > 0
+      ? { city: recentRows[0].city, at: new Date(recentRows[0].created_at).toISOString() }
+      : null,
+  };
 
   // Apply regional content based on ?lang= param
   resolveRegional(product, lang);

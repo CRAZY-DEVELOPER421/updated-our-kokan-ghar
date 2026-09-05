@@ -9,9 +9,9 @@ import api from '@/lib/api';
 import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import Skeleton from '@/components/ui/Skeleton';
-import StarRating from '@/components/ui/StarRating';
 import toast from 'react-hot-toast';
 import Breadcrumb from '@/components/ui/Breadcrumb';
+import { QRCodeSVG } from 'qrcode.react';
 
 const STATUS_VARIANTS = {
   pending: 'default',
@@ -86,6 +86,12 @@ export default function OrderDetailPage() {
   const timelineStatuses = ['pending', 'confirmed', 'processing', 'shipped', 'delivered'];
   const currentIdx = timelineStatuses.indexOf(order.status);
   const isCancelled = order.status === 'cancelled';
+
+  // Public order URL — scanning opens the order summary even on a logged-out phone
+  const orderQrUrl =
+    typeof window !== 'undefined'
+      ? `${window.location.origin}/order-success?order=${encodeURIComponent(order.order_number)}`
+      : '';
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -182,6 +188,21 @@ export default function OrderDetailPage() {
         )}
       </div>
 
+      {/* Order QR — scan for order details at delivery/pickup */}
+      {orderQrUrl && (
+        <div className="bg-white rounded-2xl card p-4 flex items-center gap-4">
+          <div className="bg-white p-2 rounded-xl border border-konkan-sand/40 shrink-0">
+            <QRCodeSVG value={orderQrUrl} size={76} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-display font-bold text-konkan-text-primary text-sm">Order QR</h3>
+            <p className="text-xs text-konkan-text-secondary mt-0.5">
+              Scan to view order details — handy at delivery or pickup
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Order Items */}
       <div className="bg-white rounded-2xl card p-6">
         <h3 className="font-display font-bold text-konkan-text-primary mb-4">Items ({order.items?.length || 0})</h3>
@@ -219,6 +240,7 @@ export default function OrderDetailPage() {
           <div className="flex justify-between"><span className="text-konkan-text-secondary">Subtotal</span><span>₹{order.subtotal || 0}</span></div>
           {order.discount > 0 && <div className="flex justify-between"><span className="text-konkan-text-secondary">Discount</span><span className="text-konkan-success">-₹{order.discount}</span></div>}
           {order.coupon_discount > 0 && <div className="flex justify-between"><span className="text-konkan-text-secondary">Coupon</span><span className="text-konkan-success">-₹{order.coupon_discount}</span></div>}
+          {order.slab_discount > 0 && <div className="flex justify-between"><span className="text-konkan-text-secondary">Slab Discount{order.slab_percent > 0 ? ` (${order.slab_percent}%)` : ''}</span><span className="text-konkan-success">-₹{order.slab_discount}</span></div>}
           <div className="flex justify-between"><span className="text-konkan-text-secondary">Shipping</span><span className={order.shipping_charge === 0 ? 'text-konkan-success' : ''}>{order.shipping_charge === 0 ? 'FREE' : `₹${order.shipping_charge}`}</span></div>
           <div className="flex justify-between"><span className="text-konkan-text-secondary">GST</span><span>₹{order.tax_amount || 0}</span></div>
           <hr className="border-konkan-sand/50" />

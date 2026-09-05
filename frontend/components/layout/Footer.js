@@ -105,7 +105,7 @@ export default function Footer() {
   const customLogo = getImageUrl(s.site_logo);
 
   return (
-    <footer className="text-konkan-cream" style={{ backgroundColor: '#3D2B1F', backgroundImage: 'none' }}>
+    <footer className="text-konkan-cream dark:text-gray-200 bg-[#3D2B1F] dark:bg-[#0a0a12]" style={{ backgroundImage: 'none' }}>
       {/* Main Footer */}
       <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-16">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
@@ -238,15 +238,15 @@ export default function Footer() {
             <span className="text-konkan-sand/60 text-xs">We Accept:</span>
             {/* Razorpay */}
             <span className="flex items-center justify-center" style={{ height: '28px', padding: '0 10px', backgroundColor: '#FFFFFF', borderRadius: '6px' }}>
-              <Image src="/images/payments/razorpay.svg" alt="Razorpay" width={60} height={20} className="h-5 w-auto" unoptimized />
+              <Image src="/images/payments/razorpay.svg" alt="Razorpay" width={60} height={20} className="h-5 w-auto" unoptimized style={{ width: 'auto', height: 'auto' }} />
             </span>
             {/* UPI */}
             <span className="flex items-center justify-center" style={{ height: '28px', padding: '0 10px', backgroundColor: '#FFFFFF', borderRadius: '6px' }}>
-              <Image src="/images/payments/upi.svg" alt="UPI" width={60} height={20} className="h-5 w-auto" unoptimized />
+              <Image src="/images/payments/upi.svg" alt="UPI" width={60} height={20} className="h-5 w-auto" unoptimized style={{ width: 'auto', height: 'auto' }} />
             </span>
             {/* Visa */}
             <span className="flex items-center justify-center" style={{ height: '28px', padding: '0 10px', backgroundColor: '#FFFFFF', borderRadius: '6px' }}>
-              <Image src="/images/payments/visa.svg" alt="Visa" width={56} height={18} className="h-5 w-auto" unoptimized />
+              <Image src="/images/payments/visa.svg" alt="Visa" width={56} height={18} className="h-5 w-auto" unoptimized style={{ width: 'auto', height: 'auto' }} />
             </span>
             {/* Mastercard */}
             <span className="flex items-center justify-center" style={{ height: '28px', padding: '0 10px', backgroundColor: '#FFFFFF', borderRadius: '6px' }}>
@@ -258,7 +258,7 @@ export default function Footer() {
             </span>
             {/* Net Banking */}
             <span className="flex items-center justify-center" style={{ height: '28px', padding: '0 10px', backgroundColor: '#FFFFFF', borderRadius: '6px' }}>
-              <Image src="/images/payments/netbanking.svg" alt="Net Banking" width={90} height={20} className="h-5 w-auto" unoptimized />
+              <Image src="/images/payments/netbanking.svg" alt="Net Banking" width={90} height={20} className="h-5 w-auto" unoptimized style={{ width: 'auto', height: 'auto' }} />
             </span>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-5">

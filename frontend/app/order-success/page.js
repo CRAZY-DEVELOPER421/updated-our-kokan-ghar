@@ -8,11 +8,18 @@ import Button from '@/components/ui/Button';
 import BestsellerRow from '@/components/home/BestsellerRow';
 import api from '@/lib/api';
 import { trackPurchase } from '@/lib/gtag';
+import { QRCodeSVG } from 'qrcode.react';
 
 function OrderSuccessContent() {
   const searchParams = useSearchParams();
   const orderNumber = searchParams.get('order') || '';
   const [mounted, setMounted] = useState(false);
+
+  // Public order URL — works even for a logged-out phone scanning the QR
+  const orderQrUrl =
+    mounted && orderNumber
+      ? `${window.location.origin}/order-success?order=${encodeURIComponent(orderNumber)}`
+      : '';
 
   useEffect(() => {
     setMounted(true);
@@ -129,6 +136,17 @@ function OrderSuccessContent() {
               <span className="text-sm font-medium text-konkan-success">✓ Confirmed</span>
             </div>
           </div>
+
+          {/* Order QR — scan with another phone to view order details (handy at pickup/delivery) */}
+          {orderQrUrl && (
+            <div className="mt-5 pt-4 border-t border-konkan-sand/50 text-center">
+              <p className="text-xs font-medium text-konkan-text-primary mb-1">Order QR</p>
+              <p className="text-[11px] text-konkan-text-secondary mb-3">Scan to view order details — show at delivery or pickup</p>
+              <div className="inline-block bg-white p-3 rounded-2xl border border-konkan-sand/40 shadow-sm">
+                <QRCodeSVG value={orderQrUrl} size={140} />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* What happens next */}
